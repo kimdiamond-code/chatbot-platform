@@ -1,0 +1,18 @@
+# Ignore backup and old files
+api/BACKUP/
+api/*.OLD
+api/**/*.OLD
+*.OLD
+
+# Ignore docs
+docs/
+*.md
+!README.md
+
+# Ignore development files
+.env.local
+.env.development
+
+# Ignore cache
+.vercel/cache/
+node_modules/.cache/

@@ -1,0 +1,41 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+
+function App() {
+  return React.createElement('div', {
+    style: { 
+      padding: '50px', 
+      textAlign: 'center',
+      fontFamily: 'Arial, sans-serif'
+    }
+  }, [
+    React.createElement('h1', {
+      key: 'title',
+      style: { 
+        color: 'green', 
+        fontSize: '48px',
+        margin: '20px 0'
+      }
+    }, '✅ REACT IS WORKING!'),
+    React.createElement('p', {
+      key: 'text',
+      style: { fontSize: '24px', margin: '20px 0' }
+    }, 'If you see this, React is loading correctly.'),
+    React.createElement('button', {
+      key: 'button',
+      onClick: () => alert('JavaScript is working!'),
+      style: { 
+        padding: '20px 40px', 
+        fontSize: '20px', 
+        backgroundColor: 'blue', 
+        color: 'white', 
+        border: 'none', 
+        borderRadius: '10px',
+        cursor: 'pointer'
+      }
+    }, 'Click Me to Test JavaScript')
+  ]);
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));

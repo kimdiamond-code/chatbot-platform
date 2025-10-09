@@ -1,0 +1,494 @@
+/* ✨ MODERN HAMBURGER MENU STYLES - ENHANCED 2024 ✨ */
+/* State-of-the-art hamburger menu animations and microinteractions */
+
+/* 🍔 HAMBURGER ICON ANIMATIONS */
+@keyframes hamburger-line-1-open {
+  0% { 
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(6px) rotate(0deg);
+  }
+  100% {
+    transform: translateY(6px) rotate(45deg);
+  }
+}
+
+@keyframes hamburger-line-1-close {
+  0% {
+    transform: translateY(6px) rotate(45deg);
+  }
+  50% {
+    transform: translateY(6px) rotate(0deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes hamburger-line-2-open {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(0.8) rotate(90deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(180deg);
+  }
+}
+
+@keyframes hamburger-line-2-close {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(180deg);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(0.8) rotate(90deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes hamburger-line-3-open {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(0deg);
+  }
+  100% {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+}
+
+@keyframes hamburger-line-3-close {
+  0% {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(0deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+/* 🎭 HAMBURGER BUTTON STATES */
+.hamburger-btn {
+  position: relative;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.hamburger-btn:hover {
+  transform: perspective(1000px) translateZ(8px) rotateX(5deg);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.hamburger-btn:active {
+  transform: perspective(1000px) translateZ(2px) scale(0.95);
+}
+
+.hamburger-btn.is-active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+}
+
+/* 🌟 HAMBURGER ICON LINES */
+.hamburger-line {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+  position: relative;
+}
+
+.hamburger-line::before,
+.hamburger-line::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: currentColor;
+  border-radius: 1px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.hamburger-line::before {
+  top: -6px;
+}
+
+.hamburger-line::after {
+  top: 6px;
+}
+
+/* Active state transformations */
+.hamburger-btn.is-active .hamburger-line {
+  background: transparent;
+}
+
+.hamburger-btn.is-active .hamburger-line::before {
+  transform: translateY(6px) rotate(45deg);
+  background: #3b82f6;
+}
+
+.hamburger-btn.is-active .hamburger-line::after {
+  transform: translateY(-6px) rotate(-45deg);
+  background: #3b82f6;
+}
+
+/* 🎨 ENHANCED RIPPLE EFFECTS */
+@keyframes ripple-expand {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes ripple-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    transform: scale(1);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.ripple-effect:active::before {
+  width: 200px;
+  height: 200px;
+  transition: width 0s, height 0s;
+}
+
+/* 🚀 MENU SLIDE ANIMATIONS */
+@keyframes menu-slide-in-right {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes menu-slide-out-right {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes menu-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 🎯 MENU ITEM ANIMATIONS */
+@keyframes menu-item-appear {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.menu-item {
+  animation: menu-item-appear 0.3s ease-out forwards;
+}
+
+.menu-item:nth-child(1) { animation-delay: 0.1s; }
+.menu-item:nth-child(2) { animation-delay: 0.15s; }
+.menu-item:nth-child(3) { animation-delay: 0.2s; }
+.menu-item:nth-child(4) { animation-delay: 0.25s; }
+.menu-item:nth-child(5) { animation-delay: 0.3s; }
+.menu-item:nth-child(6) { animation-delay: 0.35s; }
+
+/* 🌊 GLASSMORPHISM ENHANCEMENTS */
+.glass-hamburger {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.glass-hamburger:hover {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(25px) saturate(2);
+  -webkit-backdrop-filter: blur(25px) saturate(2);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* 🎪 MOBILE OVERLAY ANIMATIONS */
+@keyframes overlay-fade-in {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes overlay-fade-out {
+  0% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+.mobile-overlay {
+  animation: overlay-fade-in 0.3s ease-out forwards;
+}
+
+.mobile-overlay.closing {
+  animation: overlay-fade-out 0.3s ease-out forwards;
+}
+
+/* 🌟 ENHANCED HOVER STATES */
+.hamburger-enhanced {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hamburger-enhanced::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.2), transparent);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.hamburger-enhanced:hover::before {
+  opacity: 1;
+}
+
+/* 🎭 STATE INDICATORS */
+.menu-state-indicator {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #10b981, #34d399);
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  animation: pulse-indicator 2s infinite;
+}
+
+@keyframes pulse-indicator {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+/* 🚀 PERFORMANCE OPTIMIZATIONS */
+.hamburger-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+.hamburger-gpu * {
+  backface-visibility: hidden;
+}
+
+/* 📱 RESPONSIVE ENHANCEMENTS */
+@media (max-width: 768px) {
+  .hamburger-btn {
+    padding: 16px;
+    touch-action: manipulation;
+  }
+  
+  .hamburger-btn:hover {
+    transform: none; /* Disable 3D effects on mobile */
+  }
+  
+  .menu-item {
+    padding: 16px;
+    font-size: 18px;
+  }
+}
+
+/* 🌙 DARK MODE SUPPORT */
+@media (prefers-color-scheme: dark) {
+  .glass-hamburger {
+    background: rgba(17, 24, 39, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .hamburger-line {
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+
+/* ⚡ REDUCED MOTION SUPPORT */
+@media (prefers-reduced-motion: reduce) {
+  .hamburger-btn,
+  .hamburger-line,
+  .menu-item {
+    animation: none !important;
+    transition-duration: 0.1s !important;
+  }
+  
+  .hamburger-btn:hover {
+    transform: none;
+  }
+}
+
+/* 🎨 FOCUS STATES */
+.hamburger-btn:focus-visible {
+  outline: none;
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.3),
+    0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* 🌈 THEME VARIANTS */
+.hamburger-theme-gradient {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.9), 
+    rgba(139, 92, 246, 0.9)
+  );
+  color: white;
+}
+
+.hamburger-theme-minimal {
+  background: transparent;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.hamburger-theme-solid {
+  background: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* 🎯 ACCESSIBILITY ENHANCEMENTS */
+.hamburger-btn[aria-expanded="true"] {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.hamburger-btn[aria-expanded="true"] .hamburger-line {
+  color: #3b82f6;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .hamburger-line {
+    background: currentColor;
+    height: 3px;
+  }
+  
+  .glass-hamburger {
+    background: white;
+    border: 2px solid black;
+  }
+}
+
+/* 🎪 ENHANCED MICROINTERACTIONS */
+.hamburger-microinteraction {
+  position: relative;
+}
+
+.hamburger-microinteraction::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.hamburger-microinteraction:hover::after {
+  opacity: 1;
+  animation: shimmer 1.5s ease-in-out;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-15deg);
+  }
+}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Test</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        function App() {
+            return (
+                <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'Arial' }}>
+                    <h1 style={{ color: 'green', fontSize: '48px' }}>✅ REACT IS WORKING!</h1>
+                    <p style={{ fontSize: '24px' }}>This is a direct HTML test - React is loading correctly.</p>
+                    <button 
+                        onClick={() => alert('JavaScript is working!')}
+                        style={{ 
+                            padding: '20px 40px', 
+                            fontSize: '20px', 
+                            backgroundColor: 'blue', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '10px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Click Me to Test JavaScript
+                    </button>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

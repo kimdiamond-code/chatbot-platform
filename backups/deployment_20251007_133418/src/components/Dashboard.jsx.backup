@@ -1,0 +1,368 @@
+import React, { useState, useEffect } from 'react';
+import { testSupabaseConnection } from '../services/supabase';
+import { runConnectionTest } from '../utils/connectionTest';
+
+const Dashboard = ({ onNavigate }) => {
+  const [supabaseStatus, setSupabaseStatus] = useState(null);
+  const [connectionTesting, setConnectionTesting] = useState(false);
+
+  // Test connections on component mount
+  useEffect(() => {
+    const checkConnections = async () => {
+      setConnectionTesting(true);
+      try {
+        const status = await testSupabaseConnection();
+        setSupabaseStatus(status);
+        console.log('🔗 Supabase connection status:', status);
+      } catch (error) {
+        console.error('❌ Connection test failed:', error);
+        setSupabaseStatus({ 
+          connected: false, 
+          error: error.message,
+          message: 'Connection test failed'
+        });
+      } finally {
+        setConnectionTesting(false);
+      }
+    };
+    
+    checkConnections();
+  }, []);
+
+  // Manual connection test function
+  const runManualConnectionTest = async () => {
+    setConnectionTesting(true);
+    console.log('🔍 Running manual connection test...');
+    
+    try {
+      await runConnectionTest();
+      const status = await testSupabaseConnection();
+      setSupabaseStatus(status);
+    } catch (error) {
+      console.error('❌ Manual test failed:', error);
+      setSupabaseStatus({ 
+        connected: false, 
+        error: error.message,
+        message: 'Manual test failed'
+      });
+    } finally {
+      setConnectionTesting(false);
+    }
+  };
+
+  const stats = [
+    { label: 'Active Conversations', value: '12', change: '+5%', color: 'bg-blue-500' },
+    { label: 'Response Time', value: '2.3 min', change: '-12%', color: 'bg-green-500' },
+    { label: 'Satisfaction Score', value: '4.7/5', change: '+8%', color: 'bg-purple-500' },
+    { label: 'Resolution Rate', value: '87%', change: '+3%', color: 'bg-orange-500' },
+  ];
+
+  const recentActivity = [
+    { time: '2 min ago', event: 'New conversation started', user: 'John Doe' },
+    { time: '5 min ago', event: 'Bot resolved inquiry', user: 'Jane Smith' },
+    { time: '8 min ago', event: 'Escalated to human agent', user: 'Mike Johnson' },
+    { time: '12 min ago', event: 'Customer rated conversation 5/5', user: 'Sarah Wilson' },
+    { time: '15 min ago', event: 'New Q&A added to database', user: 'System' },
+  ];
+
+  return (
+    <div className="p-6">
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white mb-8">
+        <h1 className="text-2xl font-bold mb-2">Welcome to your ChatBot Platform! 🚀</h1>
+        <p className="text-blue-100">
+          Your intelligent customer support solution is ready to help your business grow.
+        </p>
+      </div>
+
+      {/* System Status Section */}
+      <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">System Status</h2>
+          <button
+            onClick={runManualConnectionTest}
+            disabled={connectionTesting}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors disabled:opacity-50"
+          >
+            🔄 {connectionTesting ? 'Testing...' : 'Test All Connections'}
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Platform Status */}
+          <div className="flex items-center space-x-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <div>
+              <p className="font-medium text-green-800">Platform Status</p>
+              <p className="text-sm text-green-600">✅ Online & Ready</p>
+            </div>
+          </div>
+
+          {/* OpenAI Integration */}
+          <div className={`flex items-center space-x-3 p-3 border rounded-lg ${
+            import.meta.env.VITE_OPENAI_API_KEY && import.meta.env.VITE_OPENAI_API_KEY !== 'your-openai-key'
+              ? 'bg-green-50 border-green-200'
+              : 'bg-orange-50 border-orange-200'
+          }`}>
+            <div className={`w-3 h-3 rounded-full ${
+              import.meta.env.VITE_OPENAI_API_KEY && import.meta.env.VITE_OPENAI_API_KEY !== 'your-openai-key'
+                ? 'bg-green-500'
+                : 'bg-orange-500'
+            }`}></div>
+            <div>
+              <p className={`font-medium ${
+                import.meta.env.VITE_OPENAI_API_KEY && import.meta.env.VITE_OPENAI_API_KEY !== 'your-openai-key'
+                  ? 'text-green-800'
+                  : 'text-orange-800'
+              }`}>AI Integration</p>
+              <p className={`text-sm ${
+                import.meta.env.VITE_OPENAI_API_KEY && import.meta.env.VITE_OPENAI_API_KEY !== 'your-openai-key'
+                  ? 'text-green-600'
+                  : 'text-orange-600'
+              }`}>
+                {import.meta.env.VITE_OPENAI_API_KEY && import.meta.env.VITE_OPENAI_API_KEY !== 'your-openai-key'
+                  ? '🤖 Active'
+                  : '⚠️ Setup Required'
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* Database Status */}
+          <div className={`flex items-center space-x-3 p-3 border rounded-lg ${
+            connectionTesting
+              ? 'bg-yellow-50 border-yellow-200'
+              : supabaseStatus === null
+                ? 'bg-yellow-50 border-yellow-200'
+                : supabaseStatus?.connected && supabaseStatus?.tablesExist
+                  ? 'bg-green-50 border-green-200'
+                  : supabaseStatus?.connected
+                    ? 'bg-orange-50 border-orange-200'
+                    : 'bg-red-50 border-red-200'
+          }`}>
+            <div className={`w-3 h-3 rounded-full ${
+              connectionTesting
+                ? 'bg-yellow-500 animate-pulse'
+                : supabaseStatus === null
+                  ? 'bg-yellow-500 animate-pulse'
+                  : supabaseStatus?.connected && supabaseStatus?.tablesExist
+                    ? 'bg-green-500'
+                    : supabaseStatus?.connected
+                      ? 'bg-orange-500'
+                      : 'bg-red-500'
+            }`}></div>
+            <div>
+              <p className={`font-medium ${
+                connectionTesting
+                  ? 'text-yellow-800'
+                  : supabaseStatus === null
+                    ? 'text-yellow-800'
+                    : supabaseStatus?.connected && supabaseStatus?.tablesExist
+                      ? 'text-green-800'
+                      : supabaseStatus?.connected
+                        ? 'text-orange-800'
+                        : 'text-red-800'
+              }`}>Database</p>
+              <p className={`text-sm ${
+                connectionTesting
+                  ? 'text-yellow-600'
+                  : supabaseStatus === null
+                    ? 'text-yellow-600'
+                    : supabaseStatus?.connected && supabaseStatus?.tablesExist
+                      ? 'text-green-600'
+                      : supabaseStatus?.connected
+                        ? 'text-orange-600'
+                        : 'text-red-600'
+              }`}>
+                {connectionTesting
+                  ? '🔄 Testing...'
+                  : supabaseStatus === null
+                    ? '🔄 Initializing...'
+                    : supabaseStatus?.connected && supabaseStatus?.tablesExist
+                      ? '🗄️ Connected'
+                      : supabaseStatus?.connected
+                        ? '⚠️ Setup Needed'
+                        : '❌ Offline'
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Setup Alerts */}
+        {(!import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY === 'your-openai-key') && (
+          <div className="mt-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
+            <p className="text-sm text-orange-800 font-medium mb-2">
+              ⚡ Enable Real AI: Add your OpenAI API key to unlock intelligent responses
+            </p>
+            <code className="text-xs bg-orange-100 px-2 py-1 rounded">
+              VITE_OPENAI_API_KEY=sk-your-key-here
+            </code>
+          </div>
+        )}
+        
+        {supabaseStatus && supabaseStatus.connected && !supabaseStatus.tablesExist && (
+          <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-800 font-medium mb-2">
+              🗄️ Database Setup Required: Your Supabase is connected but needs tables
+            </p>
+            <div className="text-xs text-blue-700 space-y-1">
+              <p>1. Go to your Supabase project → SQL Editor</p>
+              <p>2. Run the schema.sql file from your supabase/ folder</p>
+              <p>3. Click "Test All Connections" button to verify</p>
+            </div>
+          </div>
+        )}
+        
+        {supabaseStatus && !supabaseStatus.connected && (
+          <div className="mt-4 bg-red-50 p-4 rounded-lg border border-red-200">
+            <p className="text-sm text-red-800 font-medium mb-2">
+              ❌ Database Connection Failed: Check your Supabase credentials
+            </p>
+            <div className="text-xs text-red-700 space-y-1">
+              <p>• Verify VITE_SUPABASE_URL in .env file</p>
+              <p>• Verify VITE_SUPABASE_ANON_KEY in .env file</p>
+              <p>• Check browser console for detailed error messages</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {stats.map((stat, index) => (
+          <div key={index} className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className={`text-sm ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                  {stat.change} from last week
+                </p>
+              </div>
+              <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
+                <span className="text-white text-xl">
+                  {index === 0 && '💬'}
+                  {index === 1 && '⏱️'}
+                  {index === 2 && '⭐'}
+                  {index === 3 && '✅'}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="space-y-3">
+            <button 
+              onClick={() => onNavigate && onNavigate('botbuilder')}
+              className="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-left transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🤖</span>
+                <div>
+                  <p className="font-medium text-blue-900">Configure Bot</p>
+                  <p className="text-sm text-blue-600">Set up your bot's personality and responses</p>
+                </div>
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => onNavigate && onNavigate('livechat')}
+              className="w-full bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-left transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">💬</span>
+                <div>
+                  <p className="font-medium text-green-900">View Live Chats</p>
+                  <p className="text-sm text-green-600">Monitor active conversations</p>
+                </div>
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => onNavigate && onNavigate('integrations')}
+              className="w-full bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg p-4 text-left transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">📊</span>
+                <div>
+                  <p className="font-medium text-purple-900">View Analytics</p>
+                  <p className="text-sm text-purple-600">Check performance metrics and integrations</p>
+                </div>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => onNavigate && onNavigate('settings')}
+              className="w-full bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg p-4 text-left transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🔧</span>
+                <div>
+                  <p className="font-medium text-orange-900">Settings & Widget</p>
+                  <p className="text-sm text-orange-600">Configure platform settings and generate embed code</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <div className="space-y-4">
+            {recentActivity.map((activity, index) => (
+              <div key={index} className="flex items-start space-x-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{activity.event}</p>
+                  <p className="text-xs text-gray-500">{activity.user} • {activity.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-medium text-gray-900">Bot Status</h4>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Online
+            </span>
+          </div>
+          <p className="text-sm text-gray-600">Your bot is active and responding to customer inquiries.</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-medium text-gray-900">Database</h4>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              45 Q&As
+            </span>
+          </div>
+          <p className="text-sm text-gray-600">Your knowledge base contains 45 question-answer pairs.</p>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-medium text-gray-900">Integration</h4>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+              Setup Required
+            </span>
+          </div>
+          <p className="text-sm text-gray-600">Complete your website integration to start receiving chats.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
