@@ -37,15 +37,18 @@ const ShopifyCallback = () => {
       setMessage('Exchanging authorization code for access token...');
 
       // Exchange code for access token
-      const response = await fetch('/api/shopify/oauth/token', {
+      const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_oauth_callback',
           shop: shop,
           code: code,
-          state: state
+          state: state,
+          organizationId: '00000000-0000-0000-0000-000000000001'
         })
       });
 

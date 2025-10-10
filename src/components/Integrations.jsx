@@ -3,6 +3,8 @@ import dbService from '../services/databaseService';
 import { apiKeysService } from '../services/apiKeysService.js';
 import ShopifyOAuthConfiguration from './ShopifyOAuthConfiguration.jsx';
 import KustomerOAuthIntegration from './integrations/KustomerOAuthIntegration.jsx';
+import MessengerIntegration from './integrations/MessengerIntegration.jsx';
+import KlaviyoIntegration from './integrations/KlaviyoIntegration.jsx';
 
 const FullIntegrations = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -13,6 +15,8 @@ const FullIntegrations = () => {
   const [templateCopied, setTemplateCopied] = useState(false);
   const [showShopifyConfig, setShowShopifyConfig] = useState(false);
   const [showKustomerOAuth, setShowKustomerOAuth] = useState(false);
+  const [showMessengerConfig, setShowMessengerConfig] = useState(false);
+  const [showKlaviyoConfig, setShowKlaviyoConfig] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   const copyEnvTemplate = async () => {
@@ -69,7 +73,8 @@ const FullIntegrations = () => {
       color: 'from-purple-500 to-violet-600',
       features: ['Email Campaigns', 'Customer Segmentation', 'Analytics', 'Automation'],
       status: connections.klaviyo || 'disconnected',
-      setupRequired: true
+      setupRequired: true,
+      isKlaviyo: true
     },
     {
       id: 'whatsapp',
@@ -91,7 +96,8 @@ const FullIntegrations = () => {
       color: 'from-blue-600 to-blue-700',
       features: ['Instant Messaging', 'Rich Media', 'Quick Replies', 'Persistent Menu'],
       status: connections.facebook || 'disconnected',
-      setupRequired: true
+      setupRequired: true,
+      isMessenger: true
     },
     {
       id: 'zapier',
@@ -226,6 +232,18 @@ const FullIntegrations = () => {
         await loadCurrentUser();
       }
       setShowKustomerOAuth(true);
+      return;
+    }
+    
+    // Special handling for Messenger - open configuration modal
+    if (integrationId === 'facebook') {
+      setShowMessengerConfig(true);
+      return;
+    }
+    
+    // Special handling for Klaviyo - open configuration modal
+    if (integrationId === 'klaviyo') {
+      setShowKlaviyoConfig(true);
       return;
     }
     
@@ -609,6 +627,10 @@ const FullIntegrations = () => {
                   ? '⚙️ Configure Store'
                   : integration.isKustomerOAuth
                   ? '🔐 Connect Account'
+                  : integration.isMessenger
+                  ? '💙 Configure Messenger'
+                  : integration.isKlaviyo
+                  ? '📧 Configure Klaviyo'
                   : (connections[integration.id] || 'disconnected') === 'connected' ? 'Disconnect' : 'Connect'
               )}
             </button>
@@ -698,6 +720,52 @@ const FullIntegrations = () => {
           onConnect={handleKustomerOAuthConnect}
           currentUser={currentUser}
         />
+      )}
+      
+      {/* Messenger Integration Modal */}
+      {showMessengerConfig && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Facebook Messenger Configuration</h2>
+              <button
+                onClick={() => {
+                  setShowMessengerConfig(false);
+                  loadConnectionStatus();
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-0">
+              <MessengerIntegration />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Klaviyo Integration Modal */}
+      {showKlaviyoConfig && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Klaviyo Configuration</h2>
+              <button
+                onClick={() => {
+                  setShowKlaviyoConfig(false);
+                  loadConnectionStatus();
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-0">
+              <KlaviyoIntegration />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

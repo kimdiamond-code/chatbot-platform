@@ -11,7 +11,7 @@ import CRMCustomerContext from './components/CRMCustomerContext.jsx';
 import ECommerceSupport from './components/ECommerceSupport.jsx';
 import MultiChannelSupport from './components/MultiChannelSupport.jsx';
 import SecurityCompliance from './components/SecurityCompliance.jsx';
-import KnowledgeBase from './components/KnowledgeBase.jsx';
+
 import FAQ from './components/FAQ.jsx';
 import WidgetStudio from './components/WidgetStudio.jsx';
 import WebhookManagement from './components/WebhookManagement.jsx';
@@ -132,7 +132,6 @@ const App = () => {
     { id: 'ecommerce', name: 'E-Commerce', component: ECommerceSupport },
     { id: 'multichannel', name: 'Channels', component: MultiChannelSupport },
     { id: 'faq', name: 'FAQ', component: FAQ },
-    { id: 'knowledge', name: 'Articles', component: KnowledgeBase },
     { id: 'widget', name: 'Widget', component: WidgetStudio },
     { id: 'webhooks', name: 'Webhooks', component: WebhookManagement },
     { id: 'analytics', name: 'Analytics', component: Analytics },

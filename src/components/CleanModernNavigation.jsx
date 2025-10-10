@@ -55,10 +55,10 @@ const CleanModernNavigation = ({
       color: 'text-yellow-600'
     },
     {
-      id: 'knowledge',
-      label: 'Knowledge Base',
+      id: 'faq',
+      label: 'FAQ',
       Icon: BookOpen,
-      description: 'Articles & Web Pages',
+      description: 'Help & Support',
       color: 'text-indigo-600'
     },
     {

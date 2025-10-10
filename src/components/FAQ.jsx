@@ -13,10 +13,7 @@ const FAQ = () => {
       question: 'How do I set up my first chatbot?',
       answer: 'Setting up your first chatbot is easy! Go to Bot Builder, configure your bot\'s personality and directives, then add knowledge base content. Finally, deploy the widget to your website.',
       category: 'Getting Started',
-      linkedArticles: [
-        { title: 'Quick Start Guide', url: '#article-1' },
-        { title: 'Bot Builder Tutorial', url: '#article-2' }
-      ],
+
       views: 1245,
       helpful: 94,
       tags: ['setup', 'beginner', 'bot-builder']
@@ -26,11 +23,7 @@ const FAQ = () => {
       question: 'What integrations are available?',
       answer: 'We support Shopify, Kustomer, Facebook Messenger, Instagram DM, WhatsApp via Twilio, Klaviyo, and custom webhooks. All integrations can be configured in the Integrations section.',
       category: 'Integrations',
-      linkedArticles: [
-        { title: 'Shopify Integration Guide', url: '#article-3' },
-        { title: 'Kustomer Setup', url: '#article-4' },
-        { title: 'WhatsApp via Twilio', url: '#article-5' }
-      ],
+
       views: 892,
       helpful: 91,
       tags: ['integrations', 'shopify', 'whatsapp']
@@ -40,10 +33,7 @@ const FAQ = () => {
       question: 'How does the Knowledge Base work?',
       answer: 'Upload documents, scrape your website, or manually add Q&As. The AI bot uses this information to answer customer questions intelligently. You can organize content by categories and the bot will automatically find relevant information.',
       category: 'Features',
-      linkedArticles: [
-        { title: 'Knowledge Base Setup', url: '#article-6' },
-        { title: 'Web Scraping Guide', url: '#article-7' }
-      ],
+
       views: 756,
       helpful: 88,
       tags: ['knowledge-base', 'ai', 'content']
@@ -53,10 +43,7 @@ const FAQ = () => {
       question: 'Can I customize the chat widget?',
       answer: 'Yes! The Widget Studio lets you customize colors, position, size, avatar, greeting message, and more. You can match your brand perfectly.',
       category: 'Customization',
-      linkedArticles: [
-        { title: 'Widget Customization Guide', url: '#article-8' },
-        { title: 'Branding Best Practices', url: '#article-9' }
-      ],
+
       views: 634,
       helpful: 96,
       tags: ['widget', 'customization', 'branding']
@@ -66,10 +53,7 @@ const FAQ = () => {
       question: 'How do proactive messages work?',
       answer: 'Set up triggers based on user behavior (exit intent, time on page, scroll %, URL patterns, UTM parameters). The bot will automatically engage visitors with targeted messages at the right moment.',
       category: 'Proactive Engagement',
-      linkedArticles: [
-        { title: 'Proactive Engagement Setup', url: '#article-10' },
-        { title: 'Trigger Templates', url: '#article-11' }
-      ],
+
       views: 543,
       helpful: 89,
       tags: ['proactive', 'triggers', 'engagement']
@@ -79,10 +63,7 @@ const FAQ = () => {
       question: 'What analytics are tracked?',
       answer: 'Track conversation volume, CSAT scores, agent performance, resolution times, conversion funnels, product views, add-to-cart events, and more. All metrics are available in real-time on the Analytics dashboard.',
       category: 'Analytics',
-      linkedArticles: [
-        { title: 'Analytics Dashboard Guide', url: '#article-12' },
-        { title: 'Understanding Metrics', url: '#article-13' }
-      ],
+
       views: 478,
       helpful: 92,
       tags: ['analytics', 'metrics', 'reporting']
@@ -92,10 +73,7 @@ const FAQ = () => {
       question: 'How do I connect my Shopify store?',
       answer: 'Go to Integrations → Shopify, enter your store name, click Connect, and authorize the app. Once connected, the bot can show products, check inventory, track orders, and create draft orders.',
       category: 'Integrations',
-      linkedArticles: [
-        { title: 'Shopify Integration Step-by-Step', url: '#article-14' },
-        { title: 'Shopify Product Recommendations', url: '#article-15' }
-      ],
+
       views: 821,
       helpful: 95,
       tags: ['shopify', 'ecommerce', 'setup']
@@ -105,10 +83,7 @@ const FAQ = () => {
       question: 'Can I add team members as live agents?',
       answer: 'Yes! In Live Chat, you can assign conversations to team members, add internal notes, tag conversations, and hand off from bot to human seamlessly.',
       category: 'Team Management',
-      linkedArticles: [
-        { title: 'Adding Team Members', url: '#article-16' },
-        { title: 'Live Chat Features', url: '#article-17' }
-      ],
+
       views: 412,
       helpful: 90,
       tags: ['team', 'live-chat', 'agents']
@@ -118,10 +93,7 @@ const FAQ = () => {
       question: 'What security features are included?',
       answer: 'GDPR/CCPA compliance tools, IP filtering, user consent forms, SSO/2FA for agents, RBAC (role-based access control), and end-to-end encrypted data handling.',
       category: 'Security',
-      linkedArticles: [
-        { title: 'Security Overview', url: '#article-18' },
-        { title: 'GDPR Compliance Guide', url: '#article-19' }
-      ],
+
       views: 367,
       helpful: 93,
       tags: ['security', 'compliance', 'gdpr']
@@ -131,10 +103,7 @@ const FAQ = () => {
       question: 'How do I train the bot to give better answers?',
       answer: 'Use the Training tab in Bot Builder to review bot responses, mark them as correct or incorrect, and provide better answers. The bot learns from corrections and improves over time.',
       category: 'AI Training',
-      linkedArticles: [
-        { title: 'AI Training Best Practices', url: '#article-20' },
-        { title: 'Improving Bot Accuracy', url: '#article-21' }
-      ],
+
       views: 589,
       helpful: 87,
       tags: ['ai', 'training', 'improvement']
@@ -144,9 +113,7 @@ const FAQ = () => {
       question: 'Can I use the bot on multiple websites?',
       answer: 'Yes! Create multiple bot configurations and deploy different widgets. Each can have unique settings, knowledge bases, and integrations.',
       category: 'Multi-Site',
-      linkedArticles: [
-        { title: 'Multi-Site Setup', url: '#article-22' }
-      ],
+
       views: 298,
       helpful: 91,
       tags: ['multi-site', 'deployment']
@@ -156,10 +123,7 @@ const FAQ = () => {
       question: 'How do webhooks work?',
       answer: 'Webhooks let you send real-time data to external systems. Configure webhook endpoints to receive events like new conversations, messages, or custom triggers. Great for Zapier integration!',
       category: 'Advanced',
-      linkedArticles: [
-        { title: 'Webhook Configuration', url: '#article-23' },
-        { title: 'Zapier Integration', url: '#article-24' }
-      ],
+
       views: 445,
       helpful: 85,
       tags: ['webhooks', 'zapier', 'automation']
@@ -398,26 +362,15 @@ const FAQ = () => {
                         </div>
                         
                         {/* Linked Articles */}
-                        {faq.linkedArticles && faq.linkedArticles.length > 0 && (
-                          <div className="mb-4">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                              <FileText className="w-4 h-4" />
-                              Related How-To Articles:
-                            </h4>
-                            <div className="space-y-2">
-                              {faq.linkedArticles.map((article, idx) => (
-                                <a
-                                  key={idx}
-                                  href={article.url}
-                                  className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  {article.title}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        <div className="mb-4">
+                          <button
+                            onClick={() => setActiveTab('how_to_articles')}
+                            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            <FileText className="w-4 h-4" />
+                            View Related How-To Articles →
+                          </button>
+                        </div>
                         
                         {/* Tags */}
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -559,28 +512,7 @@ const FAQ = () => {
               </div>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Link Related Articles (optional)</label>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Article title"
-                    className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Article URL"
-                    className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500">Add helpful how-to articles that provide more details</p>
-              </div>
-            </div>
-            
+
             <div className="flex gap-3 pt-4">
               <button className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">
                 Save FAQ

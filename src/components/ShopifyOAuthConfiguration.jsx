@@ -15,12 +15,14 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
 
     try {
       // Initiate OAuth flow
-      const response = await fetch('/api/shopify/oauth/auth', {
+      const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_oauth_initiate',
           shop: shopDomain,
           organizationId: '00000000-0000-0000-0000-000000000001'
         })
