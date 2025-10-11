@@ -79,24 +79,24 @@ Before deploying, verify:
 
 ### Critical (Must Have)
 ```
-DATABASE_URL=postgresql://neondb_owner:npg_oO90iBtIxymP@ep-super-snow-addw8m42-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=your-neon-database-connection-string
 
-VITE_OPENAI_API_KEY=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
+VITE_OPENAI_API_KEY=your-openai-api-key
 ```
 
 ### Shopify Integration (If Using)
 ```
-SHOPIFY_CLIENT_ID=a5a524c7efb937e6e1817df60eeaf499
-SHOPIFY_CLIENT_SECRET=dbd00a9649291665300299e413fdc4aa
+SHOPIFY_CLIENT_ID=your-shopify-client-id
+SHOPIFY_CLIENT_SECRET=your-shopify-client-secret
 SHOPIFY_REDIRECT_URI=https://chatbot-platform-v2.vercel.app/shopify/callback
 SHOPIFY_SCOPES=read_products,write_products,read_orders,write_orders,read_customers,write_customers,read_inventory,read_locations
 ```
 
 ### Optional
 ```
-VITE_OPENAI_ORG_ID=org-8J5v1gk2mYq6bZt3pX9pD3BlbkFJbVjyNwzxLyKJmbkLDPoLVSLnN-B0DCjEAnws6L_5P3kM-xNM56XwauRNEf4ZQ62HQAboGVN68A
-GITHUB_ID=Ov23liNvI8Qe2K1WUze1
-GITHUB_SECRET=47ad36f4fecb84d5f2aab7dee3316ea936e9bc3a
+VITE_OPENAI_ORG_ID=your-openai-org-id
+GITHUB_ID=your-github-oauth-id
+GITHUB_SECRET=your-github-oauth-secret
 ```
 
 ---
