@@ -194,8 +194,12 @@ class DatabaseService {
       }
       
       const result = await response.json();
-      console.log('💬 Loaded conversations:', result.conversations?.length);
-      return result.conversations || [];
+      console.log('💬 API Response:', result); // Debug log
+      
+      // Handle different response formats
+      const conversations = result.conversations || result.data || result || [];
+      console.log('💬 Loaded conversations:', conversations.length);
+      return Array.isArray(conversations) ? conversations : [];
     } catch (error) {
       console.error('Database getConversations error:', error);
       this.offlineMode = true;
@@ -228,8 +232,12 @@ class DatabaseService {
       }
       
       const result = await response.json();
-      console.log('📨 Loaded messages:', result.messages?.length);
-      return result.messages || [];
+      console.log('📨 API Response:', result); // Debug log
+      
+      // Handle different response formats
+      const messages = result.messages || result.data || result || [];
+      console.log('📨 Loaded messages:', messages.length);
+      return Array.isArray(messages) ? messages : [];
     } catch (error) {
       console.error('Database getMessages error:', error);
       this.offlineMode = true;

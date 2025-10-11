@@ -6,6 +6,7 @@ import ProductMessage from './shop/ProductMessage'
 export default function LiveChat() {
   const { conversations, loading: loadingConversations, createConversation, creating } = useConversations()
   const [selectedConversation, setSelectedConversation] = useState(null)
+  const [inputMessage, setInputMessage] = useState('')
   
   // Auto-select first conversation when loaded
   useEffect(() => {
@@ -276,25 +277,37 @@ export default function LiveChat() {
 
             {/* Input */}
             <div className="p-4 border-t border-gray-200">
-              <div className="flex space-x-2">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (inputMessage.trim()) {
+                    sendCustomerMessage(inputMessage.trim());
+                    setInputMessage('');
+                  }
+                }}
+                className="flex space-x-2"
+              >
                 <input
                   type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="Type a message or test phrase..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      sendCustomerMessage(e.target.value.trim())
-                      e.target.value = ''
-                    }
-                  }}
                 />
                 <button
+                  type="submit"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium whitespace-nowrap"
+                >
+                  Send
+                </button>
+                <button
+                  type="button"
                   onClick={testSmartResponse}
                   className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium whitespace-nowrap"
                 >
-                  🧪 Demo Test
+                  🧪 Demo
                 </button>
-              </div>
+              </form>
             </div>
           </>
         ) : (
