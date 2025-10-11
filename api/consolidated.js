@@ -66,8 +66,9 @@ export default async function handler(req, res) {
       }
       
       // ==================== CONVERSATIONS ====================
-      if (method === 'GET' && query.type === 'conversations') {
-        const conversations = await sql`SELECT * FROM conversations ORDER BY created_at DESC LIMIT 50`;
+      if ((method === 'GET' && query.type === 'conversations') || action === 'get_conversations') {
+        const limit = parseInt(query.limit || body?.limit || 50);
+        const conversations = await sql`SELECT * FROM conversations ORDER BY created_at DESC LIMIT ${limit}`;
         return res.status(200).json({ success: true, conversations });
       }
 
@@ -82,9 +83,9 @@ export default async function handler(req, res) {
       }
 
       // ==================== MESSAGES ====================
-      if (method === 'GET' && query.type === 'messages') {
-        const conversationId = query.conversation_id;
-        if (!conversationId) return res.status(400).json({ error: 'conversation_id required' });
+      if ((method === 'GET' && query.type === 'messages') || action === 'get_messages') {
+        const conversationId = query.conversation_id || body?.conversationId || body?.conversation_id;
+        if (!conversationId) return res.status(400).json({ success: false, error: 'conversation_id required', messages: [] });
         
         const messages = await sql`
           SELECT * FROM messages 
@@ -289,7 +290,7 @@ export default async function handler(req, res) {
             redirectUri = process.env.SHOPIFY_REDIRECT_URI;
           } else {
             const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
-            redirectUri = baseUrl; // OAuth params will be handled on main route
+            redirectUri = `${baseUrl}/shopify/callback`;
           }
           
           const nonce = Math.random().toString(36).substring(7);

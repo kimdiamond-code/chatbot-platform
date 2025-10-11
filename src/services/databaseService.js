@@ -7,8 +7,26 @@ const API_BASE = import.meta.env.PROD
 
 // Demo data for offline mode
 const DEMO_DATA = {
-  conversations: [],
-  messages: [],
+  conversations: [
+    {
+      id: 'demo-conv-1',
+      customer_email: 'demo@example.com',
+      customer_name: 'Demo User',
+      status: 'active',
+      channel: 'web',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
+  messages: [
+    {
+      id: 'demo-msg-1',
+      conversation_id: 'demo-conv-1',
+      sender_type: 'bot',
+      content: 'Hi! This is demo mode. Connect your database to see real conversations.',
+      created_at: new Date().toISOString()
+    }
+  ],
   botConfig: {
     id: 'demo-bot',
     organization_id: '00000000-0000-0000-0000-000000000001',
@@ -165,33 +183,69 @@ class DatabaseService {
   async getConversations(orgId, limit = 50) {
     try {
       const response = await fetch(`${API_BASE}?type=conversations&limit=${limit}`);
+      
+      if (!response.ok) {
+        if (response.status === 0 || response.status >= 500) {
+          console.warn('⚠️ Database appears offline, switching to demo mode');
+          this.offlineMode = true;
+          return DEMO_DATA.conversations;
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const result = await response.json();
       console.log('💬 Loaded conversations:', result.conversations?.length);
       return result.conversations || [];
     } catch (error) {
       console.error('Database getConversations error:', error);
-      return this.handleOffline('getConversations', { orgId, limit });
+      this.offlineMode = true;
+      return DEMO_DATA.conversations;
     }
   }
 
   async createConversation(conversationData) {
-    return this.call('create_conversation', conversationData);
+    try {
+      const result = await this.call('create_conversation', conversationData);
+      // API returns { conversation: {...} }
+      return result.conversation || result;
+    } catch (error) {
+      console.error('Database createConversation error:', error);
+      return null;
+    }
   }
 
   async getMessages(conversationId) {
     try {
       const response = await fetch(`${API_BASE}?type=messages&conversation_id=${conversationId}`);
+      
+      if (!response.ok) {
+        if (response.status === 0 || response.status >= 500) {
+          console.warn('⚠️ Database appears offline, switching to demo mode');
+          this.offlineMode = true;
+          return DEMO_DATA.messages;
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const result = await response.json();
       console.log('📨 Loaded messages:', result.messages?.length);
       return result.messages || [];
     } catch (error) {
       console.error('Database getMessages error:', error);
-      return this.handleOffline('getMessages', { conversationId });
+      this.offlineMode = true;
+      return DEMO_DATA.messages;
     }
   }
 
   async createMessage(messageData) {
-    return this.call('create_message', messageData);
+    try {
+      const result = await this.call('create_message', messageData);
+      // API returns { message: {...} }
+      return result.message || result;
+    } catch (error) {
+      console.error('Database createMessage error:', error);
+      return null;
+    }
   }
 
   async getIntegrations(orgId) {
