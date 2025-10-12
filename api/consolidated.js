@@ -82,6 +82,40 @@ export default async function handler(req, res) {
         return res.status(201).json({ success: true, conversation: result[0] });
       }
 
+      // Delete single conversation
+      if (action === 'delete_conversation') {
+        const { conversationId } = body;
+        if (!conversationId) return res.status(400).json({ success: false, error: 'conversationId required' });
+        
+        // First delete all messages for this conversation
+        await sql`DELETE FROM messages WHERE conversation_id = ${conversationId}`;
+        
+        // Then delete the conversation
+        await sql`DELETE FROM conversations WHERE id = ${conversationId}`;
+        
+        return res.status(200).json({ success: true, message: 'Conversation deleted' });
+      }
+
+      // Clear all conversations for an organization
+      if (action === 'clear_all_conversations') {
+        const { orgId } = body;
+        if (!orgId) return res.status(400).json({ success: false, error: 'orgId required' });
+        
+        // Get all conversation IDs for this org
+        const conversations = await sql`SELECT id FROM conversations WHERE organization_id = ${orgId}`;
+        const conversationIds = conversations.map(c => c.id);
+        
+        // Delete all messages for these conversations
+        if (conversationIds.length > 0) {
+          await sql`DELETE FROM messages WHERE conversation_id = ANY(${conversationIds})`;
+        }
+        
+        // Delete all conversations for this org
+        const result = await sql`DELETE FROM conversations WHERE organization_id = ${orgId}`;
+        
+        return res.status(200).json({ success: true, deleted: result.rowCount || 0, message: 'All conversations cleared' });
+      }
+
       // ==================== MESSAGES ====================
       if ((method === 'GET' && query.type === 'messages') || action === 'get_messages') {
         const conversationId = query.conversation_id || body?.conversationId || body?.conversation_id;
@@ -281,8 +315,8 @@ export default async function handler(req, res) {
       if (action === 'shopify_oauth_initiate') {
         const { shop, organizationId } = body;
         try {
-          // Generate OAuth URL
-          const scopes = process.env.SHOPIFY_SCOPES || 'read_products,read_orders,read_customers';
+          // Generate OAuth URL with proper scopes including draft orders
+          const scopes = process.env.SHOPIFY_SCOPES || 'read_products,read_orders,read_customers,write_draft_orders';
           
           // Use configured redirect URI or construct from VERCEL_URL
           let redirectUri;
@@ -396,6 +430,83 @@ export default async function handler(req, res) {
           const data = await response.json();
           return res.status(200).json({ success: true, orders: data.orders });
         } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
+      if (action === 'shopify_searchOrders') {
+        const { store_url, access_token, order_name } = body;
+        try {
+          console.log('🔍 Searching orders for:', order_name);
+          
+          // Search by order name/number
+          // Shopify's "name" parameter searches by order name (e.g., #1001, #1002)
+          const url = `https://${store_url}/admin/api/2024-01/orders.json?name=${encodeURIComponent(order_name)}&status=any`;
+          
+          console.log('📡 Search URL:', url);
+          
+          const response = await fetch(url, {
+            headers: {
+              'X-Shopify-Access-Token': access_token,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok) {
+            console.error('❌ Shopify order search error:', response.status, data);
+            return res.status(response.status).json({ 
+              success: false, 
+              error: data.errors || data.error || 'Failed to search orders',
+              details: data
+            });
+          }
+          
+          console.log('✅ Found', data.orders?.length || 0, 'matching orders');
+          return res.status(200).json({ 
+            success: true, 
+            orders: data.orders || [] 
+          });
+        } catch (error) {
+          console.error('❌ Order search error:', error);
+          return res.status(500).json({ 
+            success: false, 
+            error: error.message 
+          });
+        }
+      }
+
+      if (action === 'shopify_createDraftOrder') {
+        const { store_url, access_token, draft_order } = body;
+        try {
+          console.log('🛒 Creating draft order for store:', store_url);
+          console.log('📝 Draft order data:', JSON.stringify(draft_order, null, 2));
+          
+          const response = await fetch(`https://${store_url}/admin/api/2024-01/draft_orders.json`, {
+            method: 'POST',
+            headers: {
+              'X-Shopify-Access-Token': access_token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(draft_order)
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok) {
+            console.error('❌ Shopify API error:', response.status, data);
+            return res.status(response.status).json({ 
+              success: false, 
+              error: data.errors || data.error || 'Failed to create draft order',
+              details: data
+            });
+          }
+          
+          console.log('✅ Draft order created:', data.draft_order?.id);
+          return res.status(200).json({ success: true, draft_order: data.draft_order });
+        } catch (error) {
+          console.error('❌ Draft order creation error:', error);
           return res.status(500).json({ success: false, error: error.message });
         }
       }
@@ -620,6 +731,392 @@ export default async function handler(req, res) {
       }
 
       return res.status(400).json({ error: 'Invalid action or endpoint' });
+    }
+
+    // ============================================================
+    // AUTHENTICATION OPERATIONS
+    // ============================================================
+    if (endpoint === 'auth') {
+      // Note: In production, use bcrypt for password hashing
+      // For now using simple comparison (add bcryptjs package for production)
+      
+      // ==================== LOGIN ====================
+      if (action === 'login') {
+        const { email, password } = body;
+        
+        try {
+          // First, check if agents table has required columns
+          try {
+            await sql`SELECT password_hash FROM agents LIMIT 1`;
+          } catch (error) {
+            // If password_hash column doesn't exist, add it
+            console.log('Adding authentication columns to agents table...');
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS password_hash TEXT`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS reset_token TEXT`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE`;
+          }
+          
+          // Check if sessions table exists
+          try {
+            await sql`SELECT 1 FROM sessions LIMIT 1`;
+          } catch (error) {
+            // Create sessions table
+            console.log('Creating sessions table...');
+            await sql`
+              CREATE TABLE IF NOT EXISTS sessions (
+                id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+              )
+            `;
+            await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`;
+            await sql`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id)`;
+          }
+          
+          // Check if user exists
+          let users = await sql`
+            SELECT * FROM agents 
+            WHERE email = ${email}
+          `;
+          
+          // Auto-create demo users if they don't exist
+          if (users.length === 0) {
+            // Only auto-create admin account
+            if (email === 'admin@chatbot.com' && password === 'admin123') {
+              console.log('Creating admin user...');
+              const result = await sql`
+                INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
+                VALUES ('00000000-0000-0000-0000-000000000001', 'admin@chatbot.com', 'Admin User', 'admin', 'admin123', true)
+                RETURNING *
+              `;
+              users = result;
+            } else {
+              // All other users must sign up first
+              return res.status(401).json({ success: false, error: 'Invalid email or password. Please sign up first.' });
+            }
+          }
+          
+          const user = users[0];
+          
+          // Check if active
+          if (!user.is_active) {
+            return res.status(401).json({ success: false, error: 'Account is disabled' });
+          }
+          
+          // Check if account is locked
+          if (user.locked_until && new Date(user.locked_until) > new Date()) {
+            return res.status(401).json({ 
+              success: false, 
+              error: 'Account is temporarily locked. Please try again later.' 
+            });
+          }
+          
+          // Simple password check (in production, use bcrypt.compare)
+          // For admin: always check against admin123
+          // For other users: check password_hash from database
+          const isValidPassword = 
+            (email === 'admin@chatbot.com' && password === 'admin123') ||
+            (email !== 'admin@chatbot.com' && user.password_hash === password); // Custom users
+          
+          if (!isValidPassword) {
+            // Increment login attempts
+            const attempts = (user.login_attempts || 0) + 1;
+            const lockUntil = attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+            
+            await sql`
+              UPDATE agents 
+              SET login_attempts = ${attempts}, locked_until = ${lockUntil}
+              WHERE id = ${user.id}
+            `;
+            
+            return res.status(401).json({ 
+              success: false, 
+              error: `Invalid email or password${attempts >= 3 ? `. ${5 - attempts} attempts remaining.` : ''}` 
+            });
+          }
+          
+          // Reset login attempts on successful login
+          await sql`
+            UPDATE agents 
+            SET login_attempts = 0, locked_until = NULL, last_login = NOW()
+            WHERE id = ${user.id}
+          `;
+          
+          // Create session token
+          const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+          
+          await sql`
+            INSERT INTO sessions (agent_id, token, expires_at, ip_address, user_agent)
+            VALUES (${user.id}, ${token}, ${expiresAt}, ${req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'}, ${req.headers['user-agent'] || 'unknown'})
+          `;
+          
+          return res.status(200).json({
+            success: true,
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              organization_id: user.organization_id
+            },
+            token,
+            expiresAt: expiresAt.toISOString()
+          });
+        } catch (error) {
+          console.error('Login error:', error);
+          return res.status(500).json({ success: false, error: 'Login failed: ' + error.message });
+        }
+      }
+      
+      // ==================== LOGOUT ====================
+      if (action === 'logout') {
+        const { token } = body;
+        
+        if (token) {
+          await sql`DELETE FROM sessions WHERE token = ${token}`;
+        }
+        
+        return res.status(200).json({ success: true });
+      }
+      
+      // ==================== SIGNUP ====================
+      if (action === 'signup') {
+        const { email, password, name } = body;
+        
+        try {
+          // Ensure auth columns exist first
+          try {
+            await sql`SELECT password_hash FROM agents LIMIT 1`;
+          } catch (error) {
+            console.log('Adding authentication columns for signup...');
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS password_hash TEXT`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS reset_token TEXT`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0`;
+            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE`;
+          }
+          
+          // Ensure sessions table exists
+          try {
+            await sql`SELECT 1 FROM sessions LIMIT 1`;
+          } catch (error) {
+            console.log('Creating sessions table for signup...');
+            await sql`
+              CREATE TABLE IF NOT EXISTS sessions (
+                id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+              )
+            `;
+            await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`;
+            await sql`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id)`;
+          }
+          
+          // Validate input
+          if (!email || !password || !name) {
+            return res.status(400).json({ success: false, error: 'Email, password, and name are required' });
+          }
+          
+          if (password.length < 6) {
+            return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+          }
+          
+          // Check if user already exists
+          const existing = await sql`
+            SELECT * FROM agents WHERE email = ${email}
+          `;
+          
+          if (existing.length > 0) {
+            return res.status(400).json({ success: false, error: 'Email already registered. Please login.' });
+          }
+          
+          // Create new user with 'agent' role by default
+          const result = await sql`
+            INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
+            VALUES ('00000000-0000-0000-0000-000000000001', ${email}, ${name}, 'agent', ${password}, true)
+            RETURNING id, email, name, role, organization_id
+          `;
+          
+          const newUser = result[0];
+          
+          // Auto-login after signup
+          const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          
+          await sql`
+            INSERT INTO sessions (agent_id, token, expires_at, ip_address, user_agent)
+            VALUES (${newUser.id}, ${token}, ${expiresAt}, ${req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'}, ${req.headers['user-agent'] || 'unknown'})
+          `;
+          
+          return res.status(201).json({
+            success: true,
+            user: {
+              id: newUser.id,
+              email: newUser.email,
+              name: newUser.name,
+              role: newUser.role,
+              organization_id: newUser.organization_id
+            },
+            token,
+            expiresAt: expiresAt.toISOString(),
+            message: 'Account created successfully'
+          });
+        } catch (error) {
+          console.error('Signup error:', error);
+          return res.status(500).json({ success: false, error: 'Signup failed: ' + error.message });
+        }
+      }
+      
+      // ==================== LIST USERS ====================
+      if (action === 'list_users') {
+        const { token, organizationId } = body;
+        
+        // Verify token and check if admin
+        const sessions = await sql`
+          SELECT a.* FROM sessions s
+          JOIN agents a ON s.agent_id = a.id
+          WHERE s.token = ${token} AND s.expires_at > NOW()
+        `;
+        
+        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+          return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        
+        const users = await sql`
+          SELECT id, email, name, role, is_active, last_login, created_at
+          FROM agents
+          WHERE organization_id = ${organizationId}
+          ORDER BY created_at DESC
+        `;
+        
+        return res.status(200).json({ success: true, users });
+      }
+      
+      // ==================== CREATE USER ====================
+      if (action === 'create_user') {
+        const { token, organizationId, email, name, role, password } = body;
+        
+        // Verify admin
+        const sessions = await sql`
+          SELECT a.* FROM sessions s
+          JOIN agents a ON s.agent_id = a.id
+          WHERE s.token = ${token} AND s.expires_at > NOW()
+        `;
+        
+        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+          return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        
+        try {
+          // In production, hash password with bcrypt
+          const result = await sql`
+            INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
+            VALUES (${organizationId}, ${email}, ${name}, ${role}, ${password}, true)
+            RETURNING id, email, name, role, is_active, created_at
+          `;
+          
+          return res.status(201).json({ success: true, user: result[0] });
+        } catch (error) {
+          if (error.message.includes('duplicate')) {
+            return res.status(400).json({ success: false, error: 'Email already exists' });
+          }
+          throw error;
+        }
+      }
+      
+      // ==================== UPDATE USER ====================
+      if (action === 'update_user') {
+        const { token, userId, name, role, password } = body;
+        
+        // Verify admin
+        const sessions = await sql`
+          SELECT a.* FROM sessions s
+          JOIN agents a ON s.agent_id = a.id
+          WHERE s.token = ${token} AND s.expires_at > NOW()
+        `;
+        
+        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+          return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        
+        if (password) {
+          // Update with password
+          const result = await sql`
+            UPDATE agents
+            SET name = ${name}, role = ${role}, password_hash = ${password}, updated_at = NOW()
+            WHERE id = ${userId}
+            RETURNING id, email, name, role, is_active
+          `;
+          return res.status(200).json({ success: true, user: result[0] });
+        } else {
+          // Update without password
+          const result = await sql`
+            UPDATE agents
+            SET name = ${name}, role = ${role}, updated_at = NOW()
+            WHERE id = ${userId}
+            RETURNING id, email, name, role, is_active
+          `;
+          return res.status(200).json({ success: true, user: result[0] });
+        }
+      }
+      
+      // ==================== DELETE USER ====================
+      if (action === 'delete_user') {
+        const { token, userId } = body;
+        
+        // Verify admin
+        const sessions = await sql`
+          SELECT a.* FROM sessions s
+          JOIN agents a ON s.agent_id = a.id
+          WHERE s.token = ${token} AND s.expires_at > NOW()
+        `;
+        
+        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+          return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        
+        await sql`DELETE FROM agents WHERE id = ${userId}`;
+        return res.status(200).json({ success: true });
+      }
+      
+      // ==================== TOGGLE USER ACTIVE ====================
+      if (action === 'toggle_user_active') {
+        const { token, userId, isActive } = body;
+        
+        // Verify admin
+        const sessions = await sql`
+          SELECT a.* FROM sessions s
+          JOIN agents a ON s.agent_id = a.id
+          WHERE s.token = ${token} AND s.expires_at > NOW()
+        `;
+        
+        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+          return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        
+        await sql`
+          UPDATE agents
+          SET is_active = ${isActive}, updated_at = NOW()
+          WHERE id = ${userId}
+        `;
+        
+        return res.status(200).json({ success: true });
+      }
+      
+      return res.status(400).json({ error: 'Invalid auth action' });
     }
 
     return res.status(404).json({ error: 'Endpoint not found' });
