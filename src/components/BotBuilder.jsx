@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import KnowledgeBaseTab from './KnowledgeBaseTab.jsx';
+import CustomizationTab from './CustomizationTab.jsx';
 import ChatPreview from './ChatPreview.jsx';
 import { dbService } from '../services/databaseService.js';
 
@@ -53,6 +54,25 @@ const BotBuilder = () => {
       size: 'medium',
       autoOpen: false,
       showBranding: true
+    },
+    customization: {
+      primaryColor: '#3B82F6',
+      secondaryColor: '#10B981',
+      backgroundColor: '#FFFFFF',
+      textColor: '#1F2937',
+      botMessageBg: '#F3F4F6',
+      userMessageBg: '#3B82F6',
+      fontFamily: 'system-ui',
+      fontSize: 'medium',
+      position: 'bottom-right',
+      widgetSize: 'medium',
+      borderRadius: 'rounded',
+      logo: null,
+      showBranding: true,
+      brandName: 'ChatBot',
+      bubbleIcon: '💬',
+      bubbleColor: '#3B82F6',
+      bubbleSize: 'large'
     }
   });
 
@@ -73,27 +93,46 @@ const BotBuilder = () => {
         const personality = JSON.parse(dbConfig.personality || '{}');
         
         const appConfig = {
-          name: dbConfig.name || 'ChatBot Assistant',
-          role: 'customer_support',
-          systemPrompt: dbConfig.instructions || 'You are a helpful customer service assistant.',
-          tone: personality.tone || 'friendly',
-          avatar: personality.avatar || '🤖',
-          traits: personality.traits || ['professional', 'empathetic'],
-          greeting: dbConfig.greeting_message || 'Hello! How can I help you today?',
-          fallback: dbConfig.fallback_message || "I'm not sure about that.",
-          responseDelay: settings.responseDelay || 1500,
-          maxRetries: settings.maxRetries || 3,
-          operatingHours: settings.operatingHours || { enabled: false, timezone: 'UTC', hours: { start: '09:00', end: '17:00' } },
-          escalationKeywords: settings.escalationKeywords || ['human', 'agent', 'manager'],
-          qaDatabase: settings.qaDatabase || [],
-          knowledgeBase: settings.knowledgeBase || [],
-          widget: settings.widget || {
-            position: 'bottom-right',
-            theme: 'light',
+        name: dbConfig.name || 'ChatBot Assistant',
+        role: 'customer_support',
+        systemPrompt: dbConfig.instructions || 'You are a helpful customer service assistant.',
+        tone: personality.tone || 'friendly',
+        avatar: personality.avatar || '🤖',
+        traits: personality.traits || ['professional', 'empathetic'],
+        greeting: dbConfig.greeting_message || 'Hello! How can I help you today?',
+        fallback: dbConfig.fallback_message || "I'm not sure about that.",
+        responseDelay: settings.responseDelay || 1500,
+        maxRetries: settings.maxRetries || 3,
+        operatingHours: settings.operatingHours || { enabled: false, timezone: 'UTC', hours: { start: '09:00', end: '17:00' } },
+        escalationKeywords: settings.escalationKeywords || ['human', 'agent', 'manager'],
+        qaDatabase: settings.qaDatabase || [],
+        knowledgeBase: settings.knowledgeBase || [],
+        widget: settings.widget || {
+        position: 'bottom-right',
+        theme: 'light',
+        primaryColor: '#3B82F6',
+        size: 'medium',
+        autoOpen: false,
+        showBranding: true
+        },
+          customization: settings.customization || {
             primaryColor: '#3B82F6',
-            size: 'medium',
-            autoOpen: false,
-            showBranding: true
+            secondaryColor: '#10B981',
+            backgroundColor: '#FFFFFF',
+            textColor: '#1F2937',
+            botMessageBg: '#F3F4F6',
+            userMessageBg: '#3B82F6',
+            fontFamily: 'system-ui',
+            fontSize: 'medium',
+            position: 'bottom-right',
+            widgetSize: 'medium',
+            borderRadius: 'rounded',
+            logo: null,
+            showBranding: true,
+            brandName: 'ChatBot',
+            bubbleIcon: '💬',
+            bubbleColor: '#3B82F6',
+            bubbleSize: 'large'
           }
         };
         setBotConfig(appConfig);
@@ -127,7 +166,7 @@ const BotBuilder = () => {
     { id: 'qa', name: 'Q&A', icon: MessageSquare },
     { id: 'knowledge', name: 'Knowledge', icon: BookOpen },
     { id: 'training', name: 'Training', icon: GraduationCap },
-    { id: 'widget', name: 'Widget', icon: Code }
+    { id: 'customization', name: 'Customization', icon: Code }
   ];
 
   const updateConfig = (section, updates) => {
@@ -164,7 +203,8 @@ const BotBuilder = () => {
           escalationKeywords: botConfig.escalationKeywords,
           qaDatabase: botConfig.qaDatabase,
           knowledgeBase: botConfig.knowledgeBase,
-          widget: botConfig.widget
+          widget: botConfig.widget,
+          customization: botConfig.customization
         })
       };
       
@@ -684,76 +724,9 @@ const BotBuilder = () => {
     );
   };
 
-  const WidgetTab = () => {
-    const [embedCode, setEmbedCode] = useState('');
-    
-    const generateEmbedCode = () => {
-      const code = `<!-- ChatBot Widget -->
-<script>
-  window.ChatBotConfig = {
-    position: '${botConfig.widget?.position || 'bottom-right'}',
-    theme: '${botConfig.widget?.theme || 'light'}',
-    primaryColor: '${botConfig.widget?.primaryColor || '#3B82F6'}',
-    size: '${botConfig.widget?.size || 'medium'}',
-    botName: '${botConfig.name}',
-    greeting: '${botConfig.greeting}',
-    avatar: '${botConfig.avatar}'
-  };
-</script>
-<script src="/widget/chatbot.js"></script>`;
-      
-      setEmbedCode(code);
-    };
-
-    return (
-      <div className="space-y-4">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-3">Widget Appearance</h3>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-              <select
-                value={botConfig.widget?.position || 'bottom-right'}
-                onChange={(e) => updateConfig('widget', { position: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="bottom-right">Bottom Right</option>
-                <option value="bottom-left">Bottom Left</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Theme</label>
-              <select
-                value={botConfig.widget?.theme || 'light'}
-                onChange={(e) => updateConfig('widget', { theme: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <button
-            onClick={generateEmbedCode}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mb-3"
-          >
-            Generate Embed Code
-          </button>
-          
-          {embedCode && (
-            <div className="bg-gray-900 text-green-400 p-3 rounded-lg overflow-x-auto">
-              <pre className="text-xs whitespace-pre-wrap">{embedCode}</pre>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const CustomizationTabComponent = () => (
+    <CustomizationTab botConfig={botConfig} updateConfig={updateConfig} />
+  );
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -763,7 +736,7 @@ const BotBuilder = () => {
       case 'qa': return <QATab />;
       case 'knowledge': return <KnowledgeTab />;
       case 'training': return <TrainingTab />;
-      case 'widget': return <WidgetTab />;
+      case 'customization': return <CustomizationTabComponent />;
       default: return <DirectiveTab />;
     }
   };
