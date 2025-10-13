@@ -189,7 +189,7 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
       <div 
         className="p-4 border-b border-gray-200 text-white relative"
         style={{ 
-          background: `linear-gradient(135deg, ${customization.primaryColor}, ${customization.secondaryColor})`
+          backgroundColor: customization.primaryColor
         }}
       >
         <div className="flex items-center gap-3">
