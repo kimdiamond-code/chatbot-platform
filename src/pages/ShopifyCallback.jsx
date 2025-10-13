@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 const ShopifyCallback = () => {
   const [status, setStatus] = useState('processing');
   const [message, setMessage] = useState('Processing your Shopify connection...');
-  const navigate = useNavigate();
 
   useEffect(() => {
     handleCallback();
@@ -22,7 +20,7 @@ const ShopifyCallback = () => {
       if (error) {
         setStatus('error');
         setMessage(`Authorization failed: ${error}`);
-        setTimeout(() => navigate('/integrations'), 5000);
+        setTimeout(() => window.location.href = '/?shopify=error', 5000);
         return;
       }
 
@@ -30,7 +28,7 @@ const ShopifyCallback = () => {
       if (!code || !shop || !state) {
         setStatus('error');
         setMessage('Missing required OAuth parameters');
-        setTimeout(() => navigate('/integrations'), 5000);
+        setTimeout(() => window.location.href = '/?shopify=error', 5000);
         return;
       }
 
@@ -75,14 +73,14 @@ const ShopifyCallback = () => {
       
       // Redirect back to integrations page
       setTimeout(() => {
-        navigate('/integrations?shopify=connected');
+        window.location.href = '/?shopify=connected';
       }, 2000);
 
     } catch (error) {
       console.error('OAuth callback error:', error);
       setStatus('error');
       setMessage(`Connection failed: ${error.message}`);
-      setTimeout(() => navigate('/integrations'), 5000);
+      setTimeout(() => window.location.href = '/?shopify=error', 5000);
     }
   };
 
@@ -153,7 +151,7 @@ const ShopifyCallback = () => {
             </div>
             
             <button
-              onClick={() => navigate('/integrations')}
+              onClick={() => window.location.href = '/?shopify=error'}
               className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Back to Integrations

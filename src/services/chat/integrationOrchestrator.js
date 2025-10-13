@@ -1,5 +1,5 @@
 // Integration Orchestrator - Coordinates between chat and integrations
-import shopifyService from '../integrations/shopifyService.js';
+import { shopifyService } from '../integrations/shopifyService.js';
 import { demoShopifyService } from '../demoShopifyService.js';
 import { kustomerService } from '../integrations/kustomerService';
 import { chatIntelligenceService } from './chatIntelligence';
@@ -17,26 +17,53 @@ class IntegrationOrchestrator {
   async initializeIntegrations() {
     // Check which integrations are available
     try {
-      // Check if credentials are loaded (don't verify connection due to CORS)
-      await shopifyService.loadCredentials();
+      console.log('🔍 Checking Shopify integration...');
+      console.log('📍 Organization ID:', '00000000-0000-0000-0000-000000000001');
       
-      // If we have credentials loaded, consider it connected
-      // (API calls will work from backend/server-side, not browser due to CORS)
-      this.activeIntegrations.shopify = !!shopifyService.credentialsLoaded && !!shopifyService.accessToken;
+      // Check if Shopify is connected via OAuth
+      this.activeIntegrations.shopify = await shopifyService.verifyConnection();
       
       if (this.activeIntegrations.shopify) {
-        console.log('✅ Shopify integration active (credentials loaded)');
+        console.log('✅ Shopify integration active (OAuth connected)');
+        
+        // Log credentials details for debugging (without exposing sensitive data)
+        const credentials = await shopifyService.getCredentials();
+        if (credentials) {
+          console.log('🏪 Shopify store:', credentials.shopDomain);
+          console.log('🔑 Has access token:', !!credentials.accessToken);
+          console.log('🔗 Connection confirmed:', credentials.connected);
+        } else {
+          console.error('❌ verifyConnection returned true but getCredentials returned null!');
+          this.activeIntegrations.shopify = false;
+        }
       } else {
-        console.log('⚠️ Shopify integration inactive (no credentials)');
+        console.log('🎭 Shopify integration inactive - using demo mode');
+        
+        // Debug: Try to get credentials manually to see what's wrong
+        const debugCreds = await shopifyService.getCredentials();
+        console.log('🔍 Debug credentials check:', {
+          hasCredentials: !!debugCreds,
+          shopDomain: debugCreds?.shopDomain,
+          hasToken: !!debugCreds?.accessToken,
+          connected: debugCreds?.connected
+        });
       }
     } catch (error) {
       this.activeIntegrations.shopify = false;
-      console.log('⚠️ Shopify not connected:', error.message);
+      console.error('⚠️ Shopify connection check failed:', error.message);
+      console.error('⚠️ Full error:', error);
     }
     
-    this.activeIntegrations.kustomer = kustomerService.isConnected();
+    try {
+      this.activeIntegrations.kustomer = kustomerService.isConnected();
+      console.log(`👥 Kustomer: ${this.activeIntegrations.kustomer ? 'connected' : 'disconnected'}`);
+    } catch (error) {
+      this.activeIntegrations.kustomer = false;
+      console.log('⚠️ Kustomer check failed:', error.message);
+    }
     
     console.log('🔗 Integration Orchestrator initialized:', this.activeIntegrations);
+    console.log('⏰ Initialization timestamp:', new Date().toISOString());
   }
 
   /**
@@ -46,8 +73,8 @@ class IntegrationOrchestrator {
     try {
       console.log('🧠 Processing message:', message);
       
-      // Step 1: Analyze the message for intents and entities
-      const analysis = chatIntelligenceService.analyzeMessage(
+      // Step 1: Analyze the message for intents and entities (now async with AI)
+      const analysis = await chatIntelligenceService.analyzeMessage(
         message.content, 
         customerContext.email
       );
@@ -111,15 +138,23 @@ class IntegrationOrchestrator {
       try {
         switch (action.type) {
           case 'shopify_order_lookup':
-            if (this.activeIntegrations.shopify) {
-              results.shopify = await this.handleShopifyOrderLookup(action, customerContext);
-            }
+            // Always call - handler decides whether to use real Shopify or show instructions
+            results.shopify = await this.handleShopifyOrderLookup(action, customerContext);
             break;
 
           case 'shopify_product_search':
-            if (this.activeIntegrations.shopify) {
-              results.shopify = await this.handleShopifyProductSearch(action);
-            }
+            // Always call - handler decides whether to use real Shopify or demo mode
+            results.shopify = await this.handleShopifyProductSearch(action);
+            break;
+          
+          case 'shopify_cart_view':
+            // Always call - handler decides whether to use real Shopify or return empty
+            results.shopify = await this.handleShopifyCartView(action, customerContext);
+            break;
+          
+          case 'shopify_product_details':
+            // Always call - handler decides whether to use real Shopify or demo mode
+            results.shopify = await this.handleShopifyProductDetails(action);
             break;
 
           case 'kustomer_escalation':
@@ -150,40 +185,104 @@ class IntegrationOrchestrator {
    */
   async handleShopifyOrderLookup(action, customerContext) {
     try {
+      console.log('🔍 Order lookup:', { 
+        hasEmail: !!action.email, 
+        email: action.email,
+        hasOrderNumbers: !!action.orderNumbers?.length,
+        orderNumbers: action.orderNumbers 
+      });
+      
       let orders = [];
-
-      // If we have specific order numbers, look them up
-      if (action.orderNumbers && action.orderNumbers.length > 0) {
-        for (const orderNum of action.orderNumbers) {
-          try {
-            const order = await shopifyService.findOrderByNumber(orderNum);
-            if (order) orders.push(order);
-          } catch (error) {
-            console.log(`Order ${orderNum} not found`);
-          }
-        }
+      const credentials = await shopifyService.getCredentials();
+      
+      if (!credentials) {
+        console.log('⚠️ No Shopify credentials for order lookup');
+        return { orders: [], customer: null };
       }
-
-      // If no specific orders found or no order numbers provided, get customer orders
-      if (orders.length === 0 && action.email) {
+      
+      // Try to fetch orders by email
+      if (action.email && action.email !== 'null' && action.email !== 'undefined') {
         try {
-          const customer = await shopifyService.findCustomerByEmail(action.email);
-          if (customer) {
-            const customerOrders = await shopifyService.getCustomerOrders(customer.id, 5);
-            orders = customerOrders || [];
+          console.log('📧 Fetching orders for email:', action.email);
+          
+          const response = await fetch('/api/consolidated', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              endpoint: 'database',
+              action: 'shopify_getOrders',
+              store_url: credentials.shopDomain,
+              access_token: credentials.accessToken,
+              customer_email: action.email
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success && data.orders) {
+            orders = data.orders;
+            console.log('✅ Found', orders.length, 'orders for email');
+            
+            // If they also provided an order number, filter to that specific order
+            if (action.orderNumbers && action.orderNumbers.length > 0) {
+              const orderNum = action.orderNumbers[0].toString();
+              const specificOrder = orders.find(order => 
+                order.name?.includes(orderNum) || 
+                order.order_number?.toString() === orderNum ||
+                order.id?.toString() === orderNum
+              );
+              
+              if (specificOrder) {
+                console.log('✅ Found specific order:', specificOrder.name);
+                orders = [specificOrder];
+              }
+            }
           }
         } catch (error) {
-          console.log('Customer not found in Shopify');
+          console.error('❌ Error fetching orders by email:', error);
+        }
+      }
+      
+      // If still no orders and we have an order number, try searching all orders
+      if (orders.length === 0 && action.orderNumbers && action.orderNumbers.length > 0) {
+        try {
+          console.log('🔍 Searching all orders for number:', action.orderNumbers[0]);
+          
+          const response = await fetch('/api/consolidated', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              endpoint: 'database',
+              action: 'shopify_searchOrders',
+              store_url: credentials.shopDomain,
+              access_token: credentials.accessToken,
+              order_name: action.orderNumbers[0]
+            })
+          });
+          
+          const data = await response.json();
+          
+          // Check if endpoint exists or if it's just no results
+          if (response.ok && data.success && data.orders && data.orders.length > 0) {
+            orders = data.orders;
+            console.log('✅ Found order by number:', orders[0].name);
+          } else if (response.status === 400 || (data.error && data.error.includes('Invalid action'))) {
+            // Endpoint not deployed yet, skip silently
+            console.log('⚠️ Order search endpoint not available yet - skipping advanced search');
+          }
+        } catch (error) {
+          console.error('❌ Error searching orders by number:', error);
+          // Don't throw, just log - we'll show "order not found" to user
         }
       }
 
       return {
         orders: orders,
-        customer: action.email ? await shopifyService.findCustomerByEmail(action.email).catch(() => null) : null
+        customer: null // We don't need customer object for display
       };
 
     } catch (error) {
-      console.error('Error in Shopify order lookup:', error);
+      console.error('❌ Error in Shopify order lookup:', error);
       return { orders: [], customer: null };
     }
   }
@@ -228,6 +327,92 @@ class IntegrationOrchestrator {
         searchQuery: action.query,
         demoMode: true
       };
+    }
+  }
+  
+  /**
+   * Handle Shopify cart view - Get draft orders for customer
+   */
+  async handleShopifyCartView(action, customerContext) {
+    try {
+      console.log('🛒 Fetching cart (draft orders) for customer:', customerContext.email);
+      
+      // In Shopify, carts are essentially draft orders
+      // We'll fetch recent draft orders for this customer
+      const credentials = await shopifyService.getCredentials();
+      
+      if (!credentials) {
+        console.log('⚠️ No Shopify credentials - cart is empty');
+        return { draft_orders: [] };
+      }
+      
+      // Fetch draft orders via API
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_getDraftOrders',
+          store_url: credentials.shopDomain,
+          access_token: credentials.accessToken,
+          customer_email: customerContext.email || action.email
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.draft_orders) {
+        console.log('✅ Found', data.draft_orders.length, 'draft orders (cart items)');
+        return { draft_orders: data.draft_orders };
+      }
+      
+      return { draft_orders: [] };
+      
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+      return { draft_orders: [] };
+    }
+  }
+  
+  /**
+   * Handle Shopify product details - Search for specific product
+   */
+  async handleShopifyProductDetails(action) {
+    try {
+      console.log('📦 Fetching product details for:', action.query);
+      
+      // Extract product name from query
+      const productQuery = action.query.toLowerCase()
+        .replace(/tell me about|more info about|details about|what is/gi, '')
+        .trim();
+      
+      console.log('🔍 Searching for product:', productQuery);
+      
+      // Search for the specific product
+      let products = [];
+      
+      if (this.activeIntegrations.shopify) {
+        products = await shopifyService.searchProducts(productQuery);
+      } else {
+        products = demoShopifyService.searchDemoProducts(productQuery);
+      }
+      
+      if (products && products.length > 0) {
+        console.log('✅ Found product:', products[0].title);
+        return { 
+          products: [products[0]], // Return only the first/best match
+          searchQuery: productQuery,
+          found: true
+        };
+      }
+      
+      console.log('⚠️ No products found matching:', productQuery);
+      // Return empty result, let chat intelligence handle "product not found" response
+      return { products: [], searchQuery: productQuery, found: false };
+      
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      return { products: [], searchQuery: action.query };
     }
   }
 
@@ -455,6 +640,15 @@ class IntegrationOrchestrator {
     }
 
     return context;
+  }
+
+  /**
+   * Refresh integration status (call after connecting a new integration)
+   */
+  async refreshIntegrations() {
+    console.log('🔄 Refreshing integration status...');
+    await this.initializeIntegrations();
+    return this.getIntegrationStatus();
   }
 
   /**

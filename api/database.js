@@ -72,6 +72,18 @@ export default async function handler(req, res) {
     if (method === 'POST') {
       const { action, ...data } = body;
 
+      // Get conversations
+      if (action === 'get_conversations') {
+        const { orgId, limit } = data;
+        const conversations = await sql`
+          SELECT * FROM conversations 
+          ${orgId ? sql`WHERE organization_id = ${orgId}` : sql``}
+          ORDER BY created_at DESC 
+          LIMIT ${limit || 50}
+        `;
+        return res.status(200).json({ conversations });
+      }
+
       // Proactive Triggers
       if (action === 'getProactiveTriggers') {
         const { orgId } = data;

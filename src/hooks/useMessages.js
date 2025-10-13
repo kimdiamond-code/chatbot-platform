@@ -4,7 +4,8 @@ import { dbService } from '../services/databaseService'
 import { enhancedBotService } from '../services/enhancedBotService'
 import { useAuth } from './useAuth'
 import analyticsService from '../services/analyticsService'
-import shopifyService from '../services/shopifyService'
+import { analyticsTracker } from '../services/analyticsTracker'
+import { shopifyService } from '../services/integrations/shopifyService'
 
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -46,23 +47,12 @@ export const useMessages = (conversationId) => {
 
         console.log('✅ Message saved to database:', savedMessage.id);
 
-        // 📊 ANALYTICS: Track message sent
+        // 📊 ANALYTICS: Track message sent with new comprehensive tracker
         try {
-          await analyticsService.trackEvent(
-            messageData.conversation_id,
-            'message_sent',
-            {
-              sender_type: messageData.sender_type,
-              message_length: messageData.content.length
-            }
-          );
-
-          // Check for engagement (3+ messages)
-          const messageCount = messages.length + 1;
-          if (messageCount === 3) {
-            await analyticsService.trackEngagement(messageData.conversation_id);
-            console.log('📊 Engagement milestone reached (3+ messages)');
-          }
+          await analyticsTracker.trackMessage(messageData.conversation_id, {
+            sender_type: messageData.sender_type,
+            content: messageData.content
+          });
         } catch (analyticsError) {
           console.error('⚠️ Analytics tracking error:', analyticsError);
         }
@@ -83,15 +73,14 @@ export const useMessages = (conversationId) => {
 
             console.log('🤖 Bot response generated:', botResult.source);
 
-            // 📊 ANALYTICS: Track AI insights from bot response
+            // 📊 ANALYTICS: Track AI insights from bot response using comprehensive tracker
             try {
               // Detect product mentions
               if (botResult.metadata?.products && botResult.metadata.products.length > 0) {
                 for (const product of botResult.metadata.products) {
-                  await analyticsService.trackProductViewed(
+                  await analyticsTracker.trackProductDiscussion(
                     messageData.conversation_id,
-                    product.id || product.name,
-                    product.name
+                    product
                   );
                 }
                 console.log('📊 Tracked product views:', botResult.metadata.products.length);
@@ -99,16 +88,18 @@ export const useMessages = (conversationId) => {
 
               // Detect categories discussed
               if (botResult.metadata?.categories && botResult.metadata.categories.length > 0) {
-                await analyticsService.trackCategoryDiscussion(
-                  messageData.conversation_id,
-                  botResult.metadata.categories
-                );
+                for (const category of botResult.metadata.categories) {
+                  await analyticsTracker.trackCategoryDiscussion(
+                    messageData.conversation_id,
+                    category
+                  );
+                }
                 console.log('📊 Tracked category discussion:', botResult.metadata.categories);
               }
 
               // Detect order-related activity
               if (botResult.metadata?.orderTracking) {
-                await analyticsService.trackEvent(
+                await analyticsTracker.trackEvent(
                   messageData.conversation_id,
                   'order_inquiry',
                   botResult.metadata.orderTracking
@@ -116,13 +107,22 @@ export const useMessages = (conversationId) => {
                 console.log('📊 Tracked order inquiry');
               }
 
-              // Detect missing information
+              // Detect missing information and track bot confidence
+              if (botResult.confidence < 0.7) {
+                await analyticsTracker.trackBotConfidence(
+                  messageData.conversation_id,
+                  botResult.confidence,
+                  extractIntent(messageData.content)
+                );
+              }
+              
               if (botResult.confidence < 0.5 || botResult.source === 'fallback') {
                 const intent = extractIntent(messageData.content);
                 if (intent) {
-                  await analyticsService.trackMissingInfo(
+                  await analyticsTracker.trackMissingInfo(
                     messageData.conversation_id,
-                    intent
+                    intent,
+                    messageData.content
                   );
                   console.log('📊 Tracked missing info:', intent);
                 }
@@ -130,7 +130,7 @@ export const useMessages = (conversationId) => {
 
               // Track escalation
               if (botResult.shouldEscalate) {
-                await analyticsService.updateConversationMetadata(
+                await analyticsTracker.updateConversationMetadata(
                   messageData.conversation_id,
                   { escalated: true, escalationReason: botResult.metadata?.escalationReason }
                 );
@@ -221,13 +221,11 @@ export const useMessages = (conversationId) => {
 
       case 'add_to_cart':
         console.log('🛒 Adding to cart:', action.data);
+        
+        // Check if we're in demo mode by verifying Shopify connection
+        let isDemoMode = false;
         try {
-          // Get customer email from conversation
-          const conversation = await dbService.getConversation(conversationId);
-          const customerEmail = conversation?.customer?.email || 'guest@example.com';
-          
-          // Check if we're in demo mode
-          const isDemoMode = !shopifyService.accessToken;
+          isDemoMode = !(await shopifyService.verifyConnection());
           
           if (isDemoMode) {
             console.log('🎭 DEMO MODE: Mock add to cart');
@@ -236,11 +234,9 @@ export const useMessages = (conversationId) => {
             const result = await demoShopifyService.mockAddToCart(action.data);
             console.log('✅ Demo cart created:', result);
           } else {
-            // Real Shopify
-            const result = await shopifyService.addToCart(
-              action.data,
-              customerEmail
-            );
+            console.log('✅ Real Shopify: Adding to cart');
+            // Real Shopify - create draft order
+            const result = await shopifyService.createDraftOrder(action.data);
             console.log('✅ Added to cart:', result);
           }
           
@@ -257,25 +253,34 @@ export const useMessages = (conversationId) => {
             }
           });
           
-          // Track analytics
-          await analyticsService.trackEvent(
+          // Track analytics - Add to Cart
+          await analyticsTracker.trackAddToCart(
             conversationId,
-            'add_to_cart',
-            {
-              productId: action.data.product?.id,
-              productTitle: action.data.product?.title,
-              quantity: action.data.quantity,
-              price: action.data.product?.price,
-              demoMode: isDemoMode
-            }
+            action.data.product,
+            action.data.quantity || 1
           );
+          
+          console.log('📊 Tracked add to cart:', action.data.product?.title);
           
         } catch (error) {
           console.error('❌ Failed to add to cart:', error);
+          console.error('❌ Error details:', error.message);
+          console.error('❌ Action data:', action.data);
+          
+          // Send detailed error message
+          const errorMessage = isDemoMode 
+            ? `❌ Demo mode: ${error.message || 'Failed to create mock cart'}. The demo cart feature is being set up.`
+            : `❌ Sorry, I couldn't add that item to your cart. ${error.message || 'Please try again or contact support.'}`;
+          
           await sendMessage({
             conversation_id: conversationId,
-            content: '❌ Sorry, I couldn\'t add that item to your cart. Please try again.',
-            sender_type: 'bot'
+            content: errorMessage,
+            sender_type: 'bot',
+            metadata: {
+              error: true,
+              errorMessage: error.message,
+              errorType: 'add_to_cart_failed'
+            }
           });
         }
         break;

@@ -3,7 +3,7 @@ import 'cross-fetch/polyfill'
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
+import AppRouter from './AppRouter.jsx'
 import './index.css'
 
 // ✅ Import QueryClient and Provider
@@ -16,7 +16,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* ✅ Wrap App in QueryClientProvider */}
     <QueryClientProvider client={queryClient}>
-      <App />
+      <AppRouter />
     </QueryClientProvider>
   </React.StrictMode>,
 )

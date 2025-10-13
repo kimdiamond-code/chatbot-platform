@@ -6,6 +6,9 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
   const [selectedVariant, setSelectedVariant] = useState(product.variants?.[0]);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  
+  // Generate unique ID suffix to prevent duplicates when same product appears multiple times
+  const uniqueId = React.useId();
 
   const handleAddToCart = async () => {
     setAdding(true);
@@ -57,20 +60,28 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
             
             {/* Variant Selector */}
             {product.variants?.length > 1 && (
-              <select
-                value={selectedVariant?.id}
-                onChange={(e) => {
-                  const variant = product.variants.find(v => v.id === e.target.value);
-                  setSelectedVariant(variant);
-                }}
-                className="mt-2 w-full text-xs border border-gray-300 rounded px-2 py-1"
-              >
-                {product.variants.map(variant => (
-                  <option key={variant.id} value={variant.id}>
-                    {variant.title} - ${variant.price}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-2">
+                <label htmlFor={`variant-${uniqueId}`} className="sr-only">
+                  Select variant for {product.title}
+                </label>
+                <select
+                  id={`variant-${uniqueId}`}
+                  name="variant"
+                  value={selectedVariant?.id}
+                  onChange={(e) => {
+                    const variant = product.variants.find(v => v.id === e.target.value);
+                    setSelectedVariant(variant);
+                  }}
+                  className="mt-2 w-full text-xs border border-gray-300 rounded px-2 py-1"
+                  aria-label={`Select variant for ${product.title}`}
+                >
+                  {product.variants.map(variant => (
+                    <option key={variant.id} value={variant.id}>
+                      {variant.title} - ${variant.price}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
             
             {/* Quantity & Add to Cart */}
@@ -79,13 +90,17 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="px-2 py-1 hover:bg-gray-100"
+                  aria-label="Decrease quantity"
+                  type="button"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
-                <span className="px-2 text-sm font-medium">{quantity}</span>
+                <span className="px-2 text-sm font-medium" aria-label={`Quantity: ${quantity}`}>{quantity}</span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   className="px-2 py-1 hover:bg-gray-100"
+                  aria-label="Increase quantity"
+                  type="button"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
@@ -101,6 +116,8 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
                     ? 'bg-royal-500 text-white hover:bg-royal-600'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
+                aria-label={`Add ${product.title} to cart`}
+                type="button"
               >
                 {added ? (
                   <>
@@ -175,16 +192,19 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
         {/* Variant Selector */}
         {product.variants?.length > 1 && (
           <div className="mb-3">
-            <label className="text-xs font-medium text-gray-700 block mb-1">
+            <label htmlFor={`variant-full-${uniqueId}`} className="text-xs font-medium text-gray-700 block mb-1">
               Options
             </label>
             <select
+              id={`variant-full-${uniqueId}`}
+              name="variant"
               value={selectedVariant?.id}
               onChange={(e) => {
                 const variant = product.variants.find(v => v.id === e.target.value);
                 setSelectedVariant(variant);
               }}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              aria-label={`Select options for ${product.title}`}
             >
               {product.variants.map(variant => (
                 <option key={variant.id} value={variant.id}>
@@ -198,26 +218,33 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
         
         {/* Quantity Selector */}
         <div className="mb-3">
-          <label className="text-xs font-medium text-gray-700 block mb-1">
+          <label htmlFor={`quantity-${uniqueId}`} className="text-xs font-medium text-gray-700 block mb-1">
             Quantity
           </label>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
               className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              aria-label="Decrease quantity"
+              type="button"
             >
               <Minus className="w-4 h-4" />
             </button>
             <input
               type="number"
+              id={`quantity-${uniqueId}`}
+              name="quantity"
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
               className="w-20 text-center border border-gray-300 rounded px-3 py-2"
+              aria-label={`Quantity for ${product.title}`}
             />
             <button
               onClick={() => setQuantity(quantity + 1)}
               className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              aria-label="Increase quantity"
+              type="button"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -244,6 +271,8 @@ const ProductCard = ({ product, onAddToCart, compact = false }) => {
               ? 'bg-royal-500 text-white hover:bg-royal-600'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
+          aria-label={`Add ${product.title} to cart`}
+          type="button"
         >
           {added ? (
             <>

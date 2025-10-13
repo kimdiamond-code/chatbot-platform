@@ -1,5 +1,9 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { AuthProvider } from './contexts/AuthContext.jsx';
+import { authService } from './services/authService';
+import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
+import UserManagement from './pages/UserManagement.jsx';
 import CleanModernNavigation, { CleanHeader } from './components/CleanModernNavigation.jsx';
 import EnhancedDashboard from './components/EnhancedDashboard.jsx';
 import FullBotBuilder from './components/BotBuilder.jsx';
@@ -18,6 +22,7 @@ import WebhookManagement from './components/WebhookManagement.jsx';
 import ShopifyTestPage from './pages/ShopifyTestPage.jsx';
 import ShopifyDiagnostic from './components/debug/ShopifyDiagnostic.jsx';
 import BotHealthCheck from './components/debug/BotHealthCheck.jsx';
+import ShopifyCallback from './pages/ShopifyCallback.jsx';
 import { debugEnvVars } from './utils/debugEnv.js';
 import './utils/emergencyActivator.js';
 import './services/openaiService.js';
@@ -86,6 +91,9 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
+  const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
+  const [showSignup, setShowSignup] = useState(false);
   const [realTimeMetrics, setRealTimeMetrics] = useState({
     activeChats: 3,
     todayMessages: 127,
@@ -94,15 +102,24 @@ const App = () => {
   });
 
   useEffect(() => {
+    // Subscribe to auth changes
+    const unsubscribe = authService.subscribe((user) => {
+      setIsAuthenticated(!!user);
+      setCurrentUser(user);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     debugEnvVars();
     
-    // Check for Shopify OAuth callback
+    // Check for OAuth success redirect
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('code') && urlParams.get('shop')) {
+    if (urlParams.get('shopify') === 'connected') {
       setActiveTab('integrations');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    
     console.log('🚀 AI ChatBot Platform - v2.0');
     
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -123,6 +140,28 @@ const App = () => {
     };
   }, []);
 
+  // Show login/signup page if not authenticated
+  if (!isAuthenticated) {
+    if (showSignup) {
+      return <Signup 
+        onSignupSuccess={() => {
+          setIsAuthenticated(true);
+          setCurrentUser(authService.getCurrentUser());
+          setShowSignup(false);
+        }}
+        onSwitchToLogin={() => setShowSignup(false)}
+      />;
+    }
+    
+    return <Login 
+      onLoginSuccess={() => {
+        setIsAuthenticated(true);
+        setCurrentUser(authService.getCurrentUser());
+      }}
+      onSwitchToSignup={() => setShowSignup(true)}
+    />;
+  }
+
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', component: EnhancedDashboard },
     { id: 'botbuilder', name: 'Bot Builder', component: BotBuilder },
@@ -140,6 +179,7 @@ const App = () => {
     { id: 'shopifydiag', name: 'Shopify Debug', component: ShopifyDiagnostic },
     { id: 'bothealth', name: 'Bot Health', component: BotHealthCheck },
     { id: 'security', name: 'Security', component: SecurityCompliance },
+    ...(authService.isAdmin() ? [{ id: 'users', name: 'Users', component: UserManagement }] : []),
     { id: 'settings', name: 'Settings', component: EnhancedSettings }
   ];
 

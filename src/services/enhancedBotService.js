@@ -5,14 +5,32 @@ import { integrationOrchestrator } from './chat/integrationOrchestrator';
 class EnhancedBotService {
   constructor() {
     this.isEnabled = false;
-    this.checkIntegrations();
+    this.lastCheck = null;
+    // Don't check immediately - let integrations initialize first
+    setTimeout(() => this.checkIntegrations(), 2000);
   }
 
-  checkIntegrations() {
+  async checkIntegrations() {
+    console.log('🔍 Checking integrations for enhanced bot...');
+    
     // Check if integrations are available
     const status = integrationOrchestrator.getIntegrationStatus();
     this.isEnabled = status.shopify.connected || status.kustomer.connected;
+    this.lastCheck = new Date().toISOString();
+    
     console.log('🤖 Enhanced bot service enabled:', this.isEnabled);
+    console.log('🔗 Shopify:', status.shopify.connected ? '✅ connected' : '🎭 demo mode');
+    console.log('🔗 Kustomer:', status.kustomer.connected ? '✅ connected' : '❌ disconnected');
+  }
+  
+  /**
+   * Manually refresh integration status (call after connecting Shopify)
+   */
+  async refreshIntegrations() {
+    console.log('🔄 Refreshing enhanced bot integrations...');
+    await integrationOrchestrator.refreshIntegrations();
+    await this.checkIntegrations();
+    return this.getStatus();
   }
 
   /**

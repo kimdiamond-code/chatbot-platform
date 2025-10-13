@@ -31,7 +31,7 @@ const DEMO_CONVERSATIONS = [
 export const useConversations = (orgId = DEFAULT_ORG_ID) => {
   const [initialized, setInitialized] = React.useState(false);
 
-  // Fetch conversations from database
+  // Fetch conversations from database with limit
   const { 
     data: conversations = [], 
     isLoading, 
@@ -41,7 +41,8 @@ export const useConversations = (orgId = DEFAULT_ORG_ID) => {
     queryKey: ['conversations', orgId],
     queryFn: async () => {
       try {
-        const convs = await dbService.getConversations(orgId);
+        // Fetch only recent 50 conversations
+        const convs = await dbService.getConversations(orgId, 50);
         console.log('💬 Loaded conversations from database:', convs.length);
         
         // If no conversations exist, create demo conversations in database
@@ -89,7 +90,7 @@ export const useConversations = (orgId = DEFAULT_ORG_ID) => {
         return DEMO_CONVERSATIONS;
       }
     },
-    refetchInterval: 10000 // Refetch every 10 seconds
+    refetchInterval: 30000 // Refetch every 30 seconds (reduced from 10)
   });
 
   // Create new conversation
@@ -122,12 +123,58 @@ export const useConversations = (orgId = DEFAULT_ORG_ID) => {
     });
   };
 
+  // Delete single conversation
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (conversationId) => {
+      try {
+        await dbService.deleteConversation(conversationId);
+        console.log('🗑️ Conversation deleted:', conversationId);
+        return conversationId;
+      } catch (error) {
+        console.error('❌ Failed to delete conversation:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      refetch();
+    }
+  });
+
+  const deleteConversation = async (conversationId) => {
+    return deleteConversationMutation.mutateAsync(conversationId);
+  };
+
+  // Clear all conversations
+  const clearAllConversationsMutation = useMutation({
+    mutationFn: async () => {
+      try {
+        await dbService.clearAllConversations(orgId);
+        console.log('🗑️ All conversations cleared');
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to clear conversations:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      refetch();
+    }
+  });
+
+  const clearAllConversations = async () => {
+    return clearAllConversationsMutation.mutateAsync();
+  };
+
   return {
     conversations,
     loading: isLoading,
     error,
     createConversation,
     creating: createConversationMutation.isPending || createConversationMutation.isLoading,
+    deleteConversation,
+    deleting: deleteConversationMutation.isPending || deleteConversationMutation.isLoading,
+    clearAllConversations,
+    clearingAll: clearAllConversationsMutation.isPending || clearAllConversationsMutation.isLoading,
     refetch
   };
 };

@@ -26,6 +26,7 @@ class ChatIntelligenceService {
         /what.*headphones/i,
         /what.*speakers/i,
         /what.*products/i,
+        /show\s+(me\s+)?(some\s+)?products/i,
         /show\s+me/i,
         /product\s+info/i,
         /price\s+for/i,
@@ -37,7 +38,36 @@ class ChatIntelligenceService {
         /browse/i,
         /catalog/i,
         /collection/i,
-        /best\s+(selling|seller|rated)/i
+        /best\s+(selling|seller|rated)/i,
+        /^(show|display|list|get)\s+(all\s+)?(the\s+)?products?$/i,
+        /^products?$/i
+      ],
+      
+      // Cart-related queries
+      cartInquiry: [
+        /show\s+(me\s+)?(my\s+)?cart/i,
+        /what's\s+in\s+my\s+cart/i,
+        /view\s+cart/i,
+        /cart\s+items/i,
+        /shopping\s+cart/i,
+        /my\s+cart/i,
+        /checkout/i,
+        /items\s+in\s+cart/i
+      ],
+      
+      // Product detail questions
+      productQuestion: [
+        /tell\s+me\s+about/i,
+        /more\s+info(rmation)?\s+about/i,
+        /details\s+(about|on|for)/i,
+        /what\s+is\s+this/i,
+        /describe\s+this/i,
+        /specs\s+(for|on)/i,
+        /specifications/i,
+        /features\s+of/i,
+        /reviews\s+(for|of)/i,
+        /how\s+(much|does).*cost/i,
+        /price\s+of/i
       ],
       
       // Support escalation triggers
@@ -87,8 +117,107 @@ class ChatIntelligenceService {
 
   /**
    * Analyze message and determine intents and context
+   * Uses AI-powered intent detection when OpenAI is available
    */
-  analyzeMessage(message, customerEmail = null) {
+  async analyzeMessage(message, customerEmail = null) {
+    // Try AI-powered intent detection first
+    const aiIntents = await this.detectIntentsWithAI(message);
+    
+    if (aiIntents && aiIntents.length > 0) {
+      console.log('🤖 Using AI-detected intents:', aiIntents);
+      return this.buildAnalysisFromAI(aiIntents, message, customerEmail);
+    }
+    
+    // Fallback to regex patterns
+    console.log('🔍 Using regex-based intent detection');
+    return this.analyzeMessageWithRegex(message, customerEmail);
+  }
+  
+  /**
+   * Detect intents using OpenAI
+   */
+  async detectIntentsWithAI(message) {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { chatBotService } = await import('../openaiService');
+      const openaiClient = await chatBotService.getOpenAIClient();
+      
+      if (!openaiClient) {
+        console.log('⚡ OpenAI not available, skipping AI intent detection');
+        return null;
+      }
+      
+      const intentPrompt = `Analyze this customer message and identify the intents. Return ONLY a JSON array of intent names from this list:
+- orderTracking: customer asking about order status, tracking, delivery
+- productSearch: customer looking for products, recommendations, browsing
+- productQuestion: asking details about a specific product
+- cartInquiry: asking about cart, checkout
+- supportEscalation: frustrated, wants human agent
+- billingInquiry: billing, payment, refund questions
+
+Customer message: "${message}"
+
+Return format: ["intent1", "intent2"] or [] if no clear intent.
+RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
+      
+      const completion = await openaiClient.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: intentPrompt }],
+        max_tokens: 50,
+        temperature: 0.3
+      });
+      
+      const responseText = completion.choices[0].message.content.trim();
+      const intents = JSON.parse(responseText);
+      
+      return Array.isArray(intents) ? intents : null;
+      
+    } catch (error) {
+      console.log('⚠️ AI intent detection failed:', error.message);
+      return null;
+    }
+  }
+  
+  /**
+   * Build analysis object from AI-detected intents
+   */
+  buildAnalysisFromAI(intents, message, customerEmail) {
+    const analysis = {
+      intents: intents,
+      entities: {
+        orderNumbers: [],
+        products: [],
+        email: customerEmail
+      },
+      sentiment: 'neutral',
+      priority: 'medium',
+      requiresEscalation: false,
+      confidence: 0.9 // High confidence from AI
+    };
+    
+    // Extract entities
+    const emailMatches = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+    if (emailMatches) analysis.entities.email = emailMatches[0];
+    
+    const orderMatches = message.match(/#?([A-Z]{0,2}\d{4,}|\w{4,}-\w{4,})/g);
+    if (orderMatches) {
+      analysis.entities.orderNumbers = orderMatches.map(match => match.replace('#', ''));
+    }
+    
+    // Check for escalation
+    if (intents.includes('supportEscalation')) {
+      analysis.requiresEscalation = true;
+      analysis.priority = 'high';
+      analysis.sentiment = 'negative';
+    }
+    
+    return analysis;
+  }
+  
+  /**
+   * Analyze message using regex patterns (fallback)
+   */
+  analyzeMessageWithRegex(message, customerEmail = null) {
     const analysis = {
       intents: [],
       entities: {
@@ -104,8 +233,14 @@ class ChatIntelligenceService {
 
     const lowerMessage = message.toLowerCase();
 
+    // Extract email addresses from message
+    const emailMatches = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+    if (emailMatches && emailMatches.length > 0) {
+      analysis.entities.email = emailMatches[0]; // Use first email found
+    }
+
     // Extract order numbers - improved regex
-    const orderMatches = message.match(/#?(\d{4,}|\w{4,}-\w{4,})/g);
+    const orderMatches = message.match(/#?([A-Z]{0,2}\d{4,}|\w{4,}-\w{4,})/g);
     if (orderMatches) {
       analysis.entities.orderNumbers = orderMatches.map(match => match.replace('#', ''));
     }
@@ -156,6 +291,9 @@ class ChatIntelligenceService {
       responseType: 'standard',
       integrationCalls: []
     };
+    
+    console.log('🔍 Generating response plan for:', originalMessage);
+    console.log('🔍 Detected intents:', analysis.intents);
 
     // Order tracking requests
     if (analysis.intents.includes('orderTracking')) {
@@ -192,6 +330,24 @@ class ChatIntelligenceService {
       });
       plan.responseType = 'product_recommendations';
     }
+    
+    // Cart inquiry requests
+    if (analysis.intents.includes('cartInquiry')) {
+      plan.actions.push({
+        type: 'shopify_cart_view',
+        email: analysis.entities.email
+      });
+      plan.responseType = 'cart_display';
+    }
+    
+    // Product detail questions
+    if (analysis.intents.includes('productQuestion')) {
+      plan.actions.push({
+        type: 'shopify_product_details',
+        query: originalMessage
+      });
+      plan.responseType = 'product_details';
+    }
 
     // Support escalation
     if (analysis.requiresEscalation) {
@@ -212,6 +368,17 @@ class ChatIntelligenceService {
         priority: analysis.priority
       });
       plan.responseType = 'billing_support';
+    }
+    
+    // FALLBACK: If no intents detected but message contains product-related words, assume product search
+    if (plan.actions.length === 0 && /product|item|catalog|shop|store|buy|purchase/i.test(originalMessage)) {
+      console.log('⚡ Fallback: Detecting product-related message, adding product search action');
+      plan.actions.push({
+        type: 'shopify_product_search',
+        products: [],
+        query: 'general'
+      });
+      plan.responseType = 'product_recommendations';
     }
 
     return plan;
@@ -239,6 +406,14 @@ class ChatIntelligenceService {
       case 'product_recommendations':
         response = this.formatProductResponse(integrationResults.shopify);
         break;
+      
+      case 'cart_display':
+        response = this.formatCartResponse(integrationResults.shopify);
+        break;
+      
+      case 'product_details':
+        response = this.formatProductDetailsResponse(integrationResults.shopify, originalMessage);
+        break;
         
       case 'escalation':
         response = this.formatEscalationResponse(integrationResults.kustomer);
@@ -256,6 +431,47 @@ class ChatIntelligenceService {
   }
 
   formatOrderResponse(shopifyData, originalMessage, action) {
+    // Check if we're missing required information
+    const hasEmail = action.email && action.email !== 'null' && action.email !== 'undefined';
+    const hasOrderNumber = action.orderNumbers && action.orderNumbers.length > 0;
+    
+    // If missing both, ask for email first
+    if (!hasEmail && !hasOrderNumber) {
+      return {
+        text: "I'll help you track your order! To get started, I need some information:\n\n" +
+              "📧 **What email address did you use for your order?**\n\n" +
+              "Please provide your email address so I can look up your order.",
+        actions: [
+          { type: 'quick_reply', label: 'I have my order number', value: 'My order number is ' }
+        ],
+        metadata: { 
+          source: 'smart_integration', 
+          confidence: 0.8, 
+          integrationsUsed: [],
+          needsInfo: 'email'
+        }
+      };
+    }
+    
+    // If we have email but no order number, and no orders found
+    if (hasEmail && !hasOrderNumber && (!shopifyData || !shopifyData.orders || shopifyData.orders.length === 0)) {
+      return {
+        text: `I'm looking for orders with email **${action.email}**, but I couldn't find any orders yet.\n\n` +
+              "📦 **Do you have your order number?** This will help me find your order faster.\n\n" +
+              "Order numbers typically look like: #1234 or ABC-1234",
+        actions: [
+          { type: 'escalate', label: '🚀 Speak to Agent', priority: 'high' },
+          { type: 'quick_reply', label: 'Try different email', value: 'My email is ' }
+        ],
+        metadata: { 
+          source: 'smart_integration', 
+          confidence: 0.6, 
+          integrationsUsed: ['shopify'],
+          needsInfo: 'order_number'
+        }
+      };
+    }
+    
     // Check if Shopify integration failed completely
     if (!shopifyData) {
       return this.formatOrderFallbackResponse(action, originalMessage);
@@ -266,39 +482,96 @@ class ChatIntelligenceService {
       return this.formatOrderNotFoundResponse(action, originalMessage);
     }
 
-    // Format successful order response
+    // Format successful order response with full tracking details
     const latestOrder = shopifyData.orders[0];
     const status = this.getOrderStatus(latestOrder);
+    const fulfillments = latestOrder.fulfillments || [];
+    const latestFulfillment = fulfillments.length > 0 ? fulfillments[0] : null;
     
-    let responseText = `I found your order! **${latestOrder.line_items?.[0]?.title || 'Your order'}** (Order #${latestOrder.name})\n\n`;
+    let responseText = `✅ **Order Found!**\n\n`;
+    responseText += `📦 **Order #${latestOrder.name || latestOrder.order_number}**\n`;
     
-    responseText += `📦 **Status**: ${status}\n`;
-    responseText += `💰 **Total**: $${latestOrder.total_price}\n`;
-    
-    if (latestOrder.tracking_number) {
-      responseText += `📍 **Tracking**: ${latestOrder.tracking_number}\n`;
+    // Show items
+    if (latestOrder.line_items && latestOrder.line_items.length > 0) {
+      responseText += `\n**Items:**\n`;
+      latestOrder.line_items.slice(0, 3).forEach(item => {
+        responseText += `• ${item.title} (x${item.quantity})\n`;
+      });
+      if (latestOrder.line_items.length > 3) {
+        responseText += `• ...and ${latestOrder.line_items.length - 3} more items\n`;
+      }
     }
     
+    responseText += `\n💰 **Total**: ${latestOrder.total_price}\n`;
+    responseText += `📊 **Status**: ${status}\n`;
+    
+    // Show tracking information if available
+    if (latestFulfillment && latestFulfillment.tracking_number) {
+      responseText += `\n🚚 **Shipping Information:**\n`;
+      responseText += `📍 **Tracking #**: ${latestFulfillment.tracking_number}\n`;
+      
+      if (latestFulfillment.tracking_company) {
+        responseText += `📫 **Carrier**: ${latestFulfillment.tracking_company}\n`;
+      }
+      
+      if (latestFulfillment.tracking_url) {
+        responseText += `🔗 **Track online**: ${latestFulfillment.tracking_url}\n`;
+      }
+      
+      if (latestFulfillment.updated_at) {
+        const updateDate = new Date(latestFulfillment.updated_at);
+        responseText += `🕐 **Last updated**: ${updateDate.toLocaleDateString()}\n`;
+      }
+    } else if (latestOrder.tracking_number) {
+      // Fallback to order-level tracking
+      responseText += `\n🚚 **Tracking Number**: ${latestOrder.tracking_number}\n`;
+      if (latestOrder.tracking_url) {
+        responseText += `🔗 ${latestOrder.tracking_url}\n`;
+      }
+    }
+    
+    // Add status-specific messages
     if (latestOrder.fulfillment_status === 'fulfilled') {
-      responseText += `✅ **Delivered** - Hope you're enjoying your purchase!`;
-    } else if (latestOrder.fulfillment_status === 'pending') {
-      responseText += `🚚 **Expected delivery**: 2-3 business days`;
+      responseText += `\n✅ **Delivered!** Hope you're enjoying your purchase!`;
+    } else if (latestOrder.fulfillment_status === 'shipped' || latestOrder.fulfillment_status === 'partial') {
+      responseText += `\n🚚 **In Transit** - Your order is on the way!`;
+    } else if (latestOrder.financial_status === 'paid' && !latestOrder.fulfillment_status) {
+      responseText += `\n⏳ **Processing** - We're preparing your order for shipment.`;
+      responseText += `\nExpected to ship within 1-2 business days.`;
+    }
+    
+    // Show shipping address
+    if (latestOrder.shipping_address) {
+      const addr = latestOrder.shipping_address;
+      responseText += `\n\n📍 **Shipping to:**\n`;
+      responseText += `${addr.address1 || ''}\n`;
+      if (addr.address2) responseText += `${addr.address2}\n`;
+      responseText += `${addr.city || ''}, ${addr.province_code || ''} ${addr.zip || ''}\n`;
     }
 
     const actions = [];
-    if (latestOrder.tracking_number) {
+    
+    // Only add tracking link if it exists
+    if (latestFulfillment?.tracking_url || latestOrder.tracking_url) {
       actions.push({ 
         type: 'external_link', 
-        label: 'Track Package', 
-        url: latestOrder.tracking_url || `https://track.example.com/${latestOrder.tracking_number}` 
+        label: '📦 Track Package Online', 
+        url: latestFulfillment?.tracking_url || latestOrder.tracking_url
       });
     }
-    actions.push({ type: 'escalate', label: 'Speak to Agent' });
+    
+    actions.push({ type: 'escalate', label: '💬 Questions? Chat with Agent' });
 
     return {
       text: responseText,
       actions,
-      metadata: { source: 'smart_integration', confidence: 0.9, integrationsUsed: ['shopify'] }
+      metadata: { 
+        source: 'smart_integration', 
+        confidence: 0.95, 
+        integrationsUsed: ['shopify'],
+        orderNumber: latestOrder.name || latestOrder.order_number,
+        trackingNumber: latestFulfillment?.tracking_number || latestOrder.tracking_number
+      }
     };
   }
 
@@ -328,25 +601,46 @@ class ChatIntelligenceService {
   }
 
   formatOrderNotFoundResponse(action, originalMessage) {
-    let responseText = `I want to help you track your order, but I couldn't find it in our system. This could be because:\n\n`;
-    responseText += `• The order was placed with a different email address\n`;
-    responseText += `• The order number might be slightly different\n`;
-    responseText += `• The order is very recent and still processing\n\n`;
+    const hasEmail = action.email && action.email !== 'null' && action.email !== 'undefined';
+    const hasOrderNumber = action.orderNumbers && action.orderNumbers.length > 0;
     
-    if (action.orderNumbers && action.orderNumbers.length > 0) {
-      responseText += `I searched for order #${action.orderNumbers[0]}. `;
+    let responseText = `🔍 I'm having trouble finding your order. Let me help you locate it:\n\n`;
+    
+    if (hasEmail && hasOrderNumber) {
+      responseText += `I searched for:\n`;
+      responseText += `• Email: **${action.email}**\n`;
+      responseText += `• Order #: **${action.orderNumbers[0]}**\n\n`;
+      responseText += `The order might not be in our system yet if it was just placed, or there could be a typo.\n\n`;
+      responseText += `**Let's try:**\n`;
+      responseText += `• Double-check the order number\n`;
+      responseText += `• Verify the email address\n`;
+      responseText += `• Or connect with an agent who can search more thoroughly`;
+    } else if (hasEmail) {
+      responseText += `I searched for orders with email **${action.email}**, but didn't find any.\n\n`;
+      responseText += `This could mean:\n`;
+      responseText += `• The order is very recent and still processing\n`;
+      responseText += `• You used a different email address\n`;
+      responseText += `• The order was placed as a guest\n\n`;
+      responseText += `**Do you have your order number?** That would help me find it immediately!`;
+    } else if (hasOrderNumber) {
+      responseText += `I searched for order #**${action.orderNumbers[0]}**, but couldn't locate it.\n\n`;
+      responseText += `**Can you provide the email address used for this order?**\nThis will help me search more accurately.`;
     }
-    
-    responseText += `Let me connect you with a specialist who can locate your order immediately!`;
 
     return {
       text: responseText,
       actions: [
-        { type: 'escalate', label: '🚀 Find My Order', priority: 'high' },
-        { type: 'input_request', label: '📝 Try Different Order Number', field: 'order_number' },
-        { type: 'input_request', label: '📧 Try Different Email', field: 'email' }
+        { type: 'escalate', label: '🚀 Connect with Agent', priority: 'high' },
+        { type: 'quick_reply', label: '📧 Try different email', value: 'My email is ' },
+        { type: 'quick_reply', label: '📦 Provide order number', value: 'My order number is ' }
       ],
-      metadata: { source: 'smart_integration', confidence: 0.6, integrationsUsed: ['shopify'] }
+      metadata: { 
+        source: 'smart_integration', 
+        confidence: 0.6, 
+        integrationsUsed: ['shopify'],
+        searchedEmail: action.email,
+        searchedOrderNumber: action.orderNumbers?.[0]
+      }
     };
   }
 
@@ -399,6 +693,99 @@ class ChatIntelligenceService {
         confidence: 0.9, 
         integrationsUsed: ['shopify'],
         products: formattedProducts
+      }
+    };
+  }
+  
+  formatCartResponse(shopifyData) {
+    // For now, show draft orders as "cart items"
+    if (!shopifyData || !shopifyData.draft_orders || shopifyData.draft_orders.length === 0) {
+      return {
+        text: "🛒 Your cart is currently empty.\n\nWould you like to browse our products?",
+        actions: [
+          { type: 'quick_reply', label: 'Show Products', value: 'show me products' },
+          { type: 'quick_reply', label: 'Best Sellers', value: 'show me best sellers' }
+        ],
+        metadata: { source: 'smart_integration', confidence: 0.8, integrationsUsed: ['shopify'] }
+      };
+    }
+
+    const cartItems = shopifyData.draft_orders;
+    let responseText = `🛒 **Your Cart**\n\n`;
+    let totalPrice = 0;
+
+    cartItems.forEach((item, index) => {
+      const lineItem = item.line_items?.[0];
+      if (lineItem) {
+        responseText += `${index + 1}. **${lineItem.title}**\n`;
+        responseText += `   💰 ${lineItem.price} x ${lineItem.quantity}\n`;
+        totalPrice += parseFloat(lineItem.price) * lineItem.quantity;
+      }
+    });
+
+    responseText += `\n**Total**: ${totalPrice.toFixed(2)}`;
+
+    return {
+      text: responseText,
+      actions: [
+        { type: 'external_link', label: '🛍️ Complete Checkout', url: cartItems[0].invoice_url || '#' },
+        { type: 'quick_reply', label: 'Continue Shopping', value: 'show me more products' }
+      ],
+      metadata: { 
+        source: 'smart_integration', 
+        confidence: 0.9, 
+        integrationsUsed: ['shopify'],
+        cartTotal: totalPrice
+      }
+    };
+  }
+  
+  formatProductDetailsResponse(shopifyData, originalMessage) {
+    if (!shopifyData || !shopifyData.products || shopifyData.products.length === 0) {
+      return {
+        text: "I couldn't find specific details about that product. Could you provide the product name or let me show you our available products?",
+        actions: [
+          { type: 'quick_reply', label: 'Show All Products', value: 'show me products' },
+          { type: 'escalate', label: 'Speak to Specialist' }
+        ],
+        metadata: { source: 'smart_integration', confidence: 0.5, integrationsUsed: ['shopify'] }
+      };
+    }
+
+    const product = shopifyData.products[0];
+    const variant = product.variants?.[0];
+    
+    let responseText = `📦 **${product.title}**\n\n`;
+    
+    if (product.body_html) {
+      // Strip HTML and get first 200 chars
+      const description = product.body_html.replace(/<[^>]*>/g, '').substring(0, 200);
+      responseText += `${description}...\n\n`;
+    }
+    
+    if (variant) {
+      responseText += `💰 **Price**: ${variant.price}\n`;
+      if (variant.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price)) {
+        responseText += `~~${variant.compare_at_price}~~ **SALE!**\n`;
+      }
+      responseText += `📦 **Availability**: ${variant.inventory_quantity > 0 ? 'In Stock' : 'Out of Stock'}\n`;
+    }
+    
+    if (product.vendor) {
+      responseText += `🏢 **Brand**: ${product.vendor}\n`;
+    }
+
+    return {
+      text: responseText,
+      actions: [
+        { type: 'add_to_cart', label: '🛒 Add to Cart', data: { product, variantId: variant?.id, quantity: 1 } },
+        { type: 'quick_reply', label: 'Show Similar Products', value: `show me ${product.product_type || 'products'}` }
+      ],
+      metadata: { 
+        source: 'smart_integration', 
+        confidence: 0.9, 
+        integrationsUsed: ['shopify'],
+        products: [product]
       }
     };
   }

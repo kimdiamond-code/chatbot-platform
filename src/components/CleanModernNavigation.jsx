@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import SimpleProductionStatus from './SimpleProductionStatus.jsx';
 import AgentStackLogo from './AgentStackLogo.jsx';
+import { authService } from '../services/authService';
 import { 
   LayoutDashboard, 
   Bot, 
@@ -192,6 +193,8 @@ const CleanModernNavigation = ({
 // Clean Header Component
 export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const currentUser = authService.getCurrentUser();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -199,6 +202,23 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleLogout = async () => {
+    await authService.logout();
+    window.location.reload(); // Reload to show login page
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showUserMenu && !event.target.closest('.relative')) {
+        setShowUserMenu(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
 
   return (
     <header className="bg-gradient-to-r from-white to-blue-50 shadow-sm border-b border-blue-100">
@@ -258,16 +278,44 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
               </div>
             </div>
 
-            {/* User Avatar */}
-            <button className="flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <div className="text-right hidden sm:block">
-                <p className="font-semibold text-gray-900 text-sm">User</p>
-                <p className="text-xs text-gray-600">Account</p>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                <span className="text-xl">👤</span>
-              </div>
-            </button>
+            {/* User Avatar with Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <div className="text-right hidden sm:block">
+                  <p className="font-semibold text-gray-900 text-sm">{currentUser?.name || 'User'}</p>
+                  <p className="text-xs text-gray-600">{currentUser?.role || 'Agent'}</p>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                  <span className="text-xl">{currentUser?.role === 'admin' ? '👑' : '👤'}</span>
+                </div>
+              </button>
+              
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+                  <div className="p-3 border-b border-gray-200">
+                    <p className="font-semibold text-gray-900">{currentUser?.name}</p>
+                    <p className="text-sm text-gray-600">{currentUser?.email}</p>
+                    <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${
+                      currentUser?.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {currentUser?.role}
+                    </span>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      🚪 Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

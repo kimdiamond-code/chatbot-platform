@@ -182,7 +182,7 @@ class DatabaseService {
 
   async getConversations(orgId, limit = 50) {
     try {
-      const response = await fetch(`${API_BASE}?type=conversations&limit=${limit}`);
+      const response = await fetch(`${API_BASE}?endpoint=database&type=conversations&limit=${limit}`);
       
       if (!response.ok) {
         if (response.status === 0 || response.status >= 500) {
@@ -220,7 +220,7 @@ class DatabaseService {
 
   async getMessages(conversationId) {
     try {
-      const response = await fetch(`${API_BASE}?type=messages&conversation_id=${conversationId}`);
+      const response = await fetch(`${API_BASE}?endpoint=database&type=messages&conversation_id=${conversationId}`);
       
       if (!response.ok) {
         if (response.status === 0 || response.status >= 500) {
@@ -303,6 +303,30 @@ class DatabaseService {
 
   async getProactiveTriggerStats(orgId, startDate, endDate) {
     return this.call('getProactiveTriggerStats', { orgId, startDate, endDate });
+  }
+
+  // Delete single conversation
+  async deleteConversation(conversationId) {
+    try {
+      const result = await this.call('delete_conversation', { conversationId });
+      console.log('🗑️ Conversation deleted:', conversationId);
+      return result;
+    } catch (error) {
+      console.error('Database deleteConversation error:', error);
+      throw error;
+    }
+  }
+
+  // Clear all conversations for an organization
+  async clearAllConversations(orgId) {
+    try {
+      const result = await this.call('clear_all_conversations', { orgId });
+      console.log('🗑️ All conversations cleared for org:', orgId);
+      return result;
+    } catch (error) {
+      console.error('Database clearAllConversations error:', error);
+      throw error;
+    }
   }
 }
 

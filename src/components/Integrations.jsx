@@ -394,7 +394,7 @@ const FullIntegrations = () => {
   };
 
   // Handle Shopify configuration save
-  const handleShopifyConfigSaved = (configData) => {
+  const handleShopifyConfigSaved = async (configData) => {
     setShowShopifyConfig(false);
     if (configData) {
       setConnections(prev => ({
@@ -405,9 +405,26 @@ const FullIntegrations = () => {
         ...prev,
         shopify: {
           type: 'success',
-          message: '✅ Shopify store connected successfully!'
+          message: '✅ Shopify store connected successfully! Refreshing bot services...'
         }
       }));
+      
+      // Refresh bot service to detect new Shopify connection
+      try {
+        const { enhancedBotService } = await import('../services/enhancedBotService');
+        await enhancedBotService.refreshIntegrations();
+        console.log('🔄 Bot service refreshed - Shopify integration active');
+        
+        setConnectionMessages(prev => ({
+          ...prev,
+          shopify: {
+            type: 'success',
+            message: '✅ Shopify store connected! Bot will now use real products. Refresh Live Chat to see changes.'
+          }
+        }));
+      } catch (error) {
+        console.error('Failed to refresh bot service:', error);
+      }
     } else {
       setConnections(prev => ({
         ...prev,
@@ -415,10 +432,10 @@ const FullIntegrations = () => {
       }));
     }
     
-    // Clear message after 5 seconds
+    // Clear message after 10 seconds
     setTimeout(() => {
       setConnectionMessages(prev => ({ ...prev, shopify: null }));
-    }, 5000);
+    }, 10000);
   };
 
   return (

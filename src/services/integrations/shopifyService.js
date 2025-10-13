@@ -1,585 +1,492 @@
 /**
- * Unified Shopify Service for True Citrus
- * Connects to real store and provides all e-commerce functionality
+ * Shopify Service - Product & Cart Operations  
+ * Uses consolidated API with OAuth credentials from database
  */
 
-import { dbService } from '../databaseService';
+const ORGANIZATION_ID = '00000000-0000-0000-0000-000000000001';
 
-class ShopifyService {
-  constructor() {
-    // Load from environment variables (fallback)
-    this.storeName = import.meta.env.VITE_SHOPIFY_STORE_NAME || 'truecitrus2';
-    this.accessToken = import.meta.env.VITE_SHOPIFY_ACCESS_TOKEN;
-    this.apiVersion = '2024-10';
-    this.baseUrl = `https://${this.storeName}.myshopify.com/admin/api/${this.apiVersion}`;
-    this.credentialsLoaded = false;
-    
-    // Cache to reduce API calls
-    this.cache = new Map();
-    this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
-    
-    console.log('🛍️ Shopify Service initialized for:', this.storeName);
-    
-    // Load credentials from database
-    this.loadCredentials();
-  }
-  
+export const shopifyService = {
   /**
-   * Load Shopify credentials from database
+   * Get Shopify integration credentials from database
    */
-  async loadCredentials() {
+  async getCredentials(organizationId = ORGANIZATION_ID) {
     try {
-      // Get integrations from Neon database
-      const integrations = await dbService.getIntegrations('00000000-0000-0000-0000-000000000001');
-      
-      // Find connected Shopify integration
-      const shopifyIntegration = integrations.find(integration => 
-        integration.integration_id === 'shopify' && integration.status === 'connected'
-      );
-
-      if (shopifyIntegration && shopifyIntegration.credentials_encrypted) {
-        try {
-          const credentials = typeof shopifyIntegration.credentials_encrypted === 'string'
-            ? JSON.parse(shopifyIntegration.credentials_encrypted)
-            : shopifyIntegration.credentials_encrypted;
-          
-          if (credentials && credentials.connectionType === 'api') {
-            this.storeName = credentials.shopDomain;
-            this.accessToken = credentials.accessToken;
-            this.baseUrl = `https://${this.storeName}.myshopify.com/admin/api/${this.apiVersion}`;
-            this.credentialsLoaded = true;
-            console.log('✅ Loaded Shopify credentials from database for:', this.storeName);
-            return;
-          }
-        } catch (parseError) {
-          console.log('⚠️ Could not parse credentials:', parseError.message);
-        }
-      }
-      
-      console.log('⚠️ No database credentials found, using environment variables');
-    } catch (error) {
-      console.log('⚠️ Could not load credentials from database:', error.message);
-    }
-  }
-
-  // ==================== HELPER METHODS ====================
-
-  /**
-   * Make authenticated API request
-   */
-  async makeRequest(endpoint, method = 'GET', body = null) {
-    // Wait for credentials to load if not already loaded
-    if (!this.credentialsLoaded && !this.accessToken) {
-      console.log('⏳ Waiting for credentials to load...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    if (!this.accessToken) {
-      console.error('❌ Shopify access token not configured');
-      throw new Error('Shopify integration not configured. Please add credentials via Integrations page or .env file.');
-    }
-
-    const url = `${this.baseUrl}${endpoint}`;
-    const options = {
-      method,
-      headers: {
-        'X-Shopify-Access-Token': this.accessToken,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify(body);
-    }
-
-    try {
-      console.log(`🌐 Shopify API: ${method} ${endpoint}`);
-      const response = await fetch(url, options);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Shopify API Error (${response.status}): ${errorText}`);
-      }
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'getIntegrations',
+          orgId: organizationId
+        })
+      });
 
       const data = await response.json();
-      return data;
+      
+      if (!data.success) {
+        throw new Error('Failed to get integrations');
+      }
+
+      const shopifyIntegration = data.data?.find(i => i.integration_id === 'shopify');
+      
+      if (!shopifyIntegration || shopifyIntegration.status !== 'connected') {
+        return null;
+      }
+
+      let credentials;
+      try {
+        credentials = typeof shopifyIntegration.credentials_encrypted === 'string' 
+          ? JSON.parse(shopifyIntegration.credentials_encrypted)
+          : shopifyIntegration.credentials_encrypted;
+      } catch (error) {
+        console.error('Error parsing credentials:', error);
+        return null;
+      }
+
+      // Extract credentials - handle different formats
+      const shopDomain = credentials.shopDomain || credentials.shop;
+      const accessToken = credentials.accessToken || credentials.access_token;
+      
+      if (!shopDomain || !accessToken) {
+        console.warn('Missing required Shopify credentials:', { shopDomain: !!shopDomain, accessToken: !!accessToken });
+        return null;
+      }
+
+      console.log('✅ Shopify credentials found:', { shopDomain, hasToken: !!accessToken });
+      return {
+        shopDomain,
+        accessToken,
+        connected: true
+      };
     } catch (error) {
-      console.error('❌ Shopify API request failed:', error);
-      throw error;
+      console.error('Error getting Shopify credentials:', error);
+      return null;
     }
-  }
+  },
 
   /**
-   * Cache management
+   * Get products list
    */
-  getCached(key) {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
-      console.log(`💾 Cache hit: ${key}`);
-      return cached.data;
-    }
-    return null;
-  }
-
-  setCache(key, data) {
-    this.cache.set(key, { data, timestamp: Date.now() });
-  }
-
-  clearCache(pattern = null) {
-    if (pattern) {
-      for (const key of this.cache.keys()) {
-        if (key.includes(pattern)) {
-          this.cache.delete(key);
-        }
+  async getProducts(limit = 50, organizationId = ORGANIZATION_ID) {
+    try {
+      const credentials = await this.getCredentials(organizationId);
+      
+      if (!credentials) {
+        console.warn('No Shopify connection - using demo mode');
+        return this._getDemoProducts();
       }
-    } else {
-      this.cache.clear();
-    }
-  }
 
-  // ==================== CUSTOMER METHODS ====================
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_getProducts',
+          store_url: credentials.shopDomain,
+          access_token: credentials.accessToken,
+          limit
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to fetch products:', data.error);
+        return this._getDemoProducts();
+      }
+
+      return data.products || [];
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return this._getDemoProducts();
+    }
+  },
+
+  /**
+   * Search products by query
+   */
+  async searchProducts(query, organizationId = ORGANIZATION_ID) {
+    try {
+      const products = await this.getProducts(50, organizationId);
+      
+      if (!query) return products;
+
+      // Filter products by query
+      const lowerQuery = query.toLowerCase();
+      return products.filter(product => {
+        const title = (product.title || '').toLowerCase();
+        const description = (product.body_html || '').toLowerCase();
+        const tags = (product.tags || '').toLowerCase();
+        const vendor = (product.vendor || '').toLowerCase();
+        
+        return title.includes(lowerQuery) || 
+               description.includes(lowerQuery) ||
+               tags.includes(lowerQuery) ||
+               vendor.includes(lowerQuery);
+      });
+    } catch (error) {
+      console.error('Error searching products:', error);
+      return [];
+    }
+  },
 
   /**
    * Find customer by email
    */
-  async findCustomerByEmail(email) {
-    const cacheKey = `customer_${email}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
+  async findCustomerByEmail(email, organizationId = ORGANIZATION_ID) {
     try {
-      const data = await this.makeRequest(`/customers/search.json?query=email:${encodeURIComponent(email)}`);
-      const customer = data.customers && data.customers.length > 0 ? data.customers[0] : null;
+      const credentials = await this.getCredentials(organizationId);
       
-      if (customer) {
-        this.setCache(cacheKey, customer);
-        console.log(`✅ Found customer: ${customer.email}`);
-      } else {
-        console.log(`⚠️ No customer found for: ${email}`);
+      if (!credentials) {
+        return null;
       }
-      
-      return customer;
+
+      // Use Shopify API to find customer
+      // This would be implemented in the backend API
+      return null;
     } catch (error) {
       console.error('Error finding customer:', error);
       return null;
     }
-  }
+  },
 
   /**
-   * Get customer's order history
+   * Get customer orders
    */
-  async getCustomerOrders(customerId, limit = 10) {
+  async getCustomerOrders(customerId, limit = 10, organizationId = ORGANIZATION_ID) {
     try {
-      const data = await this.makeRequest(`/customers/${customerId}/orders.json?limit=${limit}&status=any`);
-      console.log(`✅ Found ${data.orders?.length || 0} orders for customer ${customerId}`);
+      const credentials = await this.getCredentials(organizationId);
+      
+      if (!credentials) {
+        return [];
+      }
+
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_getOrders',
+          store_url: credentials.shopDomain,
+          access_token: credentials.accessToken,
+          customer_email: customerId // Assuming customerId is actually email for now
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        return [];
+      }
+
       return data.orders || [];
     } catch (error) {
       console.error('Error getting customer orders:', error);
       return [];
     }
-  }
-
-  // ==================== ORDER METHODS ====================
-
+  },
+  
   /**
-   * Get order by ID
+   * Get draft orders (cart items) for a customer
    */
-  async getOrder(orderId) {
-    const cacheKey = `order_${orderId}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
+  async getDraftOrders(customerEmail, limit = 10, organizationId = ORGANIZATION_ID) {
     try {
-      const data = await this.makeRequest(`/orders/${orderId}.json`);
-      this.setCache(cacheKey, data.order);
-      return data.order;
-    } catch (error) {
-      console.error('Error getting order:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Find order by order number (like #1001)
-   */
-  async findOrderByNumber(orderNumber) {
-    try {
-      // Remove # if present
-      const cleanNumber = orderNumber.toString().replace('#', '');
-      const data = await this.makeRequest(`/orders.json?name=%23${cleanNumber}&status=any&limit=1`);
-      const order = data.orders && data.orders.length > 0 ? data.orders[0] : null;
+      const credentials = await this.getCredentials(organizationId);
       
-      if (order) {
-        console.log(`✅ Found order #${order.order_number}`);
-      } else {
-        console.log(`⚠️ No order found for: #${cleanNumber}`);
+      if (!credentials) {
+        console.log('⚠️ No Shopify credentials for draft orders');
+        return [];
       }
+
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_getDraftOrders',
+          store_url: credentials.shopDomain,
+          access_token: credentials.accessToken,
+          customer_email: customerEmail,
+          limit
+        })
+      });
+
+      const data = await response.json();
       
-      return order;
+      if (!data.success) {
+        console.log('⚠️ Failed to get draft orders:', data.error);
+        return [];
+      }
+
+      console.log('✅ Retrieved', data.draft_orders?.length || 0, 'draft orders');
+      return data.draft_orders || [];
+    } catch (error) {
+      console.error('Error getting draft orders:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Find order by number
+   */
+  async findOrderByNumber(orderNumber, organizationId = ORGANIZATION_ID) {
+    try {
+      const credentials = await this.getCredentials(organizationId);
+      
+      if (!credentials) {
+        return null;
+      }
+
+      // This would need to be implemented in the API
+      return null;
     } catch (error) {
       console.error('Error finding order:', error);
       return null;
     }
-  }
+  },
 
   /**
-   * Get order tracking information
+   * Verify Shopify connection
    */
-  async getOrderTracking(orderId) {
+  async verifyConnection(organizationId = ORGANIZATION_ID) {
     try {
-      const order = await this.getOrder(orderId);
-      if (!order) return null;
-
-      const fulfillments = order.fulfillments || [];
-      const tracking = fulfillments.map(f => ({
-        status: f.shipment_status || 'pending',
-        tracking_company: f.tracking_company,
-        tracking_number: f.tracking_number,
-        tracking_url: f.tracking_url,
-        created_at: f.created_at,
-        updated_at: f.updated_at
-      }));
-
-      return {
-        order_id: order.id,
-        order_number: order.order_number,
-        order_name: order.name,
-        fulfillment_status: order.fulfillment_status,
-        financial_status: order.financial_status,
-        tracking_info: tracking,
-        items: order.line_items.map(item => ({
-          title: item.title,
-          quantity: item.quantity,
-          sku: item.sku,
-          price: item.price
-        })),
-        total: order.total_price,
-        currency: order.currency
-      };
+      const credentials = await this.getCredentials(organizationId);
+      return !!credentials;
     } catch (error) {
-      console.error('Error getting order tracking:', error);
-      return null;
+      console.error('Error verifying connection:', error);
+      return false;
     }
-  }
-
-  // ==================== PRODUCT METHODS ====================
+  },
 
   /**
-   * Search products by query
+   * Create draft order (acts as cart)
    */
-  async searchProducts(query, limit = 10) {
-    const cacheKey = `product_search_${query}_${limit}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
+  async createDraftOrder(cartData, organizationId = ORGANIZATION_ID) {
     try {
-      const data = await this.makeRequest(`/products.json?limit=${limit}&status=active&title=${encodeURIComponent(query)}`);
+      const credentials = await this.getCredentials(organizationId);
       
-      // Additional client-side filtering for better matches
-      let products = data.products || [];
+      if (!credentials) {
+        throw new Error('Shopify not connected. Please connect Shopify in Integrations.');
+      }
+
+      const { product, quantity = 1, customerEmail, variantId: providedVariantId } = cartData;
       
-      const queryLower = query.toLowerCase();
-      products = products.filter(product =>
-        product.title.toLowerCase().includes(queryLower) ||
-        product.body_html?.toLowerCase().includes(queryLower) ||
-        product.tags?.toLowerCase().includes(queryLower) ||
-        product.product_type?.toLowerCase().includes(queryLower)
-      );
-
-      this.setCache(cacheKey, products);
-      console.log(`✅ Found ${products.length} products matching "${query}"`);
-      return products;
-    } catch (error) {
-      console.error('Error searching products:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get product by ID
-   */
-  async getProduct(productId) {
-    const cacheKey = `product_${productId}`;
-    const cached = this.getCached(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const data = await this.makeRequest(`/products/${productId}.json`);
-      this.setCache(cacheKey, data.product);
-      return data.product;
-    } catch (error) {
-      console.error('Error getting product:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get all products (paginated)
-   */
-  async getProducts(limit = 50) {
-    try {
-      const data = await this.makeRequest(`/products.json?limit=${limit}&status=active`);
-      return data.products || [];
-    } catch (error) {
-      console.error('Error getting products:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get product recommendations
-   */
-  async getProductRecommendations(productId, limit = 5) {
-    try {
-      const product = await this.getProduct(productId);
-      if (!product) return [];
-
-      // Get similar products by type or tags
-      const allProducts = await this.getProducts(20);
-      const similar = allProducts
-        .filter(p => 
-          p.id !== productId && 
-          (p.product_type === product.product_type || 
-           p.tags?.split(',').some(tag => product.tags?.includes(tag)))
-        )
-        .slice(0, limit);
-
-      console.log(`✅ Found ${similar.length} recommendations for product ${productId}`);
-      return similar;
-    } catch (error) {
-      console.error('Error getting recommendations:', error);
-      return [];
-    }
-  }
-
-  // ==================== CHAT INTEGRATION ====================
-
-  /**
-   * Handle customer inquiry intelligently
-   * Returns structured data for chat responses
-   */
-  async handleChatInquiry(message, customerEmail = null) {
-    const messageLower = message.toLowerCase();
-    
-    console.log(`🤖 Processing inquiry: "${message}"`);
-    
-    // Order tracking inquiry
-    if (messageLower.match(/order|track|shipping|delivery|status|where.*my/i)) {
-      console.log('📦 Detected order tracking inquiry');
-      
-      // Try to find order number in message
-      const orderMatch = message.match(/#?(\d{4,})/);
-      if (orderMatch) {
-        const orderNumber = orderMatch[1];
-        const order = await this.findOrderByNumber(orderNumber);
-        if (order) {
-          const tracking = await this.getOrderTracking(order.id);
-          return {
-            type: 'order_tracking',
-            data: order,
-            trackingInfo: tracking,
-            response: this.formatOrderResponse(order, tracking)
-          };
-        }
+      if (!product && !providedVariantId) {
+        throw new Error('Product data or variant ID is required');
       }
       
-      // Try to find by customer email
-      if (customerEmail) {
-        const customer = await this.findCustomerByEmail(customerEmail);
-        if (customer) {
-          const orders = await this.getCustomerOrders(customer.id, 3);
-          if (orders.length > 0) {
-            const latestOrder = orders[0];
-            const tracking = await this.getOrderTracking(latestOrder.id);
-            return {
-              type: 'order_tracking',
-              data: latestOrder,
-              trackingInfo: tracking,
-              response: this.formatOrderResponse(latestOrder, tracking)
-            };
-          }
-        }
-      }
-    }
-
-    // Product search inquiry
-    if (messageLower.match(/product|item|buy|purchase|looking for|find|search/i)) {
-      console.log('🔍 Detected product search inquiry');
-      
-      // Extract search terms (remove common words)
-      const stopWords = ['product', 'item', 'buy', 'purchase', 'looking', 'for', 'find', 'search', 'where', 'can', 'i', 'the', 'a', 'an'];
-      const words = messageLower.split(' ')
-        .filter(word => word.length > 2 && !stopWords.includes(word));
-      
-      if (words.length > 0) {
-        const searchTerm = words.join(' ');
-        const products = await this.searchProducts(searchTerm, 5);
-        if (products.length > 0) {
-          return {
-            type: 'product_search',
-            data: products,
-            response: this.formatProductSearchResponse(products, searchTerm)
-          };
-        }
-      }
-    }
-
-    // Inventory/stock inquiry
-    if (messageLower.match(/stock|available|in stock|inventory/i)) {
-      console.log('📊 Detected inventory inquiry');
-      
-      const words = messageLower.split(' ')
-        .filter(word => word.length > 3 && !['stock', 'available', 'inventory'].includes(word));
-      
-      if (words.length > 0) {
-        const searchTerm = words.join(' ');
-        const products = await this.searchProducts(searchTerm, 3);
-        if (products.length > 0) {
-          return {
-            type: 'inventory_check',
-            data: products,
-            response: this.formatInventoryResponse(products)
-          };
-        }
-      }
-    }
-
-    return null;
-  }
-
-  // ==================== RESPONSE FORMATTING ====================
-
-  formatOrderResponse(order, trackingInfo = null) {
-    const status = this.getOrderStatus(order);
-    let response = `📦 **Order ${order.name}**\n`;
-    response += `Status: ${status}\n`;
-    response += `Total: ${this.formatPrice(order.total_price, order.currency)}\n`;
-    response += `Date: ${this.formatDate(order.created_at)}\n\n`;
-
-    // Add items
-    response += `**Items:**\n`;
-    order.line_items.slice(0, 3).forEach(item => {
-      response += `• ${item.title} (×${item.quantity}) - ${this.formatPrice(item.price, order.currency)}\n`;
-    });
-
-    // Add tracking if available
-    if (trackingInfo && trackingInfo.tracking_info && trackingInfo.tracking_info.length > 0) {
-      response += `\n**Tracking:**\n`;
-      trackingInfo.tracking_info.forEach(track => {
-        if (track.tracking_number) {
-          response += `• ${track.tracking_company || 'Carrier'}: ${track.tracking_number}\n`;
-          if (track.tracking_url) {
-            response += `  Track: ${track.tracking_url}\n`;
-          }
-        }
+      console.log('🛍️ Creating draft order:', {
+        productId: product?.id,
+        productTitle: product?.title,
+        providedVariantId: providedVariantId,
+        hasVariants: !!(product?.variants && product.variants.length > 0),
+        variantsCount: product?.variants?.length || 0,
+        quantity,
+        fullProduct: JSON.stringify(product, null, 2)
       });
+      
+      // Extract variant ID with comprehensive error handling
+      let variantId = null;
+      let variantPrice = '0.00';
+      
+      // PRIORITY 1: Use variantId if directly provided in cartData
+      if (providedVariantId) {
+        variantId = providedVariantId;
+        variantPrice = product?.price || product?.variants?.[0]?.price || '0.00';
+        console.log('✅ Using provided variant ID:', { id: variantId, type: typeof variantId });
+      }
+      // PRIORITY 2: Try to get from variants array
+      else if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+        const variant = product.variants[0];
+        variantId = variant.id || variant.variant_id;
+        variantPrice = variant.price || '0.00';
+        console.log('✅ Found variant in variants array:', { 
+          id: variantId, 
+          price: variantPrice,
+          type: typeof variantId 
+        });
+      } 
+      // Try admin_graphql_api_id if present
+      else if (product.admin_graphql_api_id) {
+        variantId = product.admin_graphql_api_id;
+        variantPrice = product.price || '0.00';
+        console.log('⚠️ Using admin_graphql_api_id:', variantId);
+      }
+      // Fallback to product ID
+      else if (product.id) {
+        variantId = product.id;
+        variantPrice = product.price || '0.00';
+        console.log('⚠️ Using product ID as variant ID:', variantId);
+      } else {
+        console.error('❌ Product structure:', JSON.stringify(product, null, 2));
+        throw new Error('Cannot find valid variant ID in product. Product may be misconfigured.');
+      }
+      
+      // Clean up variant ID - handle GraphQL format
+      if (typeof variantId === 'string') {
+        // Handle GraphQL ID format: gid://shopify/ProductVariant/12345
+        if (variantId.includes('gid://')) {
+          const parts = variantId.split('/');
+          variantId = parts[parts.length - 1];
+          console.log('🔄 Converted GraphQL ID to numeric:', variantId);
+        }
+        // Handle string numbers
+        else if (/^\d+$/.test(variantId)) {
+          console.log('✅ Variant ID is numeric string:', variantId);
+        }
+      }
+      
+      // Final conversion to number
+      const numericVariantId = parseInt(variantId, 10);
+      
+      if (isNaN(numericVariantId) || numericVariantId <= 0) {
+        console.error('❌ Invalid variant ID:', { 
+          original: variantId, 
+          converted: numericVariantId,
+          type: typeof variantId
+        });
+        throw new Error(`Invalid variant ID: "${variantId}". Cannot convert to number.`);
+      }
+      
+      console.log('✅ Final variant ID:', numericVariantId, '(type:', typeof numericVariantId, ')');
+      
+      // Build draft order with proper structure
+      const lineItem = {
+        variant_id: numericVariantId,
+        quantity: parseInt(quantity, 10) || 1
+      };
+      
+      const draftOrder = {
+        draft_order: {
+          line_items: [lineItem],
+          note: 'Created via chatbot',
+          email: customerEmail || 'guest@example.com',
+          use_customer_default_address: false
+        }
+      };
+      
+      console.log('📦 Draft order payload:', JSON.stringify(draftOrder, null, 2));
+
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_createDraftOrder',
+          store_url: credentials.shopDomain,
+          access_token: credentials.accessToken,
+          draft_order: draftOrder
+        })
+      });
+
+      const data = await response.json();
+      
+      console.log('📨 Draft order response:', {
+        success: data.success,
+        hasError: !!data.error,
+        hasDraftOrder: !!data.draft_order
+      });
+      
+      if (!data.success) {
+        console.error('❌ Draft order failed:', {
+          success: data.success,
+          error: data.error,
+          details: data.details,
+          fullResponse: data
+        });
+        
+        // Provide detailed, actionable error messages
+        let errorMessage = data.error || 'Failed to create draft order';
+        const detailsStr = JSON.stringify(data.details || {});
+        
+        // Check for specific Shopify API errors
+        if (detailsStr.includes('write_draft_orders') || detailsStr.includes('permission')) {
+          errorMessage = '⚠️ Missing Shopify permissions. Go to Integrations → Shopify → Disconnect, then reconnect to grant draft order permissions.';
+        } else if (detailsStr.includes('variant') || detailsStr.includes('Variant')) {
+          errorMessage = `Product variant not found (ID: ${numericVariantId}). This product may have been deleted or is unavailable.`;
+        } else if (detailsStr.includes('401') || detailsStr.includes('Unauthorized')) {
+          errorMessage = 'Shopify access expired. Please reconnect Shopify in Integrations.';
+        } else if (detailsStr.includes('shop') || detailsStr.includes('store')) {
+          errorMessage = 'Cannot connect to Shopify store. Please verify store URL in Integrations.';
+        } else if (data.details) {
+          // Include Shopify's actual error message
+          const shopifyError = data.details.errors || data.details.error || '';
+          if (shopifyError) {
+            errorMessage = `Shopify error: ${JSON.stringify(shopifyError)}`;
+          }
+        }
+        
+        console.error('💡 Error details:', errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      console.log('✅ Draft order created successfully:', data.draft_order?.id);
+      return data.draft_order;
+    } catch (error) {
+      console.error('❌ Error creating draft order:', error);
+      console.error('❌ Full error:', error.message);
+      throw error;
     }
-
-    return response;
-  }
-
-  formatProductSearchResponse(products, searchTerm) {
-    let response = `🔍 Found ${products.length} products matching "${searchTerm}":\n\n`;
-    
-    products.slice(0, 5).forEach((product, index) => {
-      const variant = product.variants?.[0];
-      const price = variant ? this.formatPrice(variant.price) : 'Price on request';
-      const inStock = variant && variant.inventory_quantity > 0;
-      
-      response += `${index + 1}. **${product.title}**\n`;
-      response += `   ${price} ${inStock ? '✅ In stock' : '⚠️ Limited'}\n`;
-      
-      if (product.body_html) {
-        const description = this.stripHtml(product.body_html).substring(0, 100);
-        response += `   ${description}...\n`;
-      }
-      
-      response += `   [View Product](https://${this.storeName}.myshopify.com/products/${product.handle})\n\n`;
-    });
-
-    return response;
-  }
-
-  formatInventoryResponse(products) {
-    let response = `📊 **Stock Status:**\n\n`;
-    
-    products.forEach(product => {
-      const variant = product.variants?.[0];
-      const quantity = variant?.inventory_quantity || 0;
-      const status = quantity > 10 ? '✅ In Stock' : quantity > 0 ? '⚠️ Low Stock' : '❌ Out of Stock';
-      
-      response += `• **${product.title}**\n`;
-      response += `  ${status}`;
-      if (quantity > 0) {
-        response += ` (${quantity} available)`;
-      }
-      response += `\n\n`;
-    });
-
-    return response;
-  }
-
-  // ==================== UTILITY METHODS ====================
-
-  getOrderStatus(order) {
-    if (order.cancelled_at) return '❌ Cancelled';
-    if (order.fulfillment_status === 'fulfilled') return '✅ Delivered';
-    if (order.fulfillment_status === 'partial') return '📦 Partially Shipped';
-    if (order.financial_status === 'paid' && !order.fulfillment_status) return '⏳ Processing';
-    if (order.financial_status === 'pending') return '⏰ Payment Pending';
-    return '✅ Confirmed';
-  }
-
-  formatPrice(price, currency = 'USD') {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency
-    }).format(parseFloat(price));
-  }
-
-  formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-
-  stripHtml(html) {
-    return html.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim();
-  }
+  },
 
   /**
-   * Health check - verify connection to Shopify
+   * Demo products for testing (when no Shopify connection)
    */
-  async verifyConnection() {
-    try {
-      console.log('🔍 Testing Shopify connection...');
-      const data = await this.makeRequest('/shop.json');
-      console.log('✅ Shopify connection successful!');
-      return {
-        connected: true,
-        shop: data.shop.name,
-        domain: data.shop.domain,
-        email: data.shop.email,
-        currency: data.shop.currency
-      };
-    } catch (error) {
-      console.error('❌ Shopify connection failed:', error);
-      return {
-        connected: false,
-        error: error.message
-      };
-    }
+  _getDemoProducts() {
+    return [
+      {
+        id: 'demo_1',
+        title: 'Sample Product 1',
+        body_html: '<p>This is a demo product for testing</p>',
+        vendor: 'Demo Store',
+        type: 'Sample',
+        tags: 'demo, test',
+        images: [{ src: 'https://via.placeholder.com/300', alt: 'Demo Product' }],
+        variants: [
+          {
+            id: 'demo_var_1',
+            title: 'Default',
+            price: '29.99',
+            available: true
+          }
+        ]
+      },
+      {
+        id: 'demo_2',
+        title: 'Sample Product 2',
+        body_html: '<p>Another demo product for testing</p>',
+        vendor: 'Demo Store',
+        type: 'Sample',
+        tags: 'demo, test',
+        images: [{ src: 'https://via.placeholder.com/300', alt: 'Demo Product 2' }],
+        variants: [
+          {
+            id: 'demo_var_2',
+            title: 'Default',
+            price: '39.99',
+            available: true
+          }
+        ]
+      },
+      {
+        id: 'demo_3',
+        title: 'Sample Product 3',
+        body_html: '<p>Third demo product for testing</p>',
+        vendor: 'Demo Store',
+        type: 'Sample',
+        tags: 'demo, test',
+        images: [{ src: 'https://via.placeholder.com/300', alt: 'Demo Product 3' }],
+        variants: [
+          {
+            id: 'demo_var_3',
+            title: 'Default',
+            price: '49.99',
+            available: true
+          }
+        ]
+      }
+    ];
   }
-}
+};
 
-// Export singleton instance
-export const shopifyService = new ShopifyService();
 export default shopifyService;
-
-// Expose globally for testing
-if (typeof window !== 'undefined') {
-  window.shopifyService = shopifyService;
-  console.log('🔧 shopifyService available globally as window.shopifyService');
-}
