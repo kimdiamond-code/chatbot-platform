@@ -55,8 +55,8 @@ export const shopifyService = {
       }
 
       // Extract credentials - handle different formats
-      const shopDomain = credentials.shopDomain || credentials.shop;
-      const accessToken = credentials.accessToken || credentials.access_token;
+      const shopDomain = data.credentials.shopDomain || data.credentials.shop;
+      const accessToken = data.credentials.accessToken || data.credentials.access_token;
       
       if (!shopDomain || !accessToken) {
         console.warn('Missing required Shopify credentials:', { shopDomain: !!shopDomain, accessToken: !!accessToken });

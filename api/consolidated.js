@@ -35,9 +35,12 @@ export default async function handler(req, res) {
 
   try {
     // ============================================================
-    // HEALTH CHECK
+    // HEALTH CHECK (GET or HEAD)
     // ============================================================
-    if (method === 'GET' && !endpoint) {
+    if ((method === 'GET' || method === 'HEAD') && (query.check === '1' || !endpoint)) {
+      if (method === 'HEAD') {
+        return res.status(200).end();
+      }
       return res.status(200).json({ 
         status: 'healthy',
         version: '2.0.0',
@@ -260,6 +263,64 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, data: integrations });
       }
 
+      if (action === 'getIntegrationCredentials') {
+        const { integration, organizationId } = body;
+        try {
+          const result = await sql`
+            SELECT credentials_encrypted, config FROM integrations 
+            WHERE organization_id = ${organizationId} 
+            AND integration_id = ${integration}
+            AND status = 'connected'
+            LIMIT 1
+          `;
+          
+          if (result.length === 0) {
+            return res.status(200).json({ success: false, error: 'Integration not connected' });
+          }
+          
+          const credentials = result[0].credentials_encrypted;
+          return res.status(200).json({ 
+            success: true, 
+            credentials: typeof credentials === 'string' ? JSON.parse(credentials) : credentials
+          });
+        } catch (error) {
+          console.error('Error getting integration credentials:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
+      if (action === 'saveIntegrationCredentials') {
+        const { integration, credentials, organizationId } = body;
+        try {
+          console.log('💾 Saving integration credentials:', { integration, organizationId, hasCredentials: !!credentials });
+          
+          // Upsert the integration with credentials
+          const result = await sql`
+            INSERT INTO integrations (organization_id, integration_id, integration_name, status, config, credentials_encrypted)
+            VALUES (
+              ${organizationId}, 
+              ${integration}, 
+              ${integration === 'shopify' ? 'Shopify' : integration}, 
+              'connected', 
+              ${JSON.stringify({ connectedAt: new Date().toISOString() })},
+              ${JSON.stringify(credentials)}
+            )
+            ON CONFLICT (organization_id, integration_id)
+            DO UPDATE SET
+              status = 'connected',
+              credentials_encrypted = ${JSON.stringify(credentials)},
+              updated_at = NOW()
+            RETURNING *
+          `;
+          
+          console.log('✅ Integration credentials saved successfully');
+          return res.status(200).json({ success: true, data: result[0] });
+        } catch (error) {
+          console.error('❌ Error saving integration credentials:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
       if (action === 'upsertIntegration') {
         const { organization_id, integration_id, integration_name, status, config, credentials_encrypted } = body;
         const result = await sql`
@@ -405,6 +466,28 @@ export default async function handler(req, res) {
       }
 
       // ==================== SHOPIFY INTEGRATION ====================
+      if (action === 'shopify_verifyCredentials') {
+        const { store_url, access_token } = body;
+        try {
+          // Try to fetch shop info to verify credentials
+          const response = await fetch(`https://${store_url}/admin/api/2024-01/shop.json`, {
+            headers: {
+              'X-Shopify-Access-Token': access_token,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (!response.ok) {
+            return res.status(200).json({ success: false, error: 'Invalid credentials' });
+          }
+          
+          const data = await response.json();
+          return res.status(200).json({ success: true, shop: data.shop });
+        } catch (error) {
+          return res.status(200).json({ success: false, error: error.message });
+        }
+      }
+
       if (action === 'shopify_getProducts') {
         const { store_url, access_token, limit = 50 } = body;
         try {
@@ -481,6 +564,50 @@ export default async function handler(req, res) {
             success: false, 
             error: error.message 
           });
+        }
+      }
+
+      if (action === 'shopify_getDraftOrders') {
+        const { store_url, access_token, customer_email } = body;
+        try {
+          console.log('🛒 Getting draft orders for:', customer_email);
+          
+          // Get all draft orders and filter by customer email if provided
+          let url = `https://${store_url}/admin/api/2024-01/draft_orders.json`;
+          
+          const response = await fetch(url, {
+            headers: {
+              'X-Shopify-Access-Token': access_token,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok) {
+            console.error('❌ Shopify API error:', response.status, data);
+            return res.status(response.status).json({ 
+              success: false, 
+              error: data.errors || data.error || 'Failed to get draft orders',
+              details: data
+            });
+          }
+          
+          let draft_orders = data.draft_orders || [];
+          
+          // Filter by customer email if provided
+          if (customer_email) {
+            draft_orders = draft_orders.filter(order => 
+              order.email === customer_email || 
+              order.customer?.email === customer_email
+            );
+          }
+          
+          console.log('✅ Found', draft_orders.length, 'draft orders');
+          return res.status(200).json({ success: true, draft_orders });
+        } catch (error) {
+          console.error('❌ Draft orders fetch error:', error);
+          return res.status(500).json({ success: false, error: error.message });
         }
       }
 
@@ -738,6 +865,44 @@ export default async function handler(req, res) {
       }
 
       return res.status(400).json({ error: 'Invalid action or endpoint' });
+    }
+
+    // ============================================================
+    // OPENAI PROXY
+    // ============================================================
+    if (endpoint === 'openai') {
+      if (action === 'chat') {
+        const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 500 } = body;
+        
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+              model,
+              messages,
+              temperature,
+              max_tokens
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'OpenAI API error');
+          }
+
+          const data = await response.json();
+          return res.status(200).json({ success: true, data });
+        } catch (error) {
+          console.error('OpenAI API error:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      return res.status(400).json({ error: 'Invalid OpenAI action' });
     }
 
     // ============================================================

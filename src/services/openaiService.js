@@ -83,20 +83,27 @@ class ChatBotService {
     this.openaiClient = null; // Initialize lazily
     this.maxPromptLength = 4000; // Maximum length for system prompts
     this.maxRetries = 3; // Maximum number of retries for API calls
-    this.defaultSystemPrompt = "You are a helpful customer service assistant for True Citrus. You are professional, friendly, and concise.\n\n" + 
-      "You help customers with their questions and try to resolve their issues.\n\n" +
-      "For order tracking and product inquiries:\n" +
-      "1. Ask for the customer's email address if not provided\n" +
-      "2. Help search for products when customers ask about them\n" +
-      "3. Assist with shopping cart operations when needed\n\n" +
-      "Always gather required information in a friendly way:\n" +
-      "- For orders: \"I'll help you track your order! Could you please provide your email address?\"\n" +
-      "- For products: \"I'll help you find what you're looking for! What type of products are you interested in?\"\n\n" +
-      "After getting the required information:\n" +
-      "- Use the available integrations to look up order status\n" +
-      "- Search product catalog for relevant items\n" +
-      "- Help with cart management\n\n" +
-      "Never promise to do something you cannot do. Always ask for necessary information first.";
+    this.defaultSystemPrompt = "You are a helpful customer service assistant for the connected e-commerce store. You are professional, friendly, and concise.\n\n" + 
+      "IMPORTANT RULES:\n" +
+      "- You work ONLY for this store - NEVER suggest other websites, competitors, or external retailers\n" +
+      "- NEVER say 'I don't have access to' or 'I cannot browse' - you DO have access to this store's data\n" +
+      "- When customers ask about products, ALWAYS search the store's catalog\n" +
+      "- If a product isn't found, say it's not currently available in THIS store, offer alternatives from THIS store\n" +
+      "- NEVER recommend customers go elsewhere\n\n" +
+      "You help customers with:\n" +
+      "1. Product search and recommendations (use store's catalog)\n" +
+      "2. Order tracking (ask for email if needed)\n" +
+      "3. Shopping assistance (help with cart)\n" +
+      "4. Store policies and information\n\n" +
+      "For product questions:\n" +
+      "- Search the store's products immediately\n" +
+      "- Show relevant items with details and prices\n" +
+      "- Offer alternatives from the same store if needed\n\n" +
+      "For order tracking:\n" +
+      "- Ask for customer's email address politely\n" +
+      "- Look up their order status\n" +
+      "- Provide tracking information\n\n" +
+      "Always be helpful and focused on THIS store's offerings only.";
 
     // Initialize error handlers
     this.handleApiError = this.handleApiError.bind(this);
@@ -147,6 +154,75 @@ class ChatBotService {
   // Clear conversation context
   clearConversation(conversationId) {
     this.conversations.delete(conversationId);
+  }
+
+  /**
+   * Generate AI response using OpenAI API via backend proxy
+   */
+  async generateResponse(userMessage, conversationId, customerContext = {}) {
+    try {
+      console.log('🤖 Generating OpenAI response for:', userMessage.substring(0, 50));
+      
+      // Get or create conversation context
+      let conversation = this.conversations.get(conversationId) || {
+        messages: [],
+        systemPrompt: this.defaultSystemPrompt
+      };
+
+      // Build messages array for OpenAI
+      const messages = [
+        { role: 'system', content: conversation.systemPrompt },
+        ...conversation.messages.slice(-10), // Keep last 10 messages for context
+        { role: 'user', content: userMessage }
+      ];
+
+      // Call OpenAI API via backend proxy
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          endpoint: 'openai',
+          action: 'chat',
+          messages: messages,
+          model: 'gpt-4o-mini',
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate response');
+      }
+
+      const result = await response.json();
+      const data = result.data;
+      const aiResponse = data.choices[0]?.message?.content || 'I apologize, but I\'m having trouble generating a response right now.';
+
+      // Update conversation history
+      conversation.messages.push(
+        { role: 'user', content: userMessage },
+        { role: 'assistant', content: aiResponse }
+      );
+      this.conversations.set(conversationId, conversation);
+
+      console.log('✅ OpenAI response generated');
+      
+      return {
+        response: aiResponse,
+        confidence: 0.8,
+        source: 'openai',
+        metadata: {
+          model: 'gpt-4o-mini',
+          tokens: data.usage?.total_tokens || 0
+        }
+      };
+    } catch (error) {
+      console.error('❌ OpenAI generateResponse error:', error);
+      throw error;
+    }
   }
 }
 

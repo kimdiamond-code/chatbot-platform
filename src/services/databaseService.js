@@ -190,8 +190,35 @@ class DatabaseService {
         console.log('📊 Demo mode: Analytics event logged (local only)');
         return { success: true };
 
+      case 'create_message':
+        console.log('📝 Demo mode: Message created (local only)');
+        return {
+          id: `demo-msg-${Date.now()}`,
+          conversation_id: data.conversation_id,
+          sender_type: data.sender_type,
+          content: data.content,
+          created_at: new Date().toISOString()
+        };
+
       case 'getAnalytics':
         return { events: [], totalEvents: 0, message: 'Demo mode - no analytics data' };
+
+      case 'create_conversation':
+        // Generate demo conversation ID
+        const convId = 'demo-conv-' + Date.now();
+        const newConv = {
+          id: convId,
+          customer_email: data.customer_email,
+          customer_name: data.customer_name,
+          customer_phone: data.customer_phone,
+          channel: data.channel || 'web',
+          status: data.status || 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        DEMO_DATA.conversations.push(newConv);
+        console.log('📝 Demo mode: Conversation created (local only)', convId);
+        return newConv;
 
       default:
         console.warn(`⚠️ Unhandled offline action: ${action}`);
