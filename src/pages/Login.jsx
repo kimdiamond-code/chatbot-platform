@@ -16,12 +16,21 @@ export default function Login({ onLoginSuccess, onSwitchToSignup }) {
     setLoading(true);
 
     try {
+      console.log('Attempting login for email:', email);
       await authService.login(email, password);
+      console.log('Login successful');
       if (onLoginSuccess) {
         onLoginSuccess();
       }
     } catch (err) {
-      setError(err.message || 'Invalid email or password');
+      console.error('Login error:', err);
+      if (err.message.includes('Unexpected end of JSON')) {
+        setError('Server connection error. Please try again.');
+      } else if (err.message.includes('Failed to fetch')) {
+        setError('Unable to connect to server. Please check your internet connection.');
+      } else {
+        setError(err.message || 'Invalid email or password');
+      }
     } finally {
       setLoading(false);
     }

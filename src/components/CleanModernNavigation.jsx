@@ -1,6 +1,5 @@
 // Clean Modern Navigation - Professional Design
 import React, { useState, useEffect } from 'react';
-import SimpleProductionStatus from './SimpleProductionStatus.jsx';
 import AgentStackLogo from './AgentStackLogo.jsx';
 import { authService } from '../services/authService';
 import { 
@@ -118,12 +117,8 @@ const CleanModernNavigation = ({
               
               <div className="flex-1">
                 <h1 className="font-bold text-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  agentstack.ai
+                agenstack.ai chat
                 </h1>
-                <div className="flex items-center space-x-2 mt-0.5">
-                  <div className="pulse-dot"></div>
-                  <p className="text-xs text-gray-600 font-medium">System Online</p>
-                </div>
               </div>
             </div>
           </div>
@@ -244,18 +239,9 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
             </button>
             
             <div className="hidden md:flex items-center space-x-3 text-sm">
-              <SimpleProductionStatus />
-              <span className="text-gray-400">•</span>
-              <span className="status-online">
-                🟢 System Online
+              <span className="text-gray-600 font-medium">
+                {realTimeMetrics.activeChats || 0} active conversations
               </span>
-              <span className="text-gray-400">•</span>
-              <div className="status-indicator">
-                <span className="text-gray-600 font-medium">
-                  {realTimeMetrics.activeChats || 0} active chats
-                </span>
-                <div className="pulse-dot"></div>
-              </div>
             </div>
           </div>
 
@@ -322,9 +308,8 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
         {/* Mobile Quick Actions */}
         <div className="md:hidden mt-4 flex items-center justify-between">
           <div className="flex items-center space-x-2 text-xs">
-            <SimpleProductionStatus />
             <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
-              {realTimeMetrics.activeChats || 0} chats
+              {realTimeMetrics.activeChats || 0} conversations
             </span>
             <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
               {realTimeMetrics.satisfaction?.toFixed(1) || '4.6'}★

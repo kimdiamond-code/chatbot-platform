@@ -122,7 +122,7 @@ export const demoShopifyService = {
 
   // Mock add to cart
   async mockAddToCart(cartItem) {
-    console.log('🛒 DEMO MODE: Mock add to cart called');
+    console.log('🛒 Mock add to cart called');
     console.log('Cart item:', cartItem);
     
     // Simulate API delay

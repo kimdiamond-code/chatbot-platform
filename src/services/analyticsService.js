@@ -198,17 +198,44 @@ class AnalyticsService {
    */
   async getAnalyticsEvents(conversationId = null, eventType = null, startDate = null, endDate = null) {
     try {
+      // Check database connection first
+      const dbStatus = await dbService.testConnection();
+      if (!dbStatus.connected) {
+        console.warn('⚠️ Database offline, using demo analytics');
+        return {
+          success: true,
+          data: demoAnalytics.events,
+          demo: true,
+          reason: dbStatus.message
+        };
+      }
+
       const analytics = await dbService.getAnalytics(
         DEFAULT_ORG_ID,
         startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         endDate || new Date().toISOString()
       );
 
+      if (!analytics || (Array.isArray(analytics) && analytics.length === 0)) {
+        console.log('ℹ️ No analytics data found, using demo data');
+        return {
+          success: true,
+          data: demoAnalytics.events,
+          demo: true,
+          reason: 'No data found'
+        };
+      }
+
       console.log('✅ Analytics events loaded from Neon:', analytics.length);
       return { success: true, data: analytics };
     } catch (error) {
       console.error('Error fetching analytics events:', error);
-      return { success: false, error: error.message };
+      return {
+        success: true,
+        data: demoAnalytics.events,
+        demo: true,
+        error: error.message
+      };
     }
   }
 

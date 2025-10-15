@@ -11,35 +11,46 @@ export const shopifyService = {
    */
   async getCredentials(organizationId = ORGANIZATION_ID) {
     try {
+      // First try to get credentials from the database
       const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           endpoint: 'database',
-          action: 'getIntegrations',
-          orgId: organizationId
+          action: 'getIntegrationCredentials',
+          integration: 'shopify',
+          organizationId: organizationId
         })
       });
 
       const data = await response.json();
       
       if (!data.success) {
-        throw new Error('Failed to get integrations');
-      }
-
-      const shopifyIntegration = data.data?.find(i => i.integration_id === 'shopify');
-      
-      if (!shopifyIntegration || shopifyIntegration.status !== 'connected') {
+        console.error('Failed to get Shopify credentials from database:', data.error);
         return null;
       }
 
-      let credentials;
-      try {
-        credentials = typeof shopifyIntegration.credentials_encrypted === 'string' 
-          ? JSON.parse(shopifyIntegration.credentials_encrypted)
-          : shopifyIntegration.credentials_encrypted;
-      } catch (error) {
-        console.error('Error parsing credentials:', error);
+      if (!data.credentials || !data.credentials.shopDomain || !data.credentials.accessToken) {
+        console.warn('Invalid or missing Shopify credentials in database');
+        return null;
+      }
+
+      // Verify the credentials are still valid
+      const verifyResponse = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_verifyCredentials',
+          store_url: data.credentials.shopDomain,
+          access_token: data.credentials.accessToken
+        })
+      });
+
+      const verifyData = await verifyResponse.json();
+      
+      if (!verifyData.success) {
+        console.error('Shopify credentials are no longer valid:', verifyData.error);
         return null;
       }
 
@@ -237,8 +248,26 @@ export const shopifyService = {
         return null;
       }
 
-      // This would need to be implemented in the API
-      return null;
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_getOrder',
+          store_url: credentials.shopDomain,
+          access_token: credentials.accessToken,
+          order_number: orderNumber
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!data.success || !data.order) {
+        console.warn('Order not found:', orderNumber);
+        return null;
+      }
+
+      return data.order;
     } catch (error) {
       console.error('Error finding order:', error);
       return null;

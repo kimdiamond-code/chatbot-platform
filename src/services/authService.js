@@ -41,7 +41,29 @@ class AuthService {
         })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Login response not OK:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || 'Login failed');
+        } catch (e) {
+          throw new Error(`Login failed: ${response.statusText}`);
+        }
+      }
+
+      let data;
+      try {
+        const responseText = await response.text();
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse login response:', e);
+        throw new Error('Invalid server response. Please try again.');
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'Login failed');
@@ -83,7 +105,29 @@ class AuthService {
         })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Signup response not OK:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || 'Signup failed');
+        } catch (e) {
+          throw new Error(`Signup failed: ${response.statusText}`);
+        }
+      }
+
+      let data;
+      try {
+        const responseText = await response.text();
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse signup response:', e);
+        throw new Error('Invalid server response. Please try again.');
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'Signup failed');
@@ -174,7 +218,25 @@ class AuthService {
         })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Password reset request failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error('Failed to request password reset. Please try again later.');
+      }
+
+      let data;
+      try {
+        const responseText = await response.text();
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse password reset response:', e);
+        throw new Error('Invalid server response. Please try again.');
+      }
+
       return data;
     } catch (error) {
       console.error('Password reset request error:', error);

@@ -128,11 +128,10 @@ const ModernNavigation = ({
             {(sidebarOpen || isMobile) && (
               <div className="flex-1">
                 <h1 className="font-bold text-xl bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                  ChatBot Platform
+                  agenstack.ai chat
                 </h1>
                 <div className="flex items-center space-x-2 mt-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <p className="text-sm text-gray-500 font-medium">v2.0 • Modern UI</p>
+                  <p className="text-sm text-gray-500 font-medium">v2.0</p>
                 </div>
               </div>
             )}
@@ -233,25 +232,24 @@ const ModernNavigation = ({
           {(sidebarOpen || isMobile) ? (
             <div className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-4 shadow-inner">
               <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                    K
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">Demo User</p>
-                  <p className="text-sm text-gray-500">Administrator</p>
-                </div>
-                <button className="p-2 hover:bg-white/50 rounded-xl transition-colors">
-                  <span className="text-gray-400">⋮</span>
-                </button>
+              <div className="relative">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+              👤
+              </div>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900">User</p>
+              <p className="text-sm text-gray-500">Account</p>
+              </div>
+              <button className="p-2 hover:bg-white/50 rounded-xl transition-colors">
+                <span className="text-gray-400">⋮</span>
+              </button>
               </div>
             </div>
           ) : (
             <button className="w-full p-2 hover:bg-white/20 rounded-xl transition-all">
               <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm mx-auto">
-                K
+                👤
               </div>
             </button>
           )}
@@ -310,12 +308,8 @@ export const ModernHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {}
             
             {/* Breadcrumb/Status */}
             <div className="hidden md:flex items-center space-x-2 text-sm">
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
-                🟢 System Online
-              </span>
-              <span className="text-gray-400">•</span>
               <span className="text-gray-600">
-                {realTimeMetrics.activeChats || 0} active chats
+                {realTimeMetrics.activeChats || 0} active conversations
               </span>
             </div>
           </div>
@@ -345,13 +339,12 @@ export const ModernHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {}
               <button className="flex items-center space-x-3 p-2 hover:bg-white/50 rounded-2xl transition-all duration-300">
                 <div className="text-right hidden sm:block">
                   <p className="font-semibold text-gray-900 text-sm">Welcome back!</p>
-                  <p className="text-xs text-gray-500">Demo User</p>
+                  <p className="text-xs text-gray-500">User</p>
                 </div>
                 <div className="relative">
                   <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg ring-2 ring-white/20">
-                    K
+                    👤
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white"></div>
                 </div>
               </button>
               

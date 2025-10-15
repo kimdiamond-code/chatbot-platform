@@ -1,7 +1,7 @@
 // Smart Message Service - Connects chat interface to integration orchestrator
 import { messageService } from './api';
 import { integrationOrchestrator } from './chat/integrationOrchestrator';
-import { chatBotService } from './openaiService';
+import { chatBotService } from './openaiService.js';
 
 class SmartMessageService {
   constructor() {

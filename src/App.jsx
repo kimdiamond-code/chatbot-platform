@@ -19,13 +19,11 @@ import SecurityCompliance from './components/SecurityCompliance.jsx';
 import FAQ from './components/FAQ.jsx';
 import WidgetStudio from './components/WidgetStudio.jsx';
 import WebhookManagement from './components/WebhookManagement.jsx';
-import ShopifyTestPage from './pages/ShopifyTestPage.jsx';
-import ShopifyDiagnostic from './components/debug/ShopifyDiagnostic.jsx';
-import BotHealthCheck from './components/debug/BotHealthCheck.jsx';
+
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
 import { debugEnvVars } from './utils/debugEnv.js';
 import './utils/emergencyActivator.js';
-import './services/openaiService.js';
+import { chatBotService } from './services/openaiService.js';
 
 // Enhanced Bot Builder Component
 const BotBuilder = () => {
@@ -91,7 +89,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Force authenticated for development
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
   const [showSignup, setShowSignup] = useState(false);
   const [realTimeMetrics, setRealTimeMetrics] = useState({
@@ -112,15 +110,13 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    debugEnvVars();
-    
     // Check for OAuth success redirect
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('shopify') === 'connected') {
       setActiveTab('integrations');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    console.log('🚀 AI ChatBot Platform - v2.0');
+    console.log('🚀 agenstack.ai chat - v2.0');
     
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -140,7 +136,8 @@ const App = () => {
     };
   }, []);
 
-  // Show login/signup page if not authenticated
+  // Authentication check disabled for development
+  /* Temporarily disabled
   if (!isAuthenticated) {
     if (showSignup) {
       return <Signup 
@@ -161,6 +158,7 @@ const App = () => {
       onSwitchToSignup={() => setShowSignup(true)}
     />;
   }
+  */
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', component: EnhancedDashboard },
@@ -175,9 +173,6 @@ const App = () => {
     { id: 'webhooks', name: 'Webhooks', component: WebhookManagement },
     { id: 'analytics', name: 'Analytics', component: Analytics },
     { id: 'integrations', name: 'Integrations', component: FullIntegrations },
-    { id: 'shopifytest', name: 'Shopify Test', component: ShopifyTestPage },
-    { id: 'shopifydiag', name: 'Shopify Debug', component: ShopifyDiagnostic },
-    { id: 'bothealth', name: 'Bot Health', component: BotHealthCheck },
     { id: 'security', name: 'Security', component: SecurityCompliance },
     ...(authService.isAdmin() ? [{ id: 'users', name: 'Users', component: UserManagement }] : []),
     { id: 'settings', name: 'Settings', component: EnhancedSettings }

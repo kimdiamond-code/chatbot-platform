@@ -56,17 +56,32 @@ const ShopifyCallback = () => {
         throw new Error(data.error || 'Failed to complete OAuth flow');
       }
 
-      // Store credentials in localStorage (since database isn't working)
-      const shopifyConfig = {
-        shopDomain: data.shopDomain,
-        accessToken: data.accessToken,
-        scope: data.scope,
-        shopInfo: data.shopInfo,
-        connectedAt: new Date().toISOString(),
-        connectionType: 'oauth'
-      };
-      
-      localStorage.setItem('shopify_credentials', JSON.stringify(shopifyConfig));
+      // Store credentials in database
+      const storeResponse = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'saveIntegrationCredentials',
+          integration: 'shopify',
+          credentials: {
+            shopDomain: data.shopDomain,
+            accessToken: data.accessToken,
+            scope: data.scope,
+            shopInfo: data.shopInfo,
+            connectedAt: new Date().toISOString(),
+            connectionType: 'oauth'
+          },
+          organizationId: '00000000-0000-0000-0000-000000000001'
+        })
+      });
+
+      const storeResult = await storeResponse.json();
+      if (!storeResult.success) {
+        throw new Error('Failed to store integration credentials');
+      }
       
       setStatus('success');
       setMessage('Successfully connected your Shopify store!');

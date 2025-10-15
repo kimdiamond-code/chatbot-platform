@@ -112,7 +112,7 @@ const ShopifyTestPage = () => {
           Shopify Integration Test
         </h1>
         <p className="text-gray-600 mt-2">
-          Test your True Citrus Shopify store connection and features
+          Test your Shopify store connection and features
         </p>
       </div>
 

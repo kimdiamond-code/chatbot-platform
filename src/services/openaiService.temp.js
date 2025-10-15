@@ -66,17 +66,6 @@ class ValidationError extends ChatBotError {
 }
 
 class ChatBotService {
-  // Error handler methods
-  handleApiError(error) {
-    console.error('❌ API Error:', error);
-    throw new APIError('OpenAI API error', { originalError: error });
-  }
-
-  handleConnectionError(error) {
-    console.error('❌ Connection Error:', error);
-    throw new APIError('Connection error', { originalError: error });
-  }
-
   constructor() {
     this.conversations = new Map(); // Store conversation contexts
     this.knowledgeBase = new Map(); // Store bot knowledge bases
@@ -155,16 +144,6 @@ const service = new ChatBotService();
 
 // Add diagnostic functions in browser environment
 if (typeof window !== 'undefined') {
-  window.addEventListener('unhandledrejection', function(event) {
-    console.error('❌ Unhandled Promise Rejection:', event.reason);
-    if (event.reason instanceof SyntaxError && event.reason.message.includes('JSON')) {
-      console.log('📝 JSON Parse Error Details:', {
-        message: event.reason.message,
-        stack: event.reason.stack
-      });
-    }
-  });
-
   // Add safe diagnostic function
   window.diagnoseOpenAI = async () => {
     try {

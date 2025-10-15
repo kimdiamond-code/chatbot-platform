@@ -44,11 +44,47 @@ class DatabaseService {
   constructor() {
     this.isOffline = false;
     this.offlineMode = false;
+    this.lastOnlineCheck = 0;
+    this.retryInterval = 30000; // 30 seconds between retry attempts
+  }
+
+  async checkOnlineStatus() {
+    const now = Date.now();
+    if (now - this.lastOnlineCheck < this.retryInterval) {
+      return this.offlineMode;
+    }
+
+    this.lastOnlineCheck = now;
+    
+    try {
+      const response = await fetch(`${API_BASE}?check=1`, { 
+        method: 'HEAD',
+        cache: 'no-cache'
+      });
+      if (response.ok) {
+        if (this.offlineMode) {
+          console.log('🌐 Connection restored, switching to online mode');
+          this.offlineMode = false;
+        }
+      }
+    } catch (error) {
+      if (!this.offlineMode) {
+        console.warn('📴 Connection lost, switching to offline mode');
+        this.offlineMode = true;
+      }
+    }
+
+    return this.offlineMode;
   }
 
   async call(action, data = {}) {
+    // Check online status, but allow offline mode to continue if already set
+    if (!this.offlineMode) {
+      await this.checkOnlineStatus();
+    }
+    
     if (this.offlineMode) {
-      console.log(`📴 Offline mode: ${action}`);
+      console.log(`📴 Offline mode: ${action}${data.orgId ? ` for org ${data.orgId}` : ''}`);
       return this.handleOffline(action, data);
     }
 
@@ -74,7 +110,15 @@ class DatabaseService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        const text = await response.text();
+        result = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.warn('Failed to parse JSON response:', parseError);
+        this.offlineMode = true;
+        return this.handleOffline(action, data);
+      }
 
       if (!result.success && result.error) {
         throw new Error(result.error);
@@ -193,8 +237,16 @@ class DatabaseService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const result = await response.json();
-      console.log('💬 API Response:', result); // Debug log
+      let result;
+      try {
+        const text = await response.text();
+        result = text ? JSON.parse(text) : {};
+        console.log('💬 API Response:', result); // Debug log
+      } catch (parseError) {
+        console.warn('Failed to parse JSON response:', parseError);
+        this.offlineMode = true;
+        return DEMO_DATA.conversations;
+      }
       
       // Handle different response formats
       const conversations = result.conversations || result.data || result || [];
@@ -231,8 +283,16 @@ class DatabaseService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const result = await response.json();
-      console.log('📨 API Response:', result); // Debug log
+      let result;
+      try {
+        const text = await response.text();
+        result = text ? JSON.parse(text) : {};
+        console.log('📨 API Response:', result); // Debug log
+      } catch (parseError) {
+        console.warn('Failed to parse JSON response:', parseError);
+        this.offlineMode = true;
+        return DEMO_DATA.messages;
+      }
       
       // Handle different response formats
       const messages = result.messages || result.data || result || [];

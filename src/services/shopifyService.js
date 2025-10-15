@@ -21,10 +21,27 @@ export const shopifyService = {
         })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Shopify credentials response not OK:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to get integrations: ${response.statusText}`);
+      }
+
+      let data;
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error('Failed to parse Shopify credentials response:', parseError);
+        throw new Error('Invalid response format');
+      }
       
       if (!data.success) {
-        throw new Error('Failed to get integrations');
+        throw new Error(data.error || 'Failed to get integrations');
       }
 
       const shopifyIntegration = data.data?.find(i => i.integration_id === 'shopify');
@@ -74,7 +91,24 @@ export const shopifyService = {
         })
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Shopify products response not OK:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch products: ${response.statusText}`);
+      }
+
+      let data;
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error('Failed to parse Shopify products response:', parseError);
+        throw new Error('Invalid response format');
+      }
       
       if (!data.success) {
         console.error('Failed to fetch products:', data.error);

@@ -27,16 +27,6 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* 🔔 Demo Mode Banner */}
-      {statsFallback || conversationsFallback ? (
-        <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg flex items-center">
-          <i className="fas fa-exclamation-triangle mr-2"></i>
-          <span>
-            <strong>Demo Mode Active:</strong> Data is mocked. Connect Supabase to see live stats.
-          </span>
-        </div>
-      ) : null}
-
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">

@@ -3,9 +3,16 @@
 // This reduces serverless functions from ~20 to just 1
 // ===================================================================
 
-import { neon } from '@neondatabase/serverless';
+import { getDatabase } from './database-config.js';
 
-const sql = neon(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
+let sql;
+try {
+  sql = getDatabase();
+  console.log('✅ Database connection ready');
+} catch (error) {
+  console.error('❌ Database initialization failed:', error);
+  // Don't throw here, let individual requests handle the error
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

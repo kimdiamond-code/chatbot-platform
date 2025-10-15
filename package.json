@@ -1,10 +1,11 @@
 {
-  "name": "chatbot-platform",
+  "name": "agenstack-chat",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"npm run api\"",
+    "api": "cross-env NODE_ENV=development node api/server.js",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
@@ -14,7 +15,7 @@
     "clean:all": "echo Performing full clean and reinstall...",
     "deploy": "npm run clean:build && vercel --prod",
     "deploy:prod": "npm run clean:build && vercel --prod",
-    "clean:build": "rm -rf dist node_modules/.vite && npm run build",
+    "clean:build": "if exist dist rmdir /s /q dist && if exist node_modules\\.vite rmdir /s /q node_modules\\.vite && npm run build",
     "setup": "npm install && echo 'Setup complete! Run npm run dev to start.'",
     "test:api": "curl -X POST http://localhost:5173/api/chat -H 'Content-Type: application/json' -d '{\"message\":\"Hello\",\"conversationId\":\"test\",\"botConfig\":{\"name\":\"TestBot\"}}'",
     "help": "echo 'Available commands: dev, build, preview, proxy, clean, clean:all, deploy, setup, test:api'"
@@ -23,8 +24,11 @@
     "@neondatabase/serverless": "^0.9.0",
     "@tanstack/react-query": "^5.90.2",
     "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
     "cross-fetch": "^4.1.0",
     "date-fns": "^2.30.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
     "lucide-react": "^0.263.1",
     "openai": "^4.20.1",
     "pg": "^8.11.3",
@@ -38,6 +42,8 @@
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.3",
     "autoprefixer": "^10.4.14",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^8.45.0",
     "eslint-plugin-react": "^7.32.2",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -46,7 +52,7 @@
     "tailwindcss": "^3.3.0",
     "vite": "^4.4.5"
   },
-  "description": "Professional AI-powered chatbot platform built with React, featuring OpenAI integration, real-time chat, bot builder, and website widget deployment.",
+  "description": "agenstack.ai chat - Professional AI-powered chat platform built with React, featuring OpenAI integration, real-time conversations, and intelligent automation.",
   "keywords": [
     "chatbot",
     "ai",
@@ -57,14 +63,14 @@
     "neon",
     "vite"
   ],
-  "author": "ChatBot Platform Team",
+  "author": "agenstack.ai",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/chatbot-platform.git"
+    "url": "https://github.com/kimdiamond-code/chatbot-platform.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/chatbot-platform/issues"
+    "url": "https://github.com/kimdiamond-code/chatbot-platform/issues"
   },
   "homepage": "https://github.com/your-username/chatbot-platform#readme"
 }

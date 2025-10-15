@@ -2,6 +2,7 @@
 // Handles multiple Shopify stores for different organizations
 
 import { dbService } from '../databaseService';
+import { safeJSONParse } from '../utils/safeJSON';
 
 class MultiStoreShopifyService {
   constructor() {
@@ -34,21 +35,36 @@ class MultiStoreShopifyService {
       // Cache all active store connections
       for (const integration of shopifyIntegrations || []) {
         try {
-          const credentials = typeof integration.credentials_encrypted === 'string' 
-            ? JSON.parse(integration.credentials_encrypted) 
-            : integration.credentials_encrypted;
+          let credentials = integration.credentials_encrypted;
+          let storeConfig = integration.config;
+
+          // Safely parse credentials if needed
+          if (typeof credentials === 'string') {
+            try {
+              credentials = safeJSONParse(credentials);
+            } catch (e) {
+              console.error('❌ Invalid credentials JSON:', e);
+              continue;
+            }
+          }
+
+          // Safely parse config if needed
+          if (typeof storeConfig === 'string') {
+            try {
+              storeConfig = safeJSONParse(storeConfig);
+            } catch (e) {
+              console.error('❌ Invalid config JSON:', e);
+              continue;
+            }
+          }
           
-          const config = typeof integration.config === 'string'
-            ? JSON.parse(integration.config)
-            : integration.config;
-          
-          if (credentials && config?.store_identifier) {
-            this.storeConnections.set(config.store_identifier, {
+          if (credentials && storeConfig?.store_identifier) {
+            this.storeConnections.set(storeConfig.store_identifier, {
               id: integration.id,
               organizationId: orgId,
-              storeName: config.store_identifier,
+              storeName: storeConfig.store_identifier,
               credentials: credentials,
-              config: config,
+              config: storeConfig,
               lastSync: integration.last_sync
             });
           }

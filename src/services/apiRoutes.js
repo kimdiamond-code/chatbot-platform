@@ -1,5 +1,5 @@
 import { botConfigService } from '../services/botConfigService.js';
-import { chatBotService } from '../services/openaiService.js';
+import { chatBotService } from './openaiService.js';
 import { operatingHoursService } from '../services/operatingHoursService.js';
 import { knowledgeBaseService } from '../services/knowledgeBaseService.js';
 
