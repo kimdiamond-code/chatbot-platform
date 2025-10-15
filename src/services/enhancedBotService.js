@@ -64,7 +64,6 @@ class EnhancedBotService {
       this.state.status = integrationStatus.status;
       this.state.lastCheck = new Date().toISOString();
       this.state.isInitializing = false;
-      
     } catch (error) {
       console.error('❌ Initialization error:', error);
       this.state.error = error.message;
