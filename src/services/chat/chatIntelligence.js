@@ -312,15 +312,19 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
 
     // If no intents detected but message contains product/order/cart keywords, add appropriate intent
     if (analysis.intents.length === 0) {
-      if (lowerMessage.includes('order') || lowerMessage.includes('track')) {
+      // AGGRESSIVE FALLBACK: Detect common query patterns
+      if (/track|order|status|where|ship|delivery|package|arrive/i.test(lowerMessage)) {
+        console.log('⚡ AGGRESSIVE FALLBACK: Adding orderTracking intent');
         analysis.intents.push('orderTracking');
-        analysis.confidence = 0.6;
-      } else if (lowerMessage.includes('product') || lowerMessage.includes('show') || lowerMessage.includes('looking')) {
+        analysis.confidence = 0.7;
+      } else if (/product|item|catalog|shop|store|buy|purchase|show|looking|need|want/i.test(lowerMessage)) {
+        console.log('⚡ AGGRESSIVE FALLBACK: Adding productSearch intent');
         analysis.intents.push('productSearch');
-        analysis.confidence = 0.6;
-      } else if (lowerMessage.includes('cart')) {
+        analysis.confidence = 0.7;
+      } else if (/cart|checkout/i.test(lowerMessage)) {
+        console.log('⚡ AGGRESSIVE FALLBACK: Adding cartInquiry intent');
         analysis.intents.push('cartInquiry');
-        analysis.confidence = 0.6;
+        analysis.confidence = 0.7;
       }
     }
 

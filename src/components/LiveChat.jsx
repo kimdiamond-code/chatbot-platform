@@ -224,19 +224,6 @@ export default function LiveChat() {
             />
           </div>
           
-          {/* Test Button - Shopify Demo Mode */}
-          <button
-            type="button"
-            onClick={testSmartResponse}
-            disabled={!selectedConversation}
-            className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            🧪 Test Shopify Demo
-          </button>
-          <p className="text-xs text-gray-500 mb-2">
-            Tests product search and add-to-cart in demo mode
-          </p>
-          
           {/* Shopify Status Indicator */}
           {shopifyStatus === 'checking' ? (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
@@ -264,21 +251,21 @@ export default function LiveChat() {
               </p>
             </div>
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-yellow-700 font-medium">🎭 DEMO MODE</span>
+                <span className="text-red-700 font-medium">❌ NOT CONNECTED</span>
                 <button
                   type="button"
                   onClick={handleRefreshShopify}
-                  className="text-yellow-700 hover:text-yellow-800"
+                  className="text-red-700 hover:text-red-800"
                   title="Refresh Shopify status"
                   aria-label="Refresh Shopify status"
                 >
                   🔄
                 </button>
               </div>
-              <p className="text-yellow-600">
-                Using mock data. Connect Shopify in Integrations to use real products.
+              <p className="text-red-600">
+                Connect Shopify in Integrations to use real products.
               </p>
             </div>
           )}
@@ -399,8 +386,8 @@ export default function LiveChat() {
                       🔄 Checking...
                     </div>
                   ) : (
-                    <div className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded">
-                      🎭 Demo Mode
+                    <div className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded">
+                      ❌ Shopify Not Connected
                     </div>
                   )}
                 </div>
@@ -447,33 +434,14 @@ export default function LiveChat() {
                             />
                           </div>
                         )}
-
-                        {/* Demo Mode Indicator for Cart Actions */}
-                        {msg.metadata?.demoMode && msg.metadata?.action === 'add_to_cart' && (
-                          <div className="text-xs bg-yellow-50 text-yellow-700 px-3 py-1 rounded border border-yellow-200">
-                            🎭 Demo Mode: Cart not saved to real Shopify
-                          </div>
-                        )}
                       </div>
                     </div>
                   )
                 })
               ) : (
-                <div className="text-center text-gray-500 space-y-4 py-8">
-                  <div className="text-6xl">🛍️</div>
-                  <h3 className="text-lg font-semibold">Test Shopify Demo Mode</h3>
-                  <p className="text-sm max-w-md mx-auto">
-                    Click "Test Shopify Demo" to send a test message that will trigger product recommendations
-                  </p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto text-left">
-                    <p className="text-sm font-medium text-blue-900 mb-2">Test Phrases:</p>
-                    <ul className="text-xs text-blue-700 space-y-1">
-                      <li>• "Looking for headphones"</li>
-                      <li>• "Show me speakers"</li>
-                      <li>• "Recommend bluetooth products"</li>
-                      <li>• "Need wireless accessories"</li>
-                    </ul>
-                  </div>
+                <div className="text-center text-gray-500 py-8">
+                  <div className="text-6xl mb-4">💬</div>
+                  <p className="text-sm">No messages yet. Start a conversation!</p>
                 </div>
               )}
             </div>
@@ -508,47 +476,28 @@ export default function LiveChat() {
                 >
                   Send
                 </button>
-                <button
-                  type="button"
-                  onClick={testSmartResponse}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium whitespace-nowrap"
-                  aria-label="Send demo test message"
-                >
-                  🧪 Demo
-                </button>
               </form>
             </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center max-w-md">
-              <div className="text-6xl mb-4">🛍️</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Shopify Demo Ready!
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Test product display and add-to-cart functionality with mock data
-              </p>
+            <div className="text-6xl mb-4">🛍️</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Select a Conversation
+            </h3>
+            <p className="text-gray-500 mb-4">
+            Choose a conversation from the sidebar to start chatting
+            </p>
               {conversations.length > 0 && (
                 <p className="text-sm text-blue-600 mb-4">
                   ← Select a conversation to start testing
                 </p>
               )}
               {smartBotEnabled && (
-                <div className="space-y-2">
-                  <div className="text-sm text-green-600 bg-green-50 px-4 py-2 rounded-lg inline-block">
-                    🤖 Smart Bot Active
-                  </div>
-                  {shopifyStatus === 'connected' ? (
-                    <div className="text-sm text-green-600 bg-green-50 px-4 py-2 rounded-lg inline-block">
-                      ✅ Using Real Shopify Products
-                    </div>
-                  ) : (
-                    <div className="text-sm text-yellow-600 bg-yellow-50 px-4 py-2 rounded-lg inline-block">
-                      🎭 Demo Mode - Using Mock Products
-                    </div>
-                  )}
-                </div>
+              <div className="text-sm text-green-600 bg-green-50 px-4 py-2 rounded-lg inline-block">
+              🤖 Smart Bot Active
+              </div>
               )}
             </div>
           </div>
