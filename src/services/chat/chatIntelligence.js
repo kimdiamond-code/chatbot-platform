@@ -8,13 +8,16 @@ class ChatIntelligenceService {
       orderTracking: [
         /where\s+is\s+my\s+order/i,
         /track\s+my\s+order/i,
+        /track\s+order/i,
         /order\s+status/i,
         /order\s+#?(\w+)/i,
         /shipping\s+status/i,
         /when\s+will\s+my\s+order\s+arrive/i,
         /delivery\s+status/i,
         /hasn't\s+arrived/i,
-        /not\s+received/i
+        /not\s+received/i,
+        /track/i,  // Simple "track" keyword
+        /order/i   // Simple "order" keyword
       ],
       
       // Product searches and recommendations
@@ -52,7 +55,8 @@ class ChatIntelligenceService {
         /shopping\s+cart/i,
         /my\s+cart/i,
         /checkout/i,
-        /items\s+in\s+cart/i
+        /items\s+in\s+cart/i,
+        /cart/i  // Simple "cart" keyword
       ],
       
       // Product detail questions
@@ -134,19 +138,10 @@ class ChatIntelligenceService {
   }
   
   /**
-   * Detect intents using OpenAI
+   * Detect intents using OpenAI via backend proxy
    */
   async detectIntentsWithAI(message) {
     try {
-      // Dynamic import to avoid circular dependencies
-      const { chatBotService } = await import('../openaiService');
-      const openaiClient = await chatBotService.getOpenAIClient();
-      
-      if (!openaiClient) {
-        console.log('⚡ OpenAI not available, skipping AI intent detection');
-        return null;
-      }
-      
       const intentPrompt = `Analyze this customer message and identify the intents. Return ONLY a JSON array of intent names from this list:
 - orderTracking: customer asking about order status, tracking, delivery
 - productSearch: customer looking for products, recommendations, browsing
@@ -160,17 +155,43 @@ Customer message: "${message}"
 Return format: ["intent1", "intent2"] or [] if no clear intent.
 RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
       
-      const completion = await openaiClient.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: intentPrompt }],
-        max_tokens: 50,
-        temperature: 0.3
+      // Call OpenAI via backend proxy
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          endpoint: 'openai',
+          action: 'chat',
+          messages: [{ role: 'user', content: intentPrompt }],
+          model: 'gpt-4o-mini',
+          temperature: 0.3,
+          max_tokens: 50
+        })
       });
+
+      if (!response.ok) {
+        console.log('⚠️ AI intent detection API failed:', response.status);
+        return null;
+      }
+
+      const result = await response.json();
+      const responseText = result.data?.choices?.[0]?.message?.content?.trim();
       
-      const responseText = completion.choices[0].message.content.trim();
-      const intents = JSON.parse(responseText);
-      
-      return Array.isArray(intents) ? intents : null;
+      if (!responseText) {
+        console.log('⚠️ No response from AI intent detection');
+        return null;
+      }
+
+      // Try to parse the JSON array
+      try {
+        const intents = JSON.parse(responseText);
+        return Array.isArray(intents) ? intents : null;
+      } catch (parseError) {
+        console.log('⚠️ Failed to parse AI intents:', responseText);
+        return null;
+      }
       
     } catch (error) {
       console.log('⚠️ AI intent detection failed:', error.message);
@@ -245,15 +266,25 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
       analysis.entities.orderNumbers = orderMatches.map(match => match.replace('#', ''));
     }
 
-    // Detect intents
+    // Detect intents - Check each pattern and add unique intents
     for (const [intent, patterns] of Object.entries(this.intentPatterns)) {
       for (const pattern of patterns) {
         if (pattern.test(message)) {
-          analysis.intents.push(intent);
-          analysis.confidence += 0.2;
+          if (!analysis.intents.includes(intent)) {
+            analysis.intents.push(intent);
+            analysis.confidence += 0.2;
+          }
           break;
         }
       }
+    }
+
+    // IMPORTANT: If message contains "track" or "order", prioritize order tracking intent
+    if ((lowerMessage.includes('track') || lowerMessage.includes('order')) && 
+        !analysis.intents.includes('orderTracking')) {
+      console.log('🔍 Adding orderTracking intent based on keywords');
+      analysis.intents.unshift('orderTracking'); // Add to beginning of array
+      analysis.confidence += 0.3;
     }
 
     // Analyze sentiment
@@ -279,6 +310,26 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     // Normalize confidence
     analysis.confidence = Math.min(analysis.confidence, 1.0);
 
+    // If no intents detected but message contains product/order/cart keywords, add appropriate intent
+    if (analysis.intents.length === 0) {
+      if (lowerMessage.includes('order') || lowerMessage.includes('track')) {
+        analysis.intents.push('orderTracking');
+        analysis.confidence = 0.6;
+      } else if (lowerMessage.includes('product') || lowerMessage.includes('show') || lowerMessage.includes('looking')) {
+        analysis.intents.push('productSearch');
+        analysis.confidence = 0.6;
+      } else if (lowerMessage.includes('cart')) {
+        analysis.intents.push('cartInquiry');
+        analysis.confidence = 0.6;
+      }
+    }
+
+    console.log('📊 Regex analysis complete:', {
+      message: message.substring(0, 50),
+      detectedIntents: analysis.intents,
+      confidence: analysis.confidence
+    });
+
     return analysis;
   }
 
@@ -295,8 +346,9 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     console.log('🔍 Generating response plan for:', originalMessage);
     console.log('🔍 Detected intents:', analysis.intents);
 
-    // Order tracking requests
+    // Order tracking requests - PRIORITY
     if (analysis.intents.includes('orderTracking')) {
+      console.log('📦 Order tracking intent detected');
       plan.actions.push({
         type: 'shopify_order_lookup',
         email: analysis.entities.email,
@@ -306,7 +358,8 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     }
 
     // Product search requests
-    if (analysis.intents.includes('productSearch')) {
+    else if (analysis.intents.includes('productSearch')) {
+      console.log('🛍️ Product search intent detected');
       // Extract product keywords from message
       let searchQuery = 'general';
       if (analysis.entities.products && analysis.entities.products.length > 0) {
@@ -332,7 +385,8 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     }
     
     // Cart inquiry requests
-    if (analysis.intents.includes('cartInquiry')) {
+    else if (analysis.intents.includes('cartInquiry')) {
+      console.log('🛒 Cart inquiry intent detected');
       plan.actions.push({
         type: 'shopify_cart_view',
         email: analysis.entities.email
@@ -341,7 +395,8 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     }
     
     // Product detail questions
-    if (analysis.intents.includes('productQuestion')) {
+    else if (analysis.intents.includes('productQuestion')) {
+      console.log('📋 Product question intent detected');
       plan.actions.push({
         type: 'shopify_product_details',
         query: originalMessage
@@ -351,17 +406,21 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
 
     // Support escalation
     if (analysis.requiresEscalation) {
+      console.log('🚨 Escalation required');
       plan.actions.push({
         type: 'kustomer_escalation',
         priority: analysis.priority,
         sentiment: analysis.sentiment,
         reason: analysis.intents.includes('supportEscalation') ? 'customer_request' : 'sentiment_analysis'
       });
-      plan.responseType = 'escalation';
+      if (!plan.responseType || plan.responseType === 'standard') {
+        plan.responseType = 'escalation';
+      }
     }
 
     // Billing issues
     if (analysis.intents.includes('billingInquiry')) {
+      console.log('💳 Billing inquiry detected');
       plan.actions.push({
         type: 'kustomer_ticket_creation',
         category: 'billing',
@@ -370,16 +429,33 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
       plan.responseType = 'billing_support';
     }
     
-    // FALLBACK: If no intents detected but message contains product-related words, assume product search
-    if (plan.actions.length === 0 && /product|item|catalog|shop|store|buy|purchase/i.test(originalMessage)) {
-      console.log('⚡ Fallback: Detecting product-related message, adding product search action');
-      plan.actions.push({
-        type: 'shopify_product_search',
-        products: [],
-        query: 'general'
-      });
-      plan.responseType = 'product_recommendations';
+    // FALLBACK: Check for order/track keywords even if no intent detected
+    if (plan.actions.length === 0) {
+      const lowerMessage = originalMessage.toLowerCase();
+      if (lowerMessage.includes('order') || lowerMessage.includes('track')) {
+        console.log('⚡ Fallback: Detecting order-related keywords, adding order lookup action');
+        plan.actions.push({
+          type: 'shopify_order_lookup',
+          email: analysis.entities.email,
+          orderNumbers: analysis.entities.orderNumbers
+        });
+        plan.responseType = 'order_status';
+      } else if (/product|item|catalog|shop|store|buy|purchase/i.test(originalMessage)) {
+        console.log('⚡ Fallback: Detecting product-related message, adding product search action');
+        plan.actions.push({
+          type: 'shopify_product_search',
+          products: [],
+          query: 'general'
+        });
+        plan.responseType = 'product_recommendations';
+      }
     }
+
+    console.log('📊 Response plan complete:', {
+      responseType: plan.responseType,
+      actionCount: plan.actions.length,
+      actions: plan.actions.map(a => a.type)
+    });
 
     return plan;
   }
@@ -397,6 +473,8 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
         integrationsUsed: []
       }
     };
+
+    console.log('📝 Formatting response for type:', plan.responseType);
 
     switch (plan.responseType) {
       case 'order_status':
@@ -583,18 +661,17 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
       responseText += `I see you mentioned order #${action.orderNumbers[0]}. `;
     }
     
-    responseText += `Here are a few ways I can help you right away:\n\n`;
-    responseText += `📧 **Email Lookup**: Check your email for order confirmation with tracking info\n`;
-    responseText += `🔗 **Account Login**: Log into your account at our website to view order status\n`;
-    responseText += `📞 **Direct Help**: I can connect you with a specialist who can look up your order immediately\n\n`;
-    responseText += `Would you like me to connect you with someone who can track your order right now?`;
+    responseText += `To find your order, I'll need:\n\n`;
+    responseText += `📧 **Your email address** (used for the order)\n`;
+    responseText += `📦 **Your order number** (if you have it)\n\n`;
+    responseText += `Please provide this information and I'll look up your order status right away!`;
 
     return {
       text: responseText,
       actions: [
-        { type: 'escalate', label: '🚀 Connect with Specialist', priority: 'high' },
-        { type: 'info', label: '📧 Check Order Email' },
-        { type: 'external_link', label: '🔗 Login to Account', url: 'https://your-store.com/account' }
+        { type: 'quick_reply', label: '📧 Provide email', value: 'My email is ' },
+        { type: 'quick_reply', label: '📦 Provide order number', value: 'My order number is ' },
+        { type: 'escalate', label: '💬 Chat with Agent' }
       ],
       metadata: { source: 'smart_integration_fallback', confidence: 0.7, integrationsUsed: [] }
     };
