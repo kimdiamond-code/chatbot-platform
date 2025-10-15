@@ -222,6 +222,10 @@ export const useMessages = (conversationId) => {
       case 'add_to_cart':
         console.log('🛒 Adding to cart:', action.data);
         
+        // Get customer email from enhanced bot service session
+        const sessionEmail = enhancedBotService.getCustomerEmail(conversationId) || 'guest@example.com';
+        console.log('📧 Using customer email for cart:', sessionEmail);
+        
         // Check if we're in demo mode by verifying Shopify connection
         let isDemoMode = false;
         try {
@@ -231,12 +235,18 @@ export const useMessages = (conversationId) => {
             console.log('🎭 DEMO MODE: Mock add to cart');
             // Use demo service
             const { demoShopifyService } = await import('../services/demoShopifyService');
-            const result = await demoShopifyService.mockAddToCart(action.data);
+            const result = await demoShopifyService.mockAddToCart({
+              ...action.data,
+              customerEmail: sessionEmail
+            });
             console.log('✅ Demo cart created:', result);
           } else {
             console.log('✅ Real Shopify: Adding to cart');
-            // Real Shopify - create draft order
-            const result = await shopifyService.createDraftOrder(action.data);
+            // Real Shopify - create draft order with session email
+            const result = await shopifyService.createDraftOrder({
+              ...action.data,
+              customerEmail: sessionEmail
+            });
             console.log('✅ Added to cart:', result);
           }
           

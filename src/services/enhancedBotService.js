@@ -23,6 +23,8 @@ class EnhancedBotService {
     this.maxInitAttempts = 3;
     this.initTimeout = null;
     this.retryDelay = 5000;
+    // Store customer email for cart persistence
+    this.customerSessions = new Map();
     // Initialize in background without blocking
     setTimeout(() => this.initializeWithRetry(), 1000);
   }
@@ -215,17 +217,53 @@ class EnhancedBotService {
   }
 
   /**
+   * Store customer email for session (for cart persistence)
+   */
+  storeCustomerEmail(conversationId, email) {
+    if (email && email !== 'null' && email !== 'undefined') {
+      console.log('📧 Storing customer email for session:', { conversationId, email });
+      this.customerSessions.set(conversationId, { email, lastUpdated: Date.now() });
+    }
+  }
+
+  /**
+   * Get stored customer email for conversation
+   */
+  getCustomerEmail(conversationId) {
+    const session = this.customerSessions.get(conversationId);
+    if (session && session.email) {
+      console.log('📧 Retrieved stored customer email:', session.email);
+      return session.email;
+    }
+    return null;
+  }
+
+  /**
    * Process a customer message and generate smart response
    */
   async processMessage(messageContent, conversationId, customerEmail = null) {
     console.log('🤖 Enhanced bot processing message:', messageContent);
 
     try {
-      // Build customer context for integrations
+      // Get stored email if not provided
+      let effectiveEmail = customerEmail || this.getCustomerEmail(conversationId);
+      
+      // Extract email from message if present
+      const emailMatch = messageContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+      if (emailMatch && emailMatch.length > 0) {
+        effectiveEmail = emailMatch[0];
+        console.log('📧 Extracted email from message:', effectiveEmail);
+        // Store it for future use
+        this.storeCustomerEmail(conversationId, effectiveEmail);
+      }
+
+      // Build customer context for integrations with extracted email
       const customerContext = {
-        email: customerEmail,
+        email: effectiveEmail,
         conversationId: conversationId
       };
+
+      console.log('👤 Customer context:', customerContext);
 
       // Process through integration orchestrator
       const smartResult = await integrationOrchestrator.processMessage(
@@ -238,6 +276,32 @@ class EnhancedBotService {
       );
 
       console.log('🎯 Smart processing result:', smartResult.response?.metadata?.source);
+
+      // Check if the response needs email information
+      if (smartResult.response?.metadata?.needsInfo === 'email' && effectiveEmail) {
+        console.log('📧 Response needs email, but we have it! Re-processing...');
+        // Re-process with the email we have
+        const retryResult = await integrationOrchestrator.processMessage(
+          {
+            content: messageContent + ' ' + effectiveEmail,
+            conversation_id: conversationId,
+            sender_type: 'user'
+          },
+          customerContext
+        );
+        
+        if (retryResult.response?.text && !retryResult.response.text.includes('need') && 
+            !retryResult.response.text.includes('provide')) {
+          return {
+            response: retryResult.response.text,
+            confidence: retryResult.response.metadata.confidence,
+            source: 'smart_integration',
+            actions: retryResult.response.actions || [],
+            shouldEscalate: retryResult.analysis?.requiresEscalation || false,
+            metadata: retryResult.response.metadata
+          };
+        }
+      }
 
       // If we got a good smart response, use it
       if (smartResult.response?.text && smartResult.response.metadata?.confidence > 0.7) {

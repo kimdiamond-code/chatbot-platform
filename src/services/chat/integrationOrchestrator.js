@@ -335,7 +335,9 @@ class IntegrationOrchestrator {
    */
   async handleShopifyCartView(action, customerContext) {
     try {
-      console.log('🛒 Fetching cart (draft orders) for customer:', customerContext.email);
+      // Use the email from context, action, or enhanced bot session
+      const effectiveEmail = customerContext.email || action.email;
+      console.log('🛒 Fetching cart (draft orders) for customer:', effectiveEmail);
       
       // In Shopify, carts are essentially draft orders
       // We'll fetch recent draft orders for this customer
@@ -346,7 +348,7 @@ class IntegrationOrchestrator {
         return { draft_orders: [] };
       }
       
-      // Fetch draft orders via API
+      // Try to fetch with email if we have it, otherwise fetch all recent draft orders
       const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -355,7 +357,7 @@ class IntegrationOrchestrator {
           action: 'shopify_getDraftOrders',
           store_url: credentials.shopDomain,
           access_token: credentials.accessToken,
-          customer_email: customerContext.email || action.email
+          customer_email: effectiveEmail
         })
       });
       
