@@ -360,19 +360,27 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     // Product search requests
     else if (analysis.intents.includes('productSearch')) {
       console.log('🛍️ Product search intent detected');
-      // Extract product keywords from message
+      // Extract product keywords from message - IMPROVED
       let searchQuery = 'general';
+      
+      // First check if we have explicit product entities
       if (analysis.entities.products && analysis.entities.products.length > 0) {
         searchQuery = analysis.entities.products[0];
       } else {
-        // Try to extract keywords from message
-        const productKeywords = ['headphone', 'speaker', 'earphone', 'earbud', 'bluetooth', 'wireless', 'cable'];
-        const words = originalMessage.toLowerCase().split(/\s+/);
-        const foundKeyword = words.find(word => 
-          productKeywords.some(keyword => word.includes(keyword))
-        );
-        if (foundKeyword) {
-          searchQuery = foundKeyword;
+        // Extract meaningful search terms from the message
+        // Remove common stop words and chat phrases
+        const stopWords = ['show', 'me', 'get', 'find', 'looking', 'for', 'some', 'the', 'a', 'an', 'need', 'want', 'buy', 'purchase', 'i', 'am', 'can', 'you', 'what', 'is', 'are', 'do', 'does', 'have', 'any', 'your'];
+        
+        const words = originalMessage.toLowerCase()
+          .replace(/[^a-z0-9\s-]/gi, ' ') // Remove special chars except hyphens
+          .split(/\s+/)
+          .filter(word => word.length > 2 && !stopWords.includes(word));
+        
+        // If we have meaningful words after filtering, use them as search query
+        if (words.length > 0) {
+          // Take first 2-3 meaningful words as search query
+          searchQuery = words.slice(0, 3).join(' ');
+          console.log('🔍 Extracted search query:', searchQuery);
         }
       }
       
@@ -478,7 +486,9 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
 
     switch (plan.responseType) {
       case 'order_status':
-        response = this.formatOrderResponse(integrationResults.shopify, originalMessage, plan.actions[0]);
+        // Make sure email is passed correctly
+        const orderAction = plan.actions.find(a => a.type === 'shopify_order_lookup') || plan.actions[0];
+        response = this.formatOrderResponse(integrationResults.shopify, originalMessage, orderAction);
         break;
         
       case 'product_recommendations':
@@ -510,15 +520,30 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
 
   formatOrderResponse(shopifyData, originalMessage, action) {
     // Check if we're missing required information
-    const hasEmail = action.email && action.email !== 'null' && action.email !== 'undefined';
-    const hasOrderNumber = action.orderNumbers && action.orderNumbers.length > 0;
+    // IMPROVED: Also check the original message for email
+    let effectiveEmail = action?.email;
+    
+    // Re-extract email from message if not in action
+    if (!effectiveEmail || effectiveEmail === 'null' || effectiveEmail === 'undefined') {
+      const emailMatch = originalMessage.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+      if (emailMatch && emailMatch.length > 0) {
+        effectiveEmail = emailMatch[0];
+        console.log('📧 Re-extracted email from message:', effectiveEmail);
+      }
+    }
+    
+    const hasEmail = effectiveEmail && effectiveEmail !== 'null' && effectiveEmail !== 'undefined';
+    const hasOrderNumber = action?.orderNumbers && action.orderNumbers.length > 0;
+    
+    console.log('📧 Order lookup - Email check:', { hasEmail, email: effectiveEmail, hasOrderNumber });
     
     // If missing both, ask for email first
     if (!hasEmail && !hasOrderNumber) {
       return {
         text: "I'll help you track your order! To get started, I need some information:\n\n" +
               "📧 **What email address did you use for your order?**\n\n" +
-              "Please provide your email address so I can look up your order.",
+              "Please provide your email address so I can look up your order.\n\n" +
+              "Example: *my email is john@example.com*",
         actions: [
           { type: 'quick_reply', label: 'I have my order number', value: 'My order number is ' }
         ],
@@ -534,7 +559,7 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     // If we have email but no order number, and no orders found
     if (hasEmail && !hasOrderNumber && (!shopifyData || !shopifyData.orders || shopifyData.orders.length === 0)) {
       return {
-        text: `I'm looking for orders with email **${action.email}**, but I couldn't find any orders yet.\n\n` +
+        text: `I'm looking for orders with email **${effectiveEmail}**, but I couldn't find any orders yet.\n\n` +
               "📦 **Do you have your order number?** This will help me find your order faster.\n\n" +
               "Order numbers typically look like: #1234 or ABC-1234",
         actions: [
@@ -685,7 +710,7 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     
     if (hasEmail && hasOrderNumber) {
       responseText += `I searched for:\n`;
-      responseText += `• Email: **${action.email}**\n`;
+      responseText += `• Email: **${effectiveEmail}**\n`;
       responseText += `• Order #: **${action.orderNumbers[0]}**\n\n`;
       responseText += `The order might not be in our system yet if it was just placed, or there could be a typo.\n\n`;
       responseText += `**Let's try:**\n`;
@@ -693,7 +718,7 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
       responseText += `• Verify the email address\n`;
       responseText += `• Or connect with an agent who can search more thoroughly`;
     } else if (hasEmail) {
-      responseText += `I searched for orders with email **${action.email}**, but didn't find any.\n\n`;
+      responseText += `I searched for orders with email **${effectiveEmail}**, but didn't find any.\n\n`;
       responseText += `This could mean:\n`;
       responseText += `• The order is very recent and still processing\n`;
       responseText += `• You used a different email address\n`;
@@ -715,7 +740,7 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
         source: 'smart_integration', 
         confidence: 0.6, 
         integrationsUsed: ['shopify'],
-        searchedEmail: action.email,
+        searchedEmail: effectiveEmail,
         searchedOrderNumber: action.orderNumbers?.[0]
       }
     };

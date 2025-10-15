@@ -1,6 +1,5 @@
 // Integration Orchestrator - Coordinates between chat and integrations
 import { shopifyService } from '../integrations/shopifyService.js';
-import { demoShopifyService } from '../demoShopifyService.js';
 import { kustomerService } from '../integrations/kustomerService';
 import { chatIntelligenceService } from './chatIntelligence';
 
@@ -294,38 +293,25 @@ class IntegrationOrchestrator {
     try {
       let products = [];
 
-      // Check if Shopify is actually connected
-      if (this.activeIntegrations.shopify) {
-        // Real Shopify
-        if (action.query && action.query !== 'general') {
-          products = await shopifyService.searchProducts(action.query);
-        } else {
-          products = await shopifyService.getProducts(6);
-        }
+      // Always use real Shopify - no demo mode
+      if (action.query && action.query !== 'general') {
+        products = await shopifyService.searchProducts(action.query);
       } else {
-        // Demo mode - use mock products
-        console.log('🎭 DEMO MODE: Using mock Shopify products');
-        if (action.query && action.query !== 'general') {
-          products = demoShopifyService.searchDemoProducts(action.query);
-        } else {
-          products = demoShopifyService.getDemoProducts();
-        }
+        products = await shopifyService.getProducts(6);
       }
 
       return {
         products: products || [],
-        searchQuery: action.query,
-        demoMode: !this.activeIntegrations.shopify
+        searchQuery: action.query
       };
 
     } catch (error) {
-      console.error('Error in Shopify product search:', error);
-      // Fallback to demo products on error
-      console.log('🎭 Falling back to DEMO products due to error');
+      console.error('❌ Error in Shopify product search:', error);
+      // Return empty products if Shopify fails - let the UI handle it
       return {
-        products: demoShopifyService.getDemoProducts(),
+        products: [],
         searchQuery: action.query,
-        demoMode: true
+        error: error.message
       };
     }
   }

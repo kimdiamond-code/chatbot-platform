@@ -5,16 +5,14 @@ import { integrationOrchestrator } from './chat/integrationOrchestrator';
 class EnhancedBotService {
   constructor() {
     this.state = {
-      isEnabled: true,  // Enable by default to fix the issue
+      isEnabled: true,  // Enable by default
       isInitialized: true,  // Mark as initialized to prevent blocking
       isInitializing: false,
       lastCheck: null,
       apiConnected: true,  // Assume connected
-      demoMode: false,
-      demoReason: null,
       status: {
-        shopify: { connected: false, error: null, demoMode: true },
-        kustomer: { connected: false, error: null, demoMode: true },
+        shopify: { connected: false, error: null },
+        kustomer: { connected: false, error: null },
         api: { connected: true, error: null }
       },
       error: null
@@ -91,7 +89,7 @@ class EnhancedBotService {
       this.state.apiConnected = connected;
       
       if (!connected && response.status !== 400) {
-        this.switchToDemoMode('API server not responding');
+        this.switchToOfflineMode('API server not responding');
       }
       
       return connected;
@@ -123,13 +121,11 @@ class EnhancedBotService {
       const formattedStatus = {
         shopify: {
           connected: status.shopify.connected || false,
-          demoMode: status.shopify.demoMode !== false,  // Default to demo mode
           error: status.shopify.error || null,
           lastCheck: new Date().toISOString()
         },
         kustomer: {
           connected: status.kustomer.connected || false,
-          demoMode: status.kustomer.demoMode !== false,  // Default to demo mode
           error: status.kustomer.error || null,
           lastCheck: new Date().toISOString()
         },
@@ -148,12 +144,12 @@ class EnhancedBotService {
       };
     } catch (error) {
       console.error('❌ Integration check failed:', error.message);
-      // Return demo mode status on error
+      // Return disconnected status on error
       return {
         isEnabled: true,
         status: {
-          shopify: { connected: false, demoMode: true, error: error.message },
-          kustomer: { connected: false, demoMode: true, error: error.message },
+          shopify: { connected: false, error: error.message },
+          kustomer: { connected: false, error: error.message },
           api: this.state.status.api
         },
         error: error.message,
@@ -162,23 +158,19 @@ class EnhancedBotService {
     }
   }
 
-  switchToDemoMode(reason) {
-    console.log('🎭 Enhanced Bot Demo Mode');
+  switchToOfflineMode(reason) {
+    console.log('⚠️ Enhanced Bot Offline Mode');
     console.log(`⚠️ Reason: ${reason}`);
-    console.log('📝 All integrations will simulate responses');
     
-    this.state.demoMode = true;
-    this.state.demoReason = reason;
     this.state.status = {
       ...this.state.status,
-      shopify: { connected: false, demoMode: true, error: null },
-      kustomer: { connected: false, demoMode: true, error: null }
+      shopify: { connected: false, error: reason },
+      kustomer: { connected: false, error: reason }
     };
   }
 
   getStatusEmoji(integration) {
     if (integration.connected) return '✅ connected';
-    if (integration.demoMode) return '🎭 demo mode';
     if (integration.error) return `❌ error: ${integration.error}`;
     if (integration.initializing) return '🔄 initializing';
     return '❌ disconnected';
