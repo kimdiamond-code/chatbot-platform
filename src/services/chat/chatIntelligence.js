@@ -1087,12 +1087,60 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
   }
 
   getOrderStatus(order) {
+    console.log('🔍 Getting order status for:', {
+      name: order.name || order.order_number,
+      fulfillment_status: order.fulfillment_status,
+      financial_status: order.financial_status,
+      cancelled_at: order.cancelled_at,
+      has_fulfillments: order.fulfillments?.length > 0
+    });
+    
     if (order.cancelled_at) return 'Cancelled';
-    if (order.fulfillment_status === 'fulfilled') return 'Delivered';
+    
+    // Check fulfillment status more accurately
+    // Shopify API can return: null, 'fulfilled', 'partial', or 'restocked'
+    if (order.fulfillment_status === 'fulfilled') {
+      console.log('✅ Order fulfilled');
+      return 'Delivered';
+    }
+    
+    // Check if there are fulfillments with shipment status
+    if (order.fulfillments && order.fulfillments.length > 0) {
+      const latestFulfillment = order.fulfillments[0];
+      console.log('📦 Latest fulfillment:', {
+        status: latestFulfillment.status,
+        shipment_status: latestFulfillment.shipment_status,
+        has_tracking: !!latestFulfillment.tracking_number
+      });
+      
+      // Check shipment_status field (can be: 'delivered', 'in_transit', 'out_for_delivery', etc.)
+      if (latestFulfillment.shipment_status === 'delivered') {
+        console.log('✅ Shipment delivered');
+        return 'Delivered';
+      }
+      if (latestFulfillment.shipment_status === 'out_for_delivery') {
+        console.log('🚚 Out for delivery');
+        return 'Out for Delivery';
+      }
+      if (latestFulfillment.shipment_status === 'in_transit') {
+        console.log('🚚 In transit');
+        return 'Shipped - In Transit';
+      }
+      
+      // If fulfillment exists and has status 'success', it's shipped
+      if (latestFulfillment.status === 'success' || latestFulfillment.tracking_number) {
+        console.log('🚚 Shipped');
+        return 'Shipped';
+      }
+    }
+    
+    if (order.fulfillment_status === 'partial') return 'Partially Shipped';
+    
+    // Financial status checks
     if (order.financial_status === 'pending') return 'Payment Processing';
     if (order.financial_status === 'paid' && !order.fulfillment_status) return 'Processing';
-    if (order.fulfillment_status === 'partial') return 'Partially Shipped';
-    if (order.fulfillment_status === 'shipped') return 'Shipped';
+    
+    console.log('⏳ Default status: Processing');
     return 'Processing';
   }
 
