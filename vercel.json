@@ -5,7 +5,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "functions": {
-    "api/consolidated.js": {
+    "api/unified.js": {
       "memory": 1024,
       "maxDuration": 10
     }
@@ -13,7 +13,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api/consolidated"
+      "destination": "/api/unified"
     },
     {
       "source": "/((?!api).*)",

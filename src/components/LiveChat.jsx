@@ -448,16 +448,7 @@ export default function LiveChat() {
 
             {/* Input */}
             <div className="p-4 border-t border-gray-200">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (inputMessage.trim()) {
-                    sendCustomerMessage(inputMessage.trim());
-                    setInputMessage('');
-                  }
-                }}
-                className="flex space-x-2"
-              >
+              <div className="flex space-x-2">
                 <label htmlFor="chat-message-input" className="sr-only">Type your message</label>
                 <input
                   type="text"
@@ -465,18 +456,33 @@ export default function LiveChat() {
                   name="message"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (inputMessage.trim()) {
+                        sendCustomerMessage(inputMessage.trim());
+                        setInputMessage('');
+                      }
+                    }
+                  }}
                   placeholder="Type a message or test phrase..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Chat message input"
                 />
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => {
+                    if (inputMessage.trim()) {
+                      sendCustomerMessage(inputMessage.trim());
+                      setInputMessage('');
+                    }
+                  }}
                   className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium whitespace-nowrap"
                   aria-label="Send message"
                 >
                   Send
                 </button>
-              </form>
+              </div>
             </div>
           </>
         ) : (

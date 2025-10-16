@@ -1,6 +1,7 @@
 // Simple Enhanced Bot Service for Smart Responses
 import { chatBotService } from './openaiService.js';
 import { integrationOrchestrator } from './chat/integrationOrchestrator';
+import { customerProfileService } from './customer/customerProfileService';
 
 class EnhancedBotService {
   constructor() {
@@ -248,10 +249,25 @@ class EnhancedBotService {
         this.storeCustomerEmail(conversationId, effectiveEmail);
       }
 
-      // Build customer context for integrations with extracted email
+      // Load customer profile for personalization
+      let customerProfile = null;
+      if (effectiveEmail) {
+        customerProfile = await customerProfileService.getOrCreateProfile(
+          effectiveEmail,
+          '00000000-0000-0000-0000-000000000001' // Default org ID
+        );
+        console.log('👤 Customer profile loaded:', {
+          email: effectiveEmail,
+          visitCount: customerProfile?.metadata?.visitCount,
+          isReturning: (customerProfile?.metadata?.visitCount || 0) > 1
+        });
+      }
+
+      // Build customer context for integrations with extracted email and profile
       const customerContext = {
         email: effectiveEmail,
-        conversationId: conversationId
+        conversationId: conversationId,
+        profile: customerProfile
       };
 
       console.log('👤 Customer context:', customerContext);

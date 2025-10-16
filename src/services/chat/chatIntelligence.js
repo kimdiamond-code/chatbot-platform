@@ -3,6 +3,9 @@
 
 class ChatIntelligenceService {
   constructor() {
+    // Store conversation context for follow-up handling
+    this.conversationContext = new Map();
+    
     this.intentPatterns = {
       // Order-related inquiries
       orderTracking: [
@@ -17,7 +20,13 @@ class ChatIntelligenceService {
         /hasn't\s+arrived/i,
         /not\s+received/i,
         /track/i,  // Simple "track" keyword
-        /order/i   // Simple "order" keyword
+        /order/i,  // Simple "order" keyword
+        // FOLLOW-UP RESPONSES for order tracking
+        /my\s+email\s+(is|:)/i,
+        /email\s+(is|:)/i,
+        /it's\s+[a-zA-Z0-9._%+-]+@/i,  // "it's john@example.com"
+        /here\s+(is|it|:)/i,  // "here is my email"
+        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/i  // Just an email address
       ],
       
       // Product searches and recommendations
@@ -120,21 +129,108 @@ class ChatIntelligenceService {
   }
 
   /**
+   * Store context for a conversation (for follow-ups)
+   * Maintains full conversation memory until 8 minutes of inactivity
+   */
+  setConversationContext(conversationId, context) {
+    if (!conversationId) return;
+    
+    // Get existing context to preserve accumulated data
+    const existing = this.conversationContext.get(conversationId) || {};
+    
+    this.conversationContext.set(conversationId, {
+      ...existing,
+      ...context,
+      timestamp: Date.now(),  // Reset idle timer on every update
+      messageCount: (existing.messageCount || 0) + 1
+    });
+    
+    console.log('💾 Updated conversation context:', {
+      conversationId,
+      messageCount: this.conversationContext.get(conversationId).messageCount,
+      hasEmail: !!this.conversationContext.get(conversationId).collectedData?.email
+    });
+    
+    // Clean old contexts (>8 minutes of inactivity)
+    const eightMinutesAgo = Date.now() - (8 * 60 * 1000);
+    for (const [id, ctx] of this.conversationContext.entries()) {
+      if (ctx.timestamp < eightMinutesAgo) {
+        console.log('🧹 Cleaning expired context for conversation:', id);
+        this.conversationContext.delete(id);
+      }
+    }
+  }
+  
+  /**
+   * Get stored context for a conversation
+   */
+  getConversationContext(conversationId) {
+    if (!conversationId) return null;
+    
+    const context = this.conversationContext.get(conversationId) || null;
+    
+    if (context) {
+      // Check if expired (8 minutes)
+      const eightMinutesAgo = Date.now() - (8 * 60 * 1000);
+      if (context.timestamp < eightMinutesAgo) {
+        console.log('⏰ Context expired for conversation:', conversationId);
+        this.conversationContext.delete(conversationId);
+        return null;
+      }
+      
+      console.log('📋 Retrieved context:', {
+        conversationId,
+        activeIntent: context.activeIntent,
+        waitingFor: context.waitingFor,
+        messageCount: context.messageCount
+      });
+    }
+    
+    return context;
+  }
+
+  /**
    * Analyze message and determine intents and context
    * Uses AI-powered intent detection when OpenAI is available
    */
-  async analyzeMessage(message, customerEmail = null) {
-    // Try AI-powered intent detection first
+  async analyzeMessage(message, customerEmail = null, conversationId = null) {
+    console.log('🔍 Starting message analysis:', message.substring(0, 50));
+    
+    // Check if we have previous context for this conversation
+    const previousContext = this.getConversationContext(conversationId);
+    if (previousContext) {
+      console.log('📋 Found previous context:', previousContext.waitingFor);
+    }
+    
+    // ALWAYS run regex analysis first as a baseline
+    const regexAnalysis = this.analyzeMessageWithRegex(message, customerEmail);
+    console.log('📊 Regex analysis result:', {
+      intents: regexAnalysis.intents,
+      confidence: regexAnalysis.confidence,
+      email: regexAnalysis.entities.email,
+      orderNumbers: regexAnalysis.entities.orderNumbers
+    });
+    
+    // If we're waiting for specific info in a previous context, inherit that intent
+    if (previousContext && previousContext.waitingFor && regexAnalysis.intents.length === 0) {
+      console.log('⚡ No intent detected - using previous context:', previousContext.activeIntent);
+      regexAnalysis.intents.push(previousContext.activeIntent);
+      regexAnalysis.confidence = 0.85;
+    }
+    
+    // Try AI-powered intent detection to enhance
     const aiIntents = await this.detectIntentsWithAI(message);
     
     if (aiIntents && aiIntents.length > 0) {
-      console.log('🤖 Using AI-detected intents:', aiIntents);
-      return this.buildAnalysisFromAI(aiIntents, message, customerEmail);
+      console.log('🤖 AI detected additional intents:', aiIntents);
+      // Merge AI intents with regex intents (keep unique)
+      const mergedIntents = [...new Set([...regexAnalysis.intents, ...aiIntents])];
+      regexAnalysis.intents = mergedIntents;
+      regexAnalysis.confidence = Math.min(regexAnalysis.confidence + 0.2, 1.0);
+      console.log('✅ Final merged intents:', mergedIntents);
     }
     
-    // Fallback to regex patterns
-    console.log('🔍 Using regex-based intent detection');
-    return this.analyzeMessageWithRegex(message, customerEmail);
+    return regexAnalysis;
   }
   
   /**
@@ -258,12 +354,26 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     const emailMatches = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
     if (emailMatches && emailMatches.length > 0) {
       analysis.entities.email = emailMatches[0]; // Use first email found
+      
+      // CRITICAL: If we found an email and no other intents, assume order tracking
+      if (analysis.intents.length === 0) {
+        console.log('📧 Email detected with no intent - assuming orderTracking');
+        analysis.intents.push('orderTracking');
+        analysis.confidence = 0.8;
+      }
     }
 
     // Extract order numbers - improved regex
     const orderMatches = message.match(/#?([A-Z]{0,2}\d{4,}|\w{4,}-\w{4,})/g);
     if (orderMatches) {
       analysis.entities.orderNumbers = orderMatches.map(match => match.replace('#', ''));
+      
+      // CRITICAL: If we found an order number and no other intents, assume order tracking
+      if (analysis.intents.length === 0) {
+        console.log('📦 Order number detected with no intent - assuming orderTracking');
+        analysis.intents.push('orderTracking');
+        analysis.confidence = 0.8;
+      }
     }
 
     // Detect intents - Check each pattern and add unique intents
@@ -340,7 +450,7 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
   /**
    * Generate smart response suggestions based on analysis
    */
-  generateResponsePlan(analysis, originalMessage = '') {
+  generateResponsePlan(analysis, originalMessage = '', conversationId = null) {
     const plan = {
       actions: [],
       responseType: 'standard',
@@ -353,10 +463,52 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     // Order tracking requests - PRIORITY
     if (analysis.intents.includes('orderTracking')) {
       console.log('📦 Order tracking intent detected');
+      console.log('📧 Email from analysis:', analysis.entities.email);
+      console.log('📝 Order numbers from analysis:', analysis.entities.orderNumbers);
+      
+      // Get existing context to merge with new data
+      const existingContext = conversationId ? this.getConversationContext(conversationId) : null;
+      
+      // Merge collected data from context with new entities
+      const mergedEmail = analysis.entities.email || existingContext?.collectedData?.email;
+      const mergedOrderNumbers = analysis.entities.orderNumbers?.length > 0 
+        ? analysis.entities.orderNumbers 
+        : existingContext?.collectedData?.orderNumbers || [];
+      
+      console.log('🔀 Merged data:', { email: mergedEmail, orderNumbers: mergedOrderNumbers });
+      
+      // Store/update context for follow-ups
+      if (conversationId) {
+        const needsMoreInfo = !mergedEmail || mergedOrderNumbers.length === 0;
+        
+        if (needsMoreInfo) {
+          console.log('💾 Storing context - waiting for more info');
+          this.setConversationContext(conversationId, {
+            activeIntent: 'orderTracking',
+            waitingFor: !mergedEmail ? 'email' : 'order_number',
+            collectedData: {
+              email: mergedEmail,
+              orderNumbers: mergedOrderNumbers
+            }
+          });
+        } else {
+          // Have everything - update context but keep it (don't clear yet)
+          console.log('✅ Have all info - updating context');
+          this.setConversationContext(conversationId, {
+            activeIntent: 'orderTracking',
+            waitingFor: null,
+            collectedData: {
+              email: mergedEmail,
+              orderNumbers: mergedOrderNumbers
+            }
+          });
+        }
+      }
+      
       plan.actions.push({
         type: 'shopify_order_lookup',
-        email: analysis.entities.email,
-        orderNumbers: analysis.entities.orderNumbers
+        email: mergedEmail,
+        orderNumbers: mergedOrderNumbers
       });
       plan.responseType = 'order_status';
     }

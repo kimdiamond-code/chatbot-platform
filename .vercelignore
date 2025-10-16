@@ -1,5 +1,6 @@
 # Ignore backup and old files
 api/BACKUP/
+api/old-backup/
 api/*.OLD
 api/**/*.OLD
 *.OLD

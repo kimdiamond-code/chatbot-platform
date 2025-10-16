@@ -362,6 +362,27 @@ export default async function handler(req, res) {
       }
 
       // ==================== CUSTOMERS ====================
+      if (action === 'getCustomer') {
+        const { organizationId, email } = body;
+        const customers = await sql`
+          SELECT * FROM customers
+          WHERE organization_id = ${organizationId} AND email = ${email}
+          LIMIT 1
+        `;
+        return res.status(200).json({ success: true, customer: customers[0] || null });
+      }
+      
+      if (action === 'getCustomerConversations') {
+        const { organizationId, customerEmail, limit = 10 } = body;
+        const conversations = await sql`
+          SELECT * FROM conversations
+          WHERE organization_id = ${organizationId} AND customer_email = ${customerEmail}
+          ORDER BY created_at DESC
+          LIMIT ${limit}
+        `;
+        return res.status(200).json({ success: true, conversations });
+      }
+      
       if (action === 'upsertCustomer') {
         const { organization_id, email, name, phone, metadata, tags } = body;
         const result = await sql`
@@ -1289,6 +1310,159 @@ export default async function handler(req, res) {
       }
       
       return res.status(400).json({ error: 'Invalid auth action' });
+    }
+
+    // ============================================================
+    // PRIVACY & COMPLIANCE OPERATIONS
+    // ============================================================
+    if (endpoint === 'privacy') {
+      // Record consent
+      if (action === 'recordConsent') {
+        const { customerId, organizationId, consentType, consented, consentVersion, ipAddress, userAgent } = body;
+        
+        const result = await sql`
+          INSERT INTO customer_consent 
+            (customer_id, organization_id, consent_type, consent_given, consent_version, consented_at, ip_address, user_agent)
+          VALUES 
+            (${customerId}, ${organizationId}, ${consentType}, ${consented}, ${consentVersion}, ${consented ? 'NOW()' : null}, ${ipAddress}, ${userAgent})
+          ON CONFLICT (customer_id, consent_type)
+          DO UPDATE SET
+            consent_given = ${consented},
+            consented_at = ${consented ? sql`NOW()` : null},
+            withdrawn_at = ${!consented ? sql`NOW()` : null},
+            updated_at = NOW()
+          RETURNING *
+        `;
+        
+        return res.status(200).json({ success: true, consent: result[0] });
+      }
+      
+      // Check consent
+      if (action === 'checkConsent') {
+        const { customerEmail, organizationId, consentType } = body;
+        
+        const result = await sql`
+          SELECT cc.consent_given
+          FROM customer_consent cc
+          JOIN customers c ON cc.customer_id = c.id
+          WHERE c.email = ${customerEmail}
+          AND c.organization_id = ${organizationId}
+          AND cc.consent_type = ${consentType}
+          AND cc.withdrawn_at IS NULL
+        `;
+        
+        return res.status(200).json({ 
+          success: true, 
+          hasConsent: result.length > 0 && result[0].consent_given 
+        });
+      }
+      
+      // Request data deletion
+      if (action === 'requestDeletion') {
+        const { customerEmail, organizationId, requestType } = body;
+        
+        // Get customer ID
+        const customers = await sql`
+          SELECT id FROM customers 
+          WHERE email = ${customerEmail} AND organization_id = ${organizationId}
+        `;
+        
+        if (customers.length === 0) {
+          return res.status(404).json({ success: false, error: 'Customer not found' });
+        }
+        
+        const customerId = customers[0].id;
+        
+        // Create deletion request
+        const verificationToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        
+        const result = await sql`
+          INSERT INTO data_deletion_requests
+            (organization_id, customer_id, customer_email, request_type, verification_token, verification_expires_at)
+          VALUES
+            (${organizationId}, ${customerId}, ${customerEmail}, ${requestType}, ${verificationToken}, ${expiresAt})
+          RETURNING *
+        `;
+        
+        // In production, send verification email here
+        
+        return res.status(200).json({ 
+          success: true, 
+          requestId: result[0].id,
+          message: 'Deletion request created. Verification required.',
+          verificationToken // In production, send via email only
+        });
+      }
+      
+      // Export customer data
+      if (action === 'exportData') {
+        const { customerEmail, organizationId } = body;
+        
+        try {
+          const result = await sql`SELECT export_customer_data(${customerEmail})`;
+          const exportedData = result[0].export_customer_data;
+          
+          // Log the export
+          await sql`
+            INSERT INTO data_access_log (organization_id, accessed_by, access_type, purpose)
+            VALUES (${organizationId}, 'system', 'export', 'GDPR Data Portability Request')
+          `;
+          
+          return res.status(200).json({ 
+            success: true, 
+            data: exportedData
+          });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      // Log data access
+      if (action === 'logAccess') {
+        const { customerEmail, accessType, dataAccessed, purpose, accessedBy } = body;
+        
+        // Get customer and org IDs
+        const customers = await sql`
+          SELECT id, organization_id FROM customers WHERE email = ${customerEmail}
+        `;
+        
+        if (customers.length > 0) {
+          const customer = customers[0];
+          
+          await sql`
+            INSERT INTO data_access_log
+              (organization_id, customer_id, accessed_by, access_type, data_accessed, purpose)
+            VALUES
+              (${customer.organization_id}, ${customer.id}, ${accessedBy}, ${accessType}, ${dataAccessed}, ${purpose})
+          `;
+        }
+        
+        return res.status(200).json({ success: true });
+      }
+      
+      // Anonymize customer (process deletion request)
+      if (action === 'anonymizeCustomer') {
+        const { customerEmail, organizationId } = body;
+        
+        const customers = await sql`
+          SELECT id FROM customers 
+          WHERE email = ${customerEmail} AND organization_id = ${organizationId}
+        `;
+        
+        if (customers.length === 0) {
+          return res.status(404).json({ success: false, error: 'Customer not found' });
+        }
+        
+        try {
+          await sql`SELECT anonymize_customer_data(${customers[0].id})`;
+          return res.status(200).json({ success: true, message: 'Customer data anonymized' });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      return res.status(400).json({ error: 'Invalid privacy action' });
     }
 
     return res.status(404).json({ error: 'Endpoint not found' });

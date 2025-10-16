@@ -71,17 +71,23 @@ class IntegrationOrchestrator {
   async processMessage(message, customerContext = {}) {
     try {
       console.log('🧠 Processing message:', message);
+      console.log('👤 Customer context:', customerContext);
       
       // Step 1: Analyze the message for intents and entities (now async with AI)
       const analysis = await chatIntelligenceService.analyzeMessage(
         message.content, 
-        customerContext.email
+        customerContext.email,
+        customerContext.conversationId || message.conversation_id
       );
       
       console.log('📊 Message analysis:', analysis);
 
-      // Step 2: Generate response plan
-      const responsePlan = chatIntelligenceService.generateResponsePlan(analysis, message.content);
+      // Step 2: Generate response plan with conversation context
+      const responsePlan = chatIntelligenceService.generateResponsePlan(
+        analysis, 
+        message.content,
+        customerContext.conversationId || message.conversation_id
+      );
       
       console.log('📋 Response plan:', responsePlan);
 
