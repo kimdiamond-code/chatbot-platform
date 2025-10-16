@@ -1145,20 +1145,28 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
   }
 
   /**
-   * Get conversation context for better responses
+   * Analyze message history for conversation patterns
+   * This is different from the getConversationContext above which retrieves stored context
    */
-  getConversationContext(messages, customerId) {
+  analyzeConversationHistory(messages, customerId) {
     const context = {
-      messageCount: messages.length,
+      messageCount: messages?.length || 0,
       hasOrderInquiries: false,
       hasProductQuestions: false,
       sentimentHistory: [],
       topics: []
     };
 
+    // Guard against non-array input
+    if (!Array.isArray(messages)) {
+      console.warn('⚠️ analyzeConversationHistory expected array, got:', typeof messages);
+      return context;
+    }
+
     messages.forEach(message => {
       if (message.sender_type === 'user') {
-        const analysis = this.analyzeMessage(message.content);
+        // Use regex analysis only to avoid infinite recursion
+        const analysis = this.analyzeMessageWithRegex(message.content);
         context.sentimentHistory.push(analysis.sentiment);
         context.topics.push(...analysis.intents);
         
