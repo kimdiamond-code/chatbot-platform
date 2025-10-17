@@ -539,12 +539,31 @@ export default async function handler(req, res) {
           // Ensure store URL has .myshopify.com
           const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
           
+          // First, try to get ALL orders to see what we have
+          const allOrdersUrl = `https://${fullStoreUrl}/admin/api/2024-01/orders.json?status=any&limit=10`;
+          console.log('🔍 First checking all orders:', allOrdersUrl);
+          
+          const allOrdersResponse = await fetch(allOrdersUrl, {
+            headers: {
+              'X-Shopify-Access-Token': access_token,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const allOrdersData = await allOrdersResponse.json();
+          console.log('📦 Total orders in store:', allOrdersData.orders?.length || 0);
+          
+          if (allOrdersData.orders && allOrdersData.orders.length > 0) {
+            console.log('📧 Sample order emails:', allOrdersData.orders.slice(0, 3).map(o => o.email));
+          }
+          
+          // Now filter by email if provided
           let url = `https://${fullStoreUrl}/admin/api/2024-01/orders.json?status=any&limit=250`;
           if (customer_email) {
             url += `&email=${encodeURIComponent(customer_email)}`;
           }
           
-          console.log('📡 Full Shopify URL:', url);
+          console.log('📡 Filtered query URL:', url);
           
           const response = await fetch(url, {
             headers: {
@@ -552,14 +571,32 @@ export default async function handler(req, res) {
               'Content-Type': 'application/json'
             }
           });
+          
+          console.log('✅ Shopify filtered response status:', response.status);
+          
           const data = await response.json();
           
-          console.log('✅ Shopify response status:', response.status);
-          console.log('📦 Orders found:', data.orders?.length || 0);
+          console.log('📦 Filtered orders found:', data.orders?.length || 0);
           
           if (data.orders && data.orders.length > 0) {
-            console.log('📧 First order email:', data.orders[0].email);
-            console.log('🔢 First order name:', data.orders[0].name);
+            console.log('📧 First filtered order email:', data.orders[0].email);
+            console.log('🔢 First filtered order name:', data.orders[0].name);
+          } else {
+            console.log('⚠️ No orders matched email filter');
+            console.log('🔍 Searched for email:', customer_email);
+            
+            // Try manual filtering as fallback
+            if (customer_email && allOrdersData.orders) {
+              const manuallyFiltered = allOrdersData.orders.filter(order => 
+                order.email?.toLowerCase() === customer_email.toLowerCase() ||
+                order.customer?.email?.toLowerCase() === customer_email.toLowerCase()
+              );
+              console.log('🔍 Manual filter found:', manuallyFiltered.length, 'orders');
+              if (manuallyFiltered.length > 0) {
+                console.log('⚠️ Shopify email filter not working! Using manual filter.');
+                return res.status(200).json({ success: true, orders: manuallyFiltered });
+              }
+            }
           }
           
           return res.status(200).json({ success: true, orders: data.orders || [] });
