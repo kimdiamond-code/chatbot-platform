@@ -490,8 +490,11 @@ export default async function handler(req, res) {
       if (action === 'shopify_verifyCredentials') {
         const { store_url, access_token } = body;
         try {
+          // Ensure store URL has .myshopify.com
+          const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
+          
           // Try to fetch shop info to verify credentials
-          const response = await fetch(`https://${store_url}/admin/api/2024-01/shop.json`, {
+          const response = await fetch(`https://${fullStoreUrl}/admin/api/2024-01/shop.json`, {
             headers: {
               'X-Shopify-Access-Token': access_token,
               'Content-Type': 'application/json'
@@ -512,7 +515,10 @@ export default async function handler(req, res) {
       if (action === 'shopify_getProducts') {
         const { store_url, access_token, limit = 50 } = body;
         try {
-          const response = await fetch(`https://${store_url}/admin/api/2024-01/products.json?limit=${limit}`, {
+          // Ensure store URL has .myshopify.com
+          const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
+          
+          const response = await fetch(`https://${fullStoreUrl}/admin/api/2024-01/products.json?limit=${limit}`, {
             headers: {
               'X-Shopify-Access-Token': access_token,
               'Content-Type': 'application/json'
@@ -530,7 +536,10 @@ export default async function handler(req, res) {
         try {
           console.log('🔍 Shopify getOrders called:', { store_url, customer_email });
           
-          let url = `https://${store_url}/admin/api/2024-01/orders.json?status=any&limit=250`;
+          // Ensure store URL has .myshopify.com
+          const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
+          
+          let url = `https://${fullStoreUrl}/admin/api/2024-01/orders.json?status=any&limit=250`;
           if (customer_email) {
             url += `&email=${encodeURIComponent(customer_email)}`;
           }
@@ -565,9 +574,12 @@ export default async function handler(req, res) {
         try {
           console.log('🔍 Searching orders for:', order_name);
           
+          // Ensure store URL has .myshopify.com
+          const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
+          
           // Search by order name/number
           // Shopify's "name" parameter searches by order name (e.g., #1001, #1002)
-          const url = `https://${store_url}/admin/api/2024-01/orders.json?name=${encodeURIComponent(order_name)}&status=any`;
+          const url = `https://${fullStoreUrl}/admin/api/2024-01/orders.json?name=${encodeURIComponent(order_name)}&status=any`;
           
           console.log('📡 Search URL:', url);
           
@@ -608,8 +620,11 @@ export default async function handler(req, res) {
         try {
           console.log('🛒 Getting draft orders for:', customer_email);
           
+          // Ensure store URL has .myshopify.com
+          const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
+          
           // Get all draft orders and filter by customer email if provided
-          let url = `https://${store_url}/admin/api/2024-01/draft_orders.json`;
+          let url = `https://${fullStoreUrl}/admin/api/2024-01/draft_orders.json`;
           
           const response = await fetch(url, {
             headers: {
@@ -653,7 +668,10 @@ export default async function handler(req, res) {
           console.log('🛒 Creating draft order for store:', store_url);
           console.log('📝 Draft order data:', JSON.stringify(draft_order, null, 2));
           
-          const response = await fetch(`https://${store_url}/admin/api/2024-01/draft_orders.json`, {
+          // Ensure store URL has .myshopify.com
+          const fullStoreUrl = store_url.includes('.myshopify.com') ? store_url : `${store_url}.myshopify.com`;
+          
+          const response = await fetch(`https://${fullStoreUrl}/admin/api/2024-01/draft_orders.json`, {
             method: 'POST',
             headers: {
               'X-Shopify-Access-Token': access_token,
