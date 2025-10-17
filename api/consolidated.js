@@ -83,10 +83,11 @@ export default async function handler(req, res) {
       }
 
       if (action === 'create_conversation') {
-        const { customer_email, customer_name, customer_phone, channel, status } = body;
+        const { customer_email, customer_name, customer_phone, channel, status, organization_id } = body;
+        const orgId = organization_id || '00000000-0000-0000-0000-000000000001'; // Default org
         const result = await sql`
-          INSERT INTO conversations (customer_email, customer_name, customer_phone, channel, status)
-          VALUES (${customer_email}, ${customer_name}, ${customer_phone}, ${channel || 'web'}, ${status || 'active'})
+          INSERT INTO conversations (organization_id, customer_email, customer_name, customer_phone, channel, status)
+          VALUES (${orgId}, ${customer_email}, ${customer_name}, ${customer_phone}, ${channel || 'web'}, ${status || 'active'})
           RETURNING *
         `;
         return res.status(201).json({ success: true, conversation: result[0] });
@@ -141,12 +142,41 @@ export default async function handler(req, res) {
 
       if (action === 'create_message') {
         const { conversation_id, sender_type, content, metadata } = body;
-        const result = await sql`
-          INSERT INTO messages (conversation_id, sender_type, content, metadata)
-          VALUES (${conversation_id}, ${sender_type}, ${content}, ${metadata ? JSON.stringify(metadata) : '{}'})
-          RETURNING *
-        `;
-        return res.status(201).json({ success: true, message: result[0] });
+        
+        // Validate required fields
+        if (!conversation_id) {
+          return res.status(400).json({ success: false, error: 'conversation_id is required' });
+        }
+        if (!sender_type) {
+          return res.status(400).json({ success: false, error: 'sender_type is required' });
+        }
+        if (!content) {
+          return res.status(400).json({ success: false, error: 'content is required' });
+        }
+        
+        try {
+          // Check if conversation exists
+          const convCheck = await sql`SELECT id FROM conversations WHERE id = ${conversation_id} LIMIT 1`;
+          if (convCheck.length === 0) {
+            return res.status(404).json({ success: false, error: 'Conversation not found' });
+          }
+          
+          // Insert message
+          const result = await sql`
+            INSERT INTO messages (conversation_id, sender_type, content, metadata)
+            VALUES (${conversation_id}, ${sender_type}, ${content}, ${metadata ? JSON.stringify(metadata) : '{}'})
+            RETURNING *
+          `;
+          
+          return res.status(201).json({ success: true, message: result[0] });
+        } catch (dbError) {
+          console.error('❌ Database error creating message:', dbError);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Failed to create message: ' + dbError.message,
+            details: dbError.toString()
+          });
+        }
       }
 
       // ==================== PROACTIVE TRIGGERS ====================
@@ -364,9 +394,10 @@ export default async function handler(req, res) {
       // ==================== CUSTOMERS ====================
       if (action === 'getCustomer') {
         const { organizationId, email } = body;
+        const orgId = organizationId || '00000000-0000-0000-0000-000000000001';
         const customers = await sql`
           SELECT * FROM customers
-          WHERE organization_id = ${organizationId} AND email = ${email}
+          WHERE organization_id = ${orgId} AND email = ${email}
           LIMIT 1
         `;
         return res.status(200).json({ success: true, customer: customers[0] || null });
@@ -385,19 +416,34 @@ export default async function handler(req, res) {
       
       if (action === 'upsertCustomer') {
         const { organization_id, email, name, phone, metadata, tags } = body;
-        const result = await sql`
-          INSERT INTO customers (organization_id, email, name, phone, metadata, tags)
-          VALUES (${organization_id}, ${email}, ${name}, ${phone}, ${JSON.stringify(metadata || {})}, ${tags || []})
-          ON CONFLICT (organization_id, email)
-          DO UPDATE SET
-            name = EXCLUDED.name,
-            phone = EXCLUDED.phone,
-            metadata = EXCLUDED.metadata,
-            tags = EXCLUDED.tags,
-            updated_at = NOW()
-          RETURNING *
-        `;
-        return res.status(200).json({ success: true, data: result[0] });
+        const orgId = organization_id || '00000000-0000-0000-0000-000000000001';
+        
+        if (!email) {
+          return res.status(400).json({ success: false, error: 'Email is required' });
+        }
+        
+        try {
+          const result = await sql`
+            INSERT INTO customers (organization_id, email, name, phone, metadata, tags)
+            VALUES (${orgId}, ${email}, ${name || null}, ${phone || null}, ${JSON.stringify(metadata || {})}, ${tags || []})
+            ON CONFLICT (organization_id, email)
+            DO UPDATE SET
+              name = COALESCE(EXCLUDED.name, customers.name),
+              phone = COALESCE(EXCLUDED.phone, customers.phone),
+              metadata = EXCLUDED.metadata,
+              tags = EXCLUDED.tags,
+              updated_at = NOW()
+            RETURNING *
+          `;
+          return res.status(200).json({ success: true, data: result[0] });
+        } catch (dbError) {
+          console.error('❌ Database error upserting customer:', dbError);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Failed to upsert customer: ' + dbError.message,
+            details: dbError.toString()
+          });
+        }
       }
 
       // ==================== SHOPIFY OAUTH ====================
