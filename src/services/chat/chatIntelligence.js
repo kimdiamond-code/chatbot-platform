@@ -868,6 +868,7 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
   formatOrderNotFoundResponse(action, originalMessage) {
     const hasEmail = action.email && action.email !== 'null' && action.email !== 'undefined';
     const hasOrderNumber = action.orderNumbers && action.orderNumbers.length > 0;
+    const effectiveEmail = action.email; // Define effectiveEmail for use in this function
     
     let responseText = `🔍 I'm having trouble finding your order. Let me help you locate it:\n\n`;
     
