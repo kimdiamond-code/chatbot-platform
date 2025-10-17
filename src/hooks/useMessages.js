@@ -196,12 +196,12 @@ export const useMessages = (conversationId) => {
   };
 
   // Send a test customer message (for testing smart responses)
-  const sendCustomerMessage = async (content, customerEmail = 'test@example.com') => {
+  const sendCustomerMessage = async (content, customerEmail = null) => {
     return sendMessage({
       conversation_id: conversationId,
       content: content,
       sender_type: 'user',
-      customer_email: customerEmail
+      customer_email: customerEmail // Only pass if explicitly provided
     });
   };
 
