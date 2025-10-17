@@ -311,8 +311,17 @@ class EnhancedBotService {
       }
 
       // If we got a good smart response, use it
-      if (smartResult.response?.text && smartResult.response.metadata?.confidence > 0.7) {
-        console.log('✅ Using smart integration response');
+      // FOR PRODUCTS: Always use smart integration response if we have products
+      const hasProducts = smartResult.response?.metadata?.products?.length > 0;
+      const isHighConfidence = smartResult.response?.metadata?.confidence > 0.5; // Lowered from 0.7
+      const hasIntegrationData = smartResult.integrationResults?.shopify?.orders?.length > 0 || hasProducts;
+      
+      if (smartResult.response?.text && (isHighConfidence || hasProducts || hasIntegrationData)) {
+        console.log('✅ Using smart integration response', {
+          confidence: smartResult.response.metadata.confidence,
+          hasProducts,
+          hasIntegrationData
+        });
         return {
           response: smartResult.response.text,
           confidence: smartResult.response.metadata.confidence,
