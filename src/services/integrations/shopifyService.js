@@ -3,7 +3,7 @@
  * Uses consolidated API with OAuth credentials from database
  */
 
-import { apiRequest } from '../utils/api';
+import { apiRequest } from '../../utils/api';
 
 const ORGANIZATION_ID = '00000000-0000-0000-0000-000000000001';
 

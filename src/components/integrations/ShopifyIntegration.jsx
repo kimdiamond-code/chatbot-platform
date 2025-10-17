@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import UserShopifyService from '../../services/integrations/userShopifyService';
 
 const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
   const { user } = useAuth();
@@ -41,23 +40,54 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
 
       console.log(`🔌 Connecting to Shopify store: ${config.storeName}`);
 
-      // Create service for current user
-      const shopifyService = new UserShopifyService(user?.id || '00000000-0000-0000-0000-000000000001');
+      // Clean store name (remove .myshopify.com if user included it)
+      const cleanStoreName = config.storeName.trim().replace('.myshopify.com', '');
 
-      // Save and test connection
-      const result = await shopifyService.saveConnection({
-        storeName: config.storeName.trim(),
-        accessToken: config.accessToken.trim(),
-        apiKey: config.apiKey.trim() || null,
-        apiSecret: config.apiSecret.trim() || null,
-        enableOrderTracking: config.enableOrderTracking,
-        enableProductSearch: config.enableProductSearch,
-        enableCustomerSync: config.enableCustomerSync,
-        enableInventoryAlerts: config.enableInventoryAlerts
+      // First verify the connection works
+      const verifyResponse = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_verifyCredentials',
+          store_url: cleanStoreName,
+          access_token: config.accessToken.trim()
+        })
       });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Connection failed');
+      const verifyData = await verifyResponse.json();
+      
+      if (!verifyData.success) {
+        throw new Error(verifyData.error || 'Failed to connect to Shopify. Please check your credentials.');
+      }
+
+      console.log('✅ Shopify credentials verified:', verifyData.shop);
+
+      // Save credentials to integrations table
+      const saveResponse = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'saveIntegrationCredentials',
+          integration: 'shopify',
+          organizationId: user?.organization_id || '00000000-0000-0000-0000-000000000001',
+          credentials: {
+            shopDomain: cleanStoreName,
+            accessToken: config.accessToken.trim(),
+            apiKey: config.apiKey.trim() || null,
+            apiSecret: config.apiSecret.trim() || null,
+            shopName: verifyData.shop?.name,
+            shopEmail: verifyData.shop?.email,
+            shopCurrency: verifyData.shop?.currency
+          }
+        })
+      });
+
+      const saveData = await saveResponse.json();
+
+      if (!saveData.success) {
+        throw new Error(saveData.error || 'Failed to save Shopify connection');
       }
 
       setConnectionStatus('success');
@@ -66,7 +96,7 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
 
       // Notify parent component
       setTimeout(() => {
-        onConnect(result.connection);
+        onConnect(saveData.data);
         onClose();
       }, 1500);
 

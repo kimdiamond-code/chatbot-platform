@@ -1,80 +1,113 @@
-# Shopify Integration Fix Summary
+# Shopify API Route Fix - October 16, 2025
 
-## Issue
-Invalid action or endpoint error when trying to connect Shopify store.
+## Problem Identified
+The Shopify integration wasn't connecting properly because:
 
-## Root Cause
-The ShopifyOAuthConfiguration component was calling `/api/shopify/oauth/auth` which didn't exist in the consolidated API.
+1. **Two Different Storage Systems**: 
+   - Old `UserShopifyService` was trying to use Supabase (which has been removed)
+   - `shopifyService` loads from `integrations` table via consolidated API → **Neon Postgres**
+   - These systems weren't synchronized
+
+2. **Inconsistent Credential Format**:
+   - Different services expected different credential formats (shopDomain vs shop vs store_url)
+   - This caused credential lookup failures
 
 ## Changes Made
 
-### 1. API Updates (`api/consolidated.js`)
-Added two new Shopify OAuth actions:
+### 1. Updated `shopifyService.js`
+- **Enhanced credential loading** with multiple format support:
+  - Handles `shopDomain`, `shop`, `store_url` variations
+  - Handles `accessToken` vs `access_token` variations  
+  - Cleans up domain names (removes `.myshopify.com` suffix)
+- **Added better error handling** with detailed logs
+- **Fixed order search** to use the correct `shopify_searchOrders` action
 
-**`shopify_oauth_initiate`**
-- Generates Shopify OAuth authorization URL
-- Returns URL to redirect user to Shopify for authorization
-- Uses environment variables:
-  - `SHOPIFY_CLIENT_ID`
-  - `SHOPIFY_CLIENT_SECRET`
-  - `VERCEL_URL` (for redirect URI)
+### 2. Updated `ShopifyIntegration.jsx`
+- **Removed dependency** on old `UserShopifyService` (which used Supabase)
+- **Now saves directly** to `integrations` table via consolidated API → **Neon Postgres**
+- **Verifies credentials first** before saving
+- **Proper credential format**:
+  ```javascript
+  {
+    shopDomain: 'storename',  // without .myshopify.com
+    accessToken: 'shpat_xxx',
+    shopName: 'Shop Name',
+    shopEmail: 'email@example.com',
+    shopCurrency: 'USD'
+  }
+  ```
 
-**`shopify_oauth_callback`**
-- Exchanges OAuth code for access token
-- Fetches shop information from Shopify
-- Saves integration credentials to database
-- Returns shop details and access token
+### 3. Consolidated API Already Had Support
+- The `consolidated.js` API already had all necessary Shopify actions:
+  - `shopify_verifyCredentials` - Test connection
+  - `shopify_getProducts` - Fetch products
+  - `shopify_getOrders` - Get customer orders
+  - `shopify_searchOrders` - Find order by number
+  - `shopify_getDraftOrders` - Get cart items
+  - `shopify_createDraftOrder` - Create cart/draft order
 
-### 2. Frontend Updates
+## How It Works Now
 
-**`src/components/ShopifyOAuthConfiguration.jsx`**
-- Changed API endpoint from `/api/shopify/oauth/auth` to `/api/consolidated`
-- Now calls with correct action: `shopify_oauth_initiate`
+### Connection Flow:
+1. User enters Shopify credentials in Integrations UI
+2. System verifies credentials with Shopify API
+3. If valid, saves to `integrations` table with standardized format
+4. Chatbot can now access via `shopifyService.getCredentials()`
 
-**`src/pages/ShopifyCallback.jsx`**
-- Changed API endpoint from `/api/shopify/oauth/token` to `/api/consolidated`
-- Now calls with correct action: `shopify_oauth_callback`
-
-### 3. Environment Variables Required
-
-Add these to your Vercel environment variables:
+### Data Flow:
 ```
-SHOPIFY_CLIENT_ID=your_shopify_api_key
-SHOPIFY_CLIENT_SECRET=your_shopify_api_secret
+ShopifyIntegration.jsx
+  ↓
+/api/consolidated (database endpoint)
+  ↓
+integrations table (Neon/Vercel Postgres)
+  ↓
+shopifyService.js
+  ↓
+Chat/Bot Features
 ```
 
-### 4. How to Set Up Shopify OAuth
+## Testing Instructions
 
-1. Go to your Shopify Partner Dashboard
-2. Create a new app or use existing app
-3. Set the Redirect URL to: `https://your-domain.vercel.app/shopify-callback`
-4. Copy the API key and API secret
-5. Add them to Vercel environment variables
-6. Redeploy your app
+### 1. Connect Shopify Store:
+- Go to Integrations page
+- Click "Connect Shopify"
+- Enter: 
+  - Store name: `truecitrus2` (without .myshopify.com)
+  - Access token: Your Shopify Admin API token
+- Click "Connect Store"
+- Should see success message
 
-### 5. OAuth Flow
+### 2. Verify Connection:
+Open browser console and check for:
+```
+✅ Shopify credentials verified: {...}
+✅ Shopify store connected successfully!
+```
 
-1. User clicks "Connect with OAuth" in Integrations page
-2. Frontend calls `/api/consolidated` with action `shopify_oauth_initiate`
-3. API returns Shopify authorization URL
-4. User is redirected to Shopify to authorize
-5. Shopify redirects back to `/shopify-callback` with code and shop params
-6. App.jsx detects the params and shows the Integrations page
-7. Frontend calls `/api/consolidated` with action `shopify_oauth_callback`
-8. API exchanges code for access token and saves to database
-9. User sees success message
+### 3. Test in Chat:
+- Ask: "Show me products"
+- Ask: "What's in my cart?" (with customer email)
+- Ask: "Track order #1234"
+
+## Environment Variables Required
+Ensure these are set in Vercel:
+- `DATABASE_URL` - Neon Postgres connection string
+- `OPENAI_API_KEY` - For chat responses
 
 ## Next Steps
+1. Deploy these changes: `vercel deploy --prod`
+2. Test connection in production
+3. Monitor console logs for any issues
 
-1. Deploy the updated code to Vercel
-2. Add Shopify OAuth environment variables in Vercel dashboard
-3. Test the OAuth flow with a Shopify store
+## Files Changed
+- `/src/services/integrations/shopifyService.js` - Enhanced credential handling
+- `/src/components/integrations/ShopifyIntegration.jsx` - Unified to use consolidated API
+- `/api/consolidated.js` - Already had all needed endpoints (no changes)
 
-## Testing
-
-To test locally:
-1. Add environment variables to `.env` file
-2. Run `npm run dev`
-3. Go to Integrations page
-4. Click on Shopify → OAuth option
-5. Follow the OAuth flow
+## Notes
+- ⚠️ **Supabase has been completely removed** - the project now uses **Neon Postgres**
+- The old `UserShopifyService` has been deprecated (renamed to .OLD)
+- The `shopify_connections` Supabase table is no longer used
+- All connections now go through `integrations` table in **Neon Postgres**
+- This provides better multi-tenant support and consistency with the rest of the platform
