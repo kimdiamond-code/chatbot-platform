@@ -3,6 +3,8 @@
  * Uses consolidated API with OAuth credentials from database
  */
 
+import { apiRequest } from '../utils/api';
+
 const ORGANIZATION_ID = '00000000-0000-0000-0000-000000000001';
 
 export const shopifyService = {
@@ -11,10 +13,11 @@ export const shopifyService = {
    */
   async getCredentials(organizationId = ORGANIZATION_ID) {
     try {
-      // First try to get credentials from the database
-      const response = await fetch('/api/consolidated', {
+      console.log('🔍 Fetching Shopify credentials from:', '/api/consolidated');
+      
+      // Use the API utility for better error handling
+      const data = await apiRequest('/api/consolidated', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           endpoint: 'database',
           action: 'getIntegrationCredentials',
@@ -23,15 +26,41 @@ export const shopifyService = {
         })
       });
 
-      const data = await response.json();
+      console.log('📦 API response:', data);
       
       if (!data.success) {
         console.error('Failed to get Shopify credentials from database:', data.error);
         return null;
       }
 
-      if (!data.credentials || !data.credentials.shopDomain || !data.credentials.accessToken) {
-        console.warn('Invalid or missing Shopify credentials in database');
+      if (!data.credentials) {
+        console.warn('No Shopify credentials found in database');
+        return null;
+      }
+
+      // Handle different credential formats
+      // Format 1: Direct credentials { shopDomain, accessToken }
+      // Format 2: Nested { shop, access_token }
+      // Format 3: From OAuth { shopDomain, accessToken }
+      
+      let shopDomain = data.credentials.shopDomain || 
+                       data.credentials.shop || 
+                       data.credentials.store_url;
+                       
+      let accessToken = data.credentials.accessToken || 
+                        data.credentials.access_token;
+      
+      // Clean up shop domain - remove .myshopify.com if present
+      if (shopDomain) {
+        shopDomain = shopDomain.replace('.myshopify.com', '').trim();
+      }
+      
+      if (!shopDomain || !accessToken) {
+        console.warn('Missing required Shopify credentials:', { 
+          hasShopDomain: !!shopDomain, 
+          hasAccessToken: !!accessToken,
+          rawCredentials: data.credentials 
+        });
         return null;
       }
 
@@ -42,8 +71,8 @@ export const shopifyService = {
         body: JSON.stringify({
           endpoint: 'database',
           action: 'shopify_verifyCredentials',
-          store_url: data.credentials.shopDomain,
-          access_token: data.credentials.accessToken
+          store_url: shopDomain,
+          access_token: accessToken
         })
       });
 
@@ -54,23 +83,19 @@ export const shopifyService = {
         return null;
       }
 
-      // Extract credentials - handle different formats
-      const shopDomain = data.credentials.shopDomain || data.credentials.shop;
-      const accessToken = data.credentials.accessToken || data.credentials.access_token;
-      
-      if (!shopDomain || !accessToken) {
-        console.warn('Missing required Shopify credentials:', { shopDomain: !!shopDomain, accessToken: !!accessToken });
-        return null;
-      }
-
-      console.log('✅ Shopify credentials found:', { shopDomain, hasToken: !!accessToken });
+      console.log('✅ Shopify credentials found and verified:', { shopDomain, hasToken: !!accessToken });
       return {
         shopDomain,
         accessToken,
         connected: true
       };
     } catch (error) {
-      console.error('Error getting Shopify credentials:', error);
+      // Don't log as error if it's just a network issue or no credentials
+      if (error.message && error.message.includes('fetch failed')) {
+        console.log('⚠️ API not reachable or no Shopify credentials saved yet');
+      } else {
+        console.error('Error getting Shopify credentials:', error);
+      }
       return null;
     }
   },
@@ -164,7 +189,7 @@ export const shopifyService = {
   /**
    * Get customer orders
    */
-  async getCustomerOrders(customerId, limit = 10, organizationId = ORGANIZATION_ID) {
+  async getCustomerOrders(customerEmail, limit = 10, organizationId = ORGANIZATION_ID) {
     try {
       const credentials = await this.getCredentials(organizationId);
       
@@ -180,7 +205,7 @@ export const shopifyService = {
           action: 'shopify_getOrders',
           store_url: credentials.shopDomain,
           access_token: credentials.accessToken,
-          customer_email: customerId // Assuming customerId is actually email for now
+          customer_email: customerEmail
         })
       });
 
@@ -253,21 +278,21 @@ export const shopifyService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           endpoint: 'database',
-          action: 'shopify_getOrder',
+          action: 'shopify_searchOrders',
           store_url: credentials.shopDomain,
           access_token: credentials.accessToken,
-          order_number: orderNumber
+          order_name: orderNumber
         })
       });
 
       const data = await response.json();
       
-      if (!data.success || !data.order) {
+      if (!data.success || !data.orders || data.orders.length === 0) {
         console.warn('Order not found:', orderNumber);
         return null;
       }
 
-      return data.order;
+      return data.orders[0];
     } catch (error) {
       console.error('Error finding order:', error);
       return null;
