@@ -59,19 +59,19 @@ class DatabaseService {
     try {
       const response = await fetch(`${API_BASE}?check=1`, { 
         method: 'HEAD',
-        cache: 'no-cache'
+        cache: 'no-cache',
+        timeout: 5000
       });
       if (response.ok) {
         if (this.offlineMode) {
           console.log('🌐 Connection restored, switching to online mode');
           this.offlineMode = false;
         }
+      } else {
+        console.warn('⚠️ API returned status:', response.status);
       }
     } catch (error) {
-      if (!this.offlineMode) {
-        console.warn('📴 Connection lost, switching to offline mode');
-        this.offlineMode = true;
-      }
+      console.warn('⚠️ Connection check failed:', error.message);
     }
 
     return this.offlineMode;
@@ -102,11 +102,6 @@ class DatabaseService {
       });
 
       if (!response.ok) {
-        if (response.status === 0 || response.status >= 500) {
-          console.warn('⚠️ Database appears offline, switching to demo mode');
-          this.offlineMode = true;
-          return this.handleOffline(action, data);
-        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -256,11 +251,6 @@ class DatabaseService {
       const response = await fetch(`${API_BASE}?endpoint=database&type=conversations&limit=${limit}`);
       
       if (!response.ok) {
-        if (response.status === 0 || response.status >= 500) {
-          console.warn('⚠️ Database appears offline, switching to demo mode');
-          this.offlineMode = true;
-          return DEMO_DATA.conversations;
-        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
@@ -271,8 +261,7 @@ class DatabaseService {
         console.log('💬 API Response:', result); // Debug log
       } catch (parseError) {
         console.warn('Failed to parse JSON response:', parseError);
-        this.offlineMode = true;
-        return DEMO_DATA.conversations;
+        throw parseError;
       }
       
       // Handle different response formats
@@ -281,8 +270,7 @@ class DatabaseService {
       return Array.isArray(conversations) ? conversations : [];
     } catch (error) {
       console.error('Database getConversations error:', error);
-      this.offlineMode = true;
-      return DEMO_DATA.conversations;
+      return [];
     }
   }
 
@@ -302,11 +290,6 @@ class DatabaseService {
       const response = await fetch(`${API_BASE}?endpoint=database&type=messages&conversation_id=${conversationId}`);
       
       if (!response.ok) {
-        if (response.status === 0 || response.status >= 500) {
-          console.warn('⚠️ Database appears offline, switching to demo mode');
-          this.offlineMode = true;
-          return DEMO_DATA.messages;
-        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
@@ -317,8 +300,7 @@ class DatabaseService {
         console.log('📨 API Response:', result); // Debug log
       } catch (parseError) {
         console.warn('Failed to parse JSON response:', parseError);
-        this.offlineMode = true;
-        return DEMO_DATA.messages;
+        throw parseError;
       }
       
       // Handle different response formats
@@ -327,8 +309,7 @@ class DatabaseService {
       return Array.isArray(messages) ? messages : [];
     } catch (error) {
       console.error('Database getMessages error:', error);
-      this.offlineMode = true;
-      return DEMO_DATA.messages;
+      return [];
     }
   }
 

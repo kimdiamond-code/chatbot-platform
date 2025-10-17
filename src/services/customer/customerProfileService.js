@@ -20,14 +20,18 @@ class CustomerProfileService {
     try {
       console.log('👤 Getting/creating customer profile:', email);
 
-      // Log data access for compliance
-      await privacyService.logDataAccess(
-        email,
-        'read',
-        'customer_profile',
-        'Load customer for chat session',
-        'system'
-      );
+      // Log data access for compliance (non-blocking)
+      try {
+        await privacyService.logDataAccess(
+          email,
+          'read',
+          'customer_profile',
+          'Load customer for chat session',
+          'system'
+        );
+      } catch (logError) {
+        console.warn('⚠️ Failed to log data access:', logError.message);
+      }
 
       // Check cache first
       const cacheKey = `${organizationId}:${email}`;
@@ -104,14 +108,18 @@ class CustomerProfileService {
 
       const result = await dbService.upsertCustomer(customerData);
       
-      // Log creation for audit trail
-      await privacyService.logDataAccess(
-        email,
-        'create',
-        'customer_profile',
-        'New customer profile created',
-        'system'
-      );
+      // Log creation for audit trail (non-blocking)
+      try {
+        await privacyService.logDataAccess(
+          email,
+          'create',
+          'customer_profile',
+          'New customer profile created',
+          'system'
+        );
+      } catch (logError) {
+        console.warn('⚠️ Failed to log profile creation:', logError.message);
+      }
       
       console.log('✅ Customer profile created:', privacyService.anonymizePII(email));
       return result;

@@ -715,10 +715,16 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
     // If we have email but no order number, and no orders found
     if (hasEmail && !hasOrderNumber && (!shopifyData || !shopifyData.orders || shopifyData.orders.length === 0)) {
       return {
-        text: `I'm looking for orders with email **${effectiveEmail}**, but I couldn't find any orders yet.\n\n` +
-              "📦 **Do you have your order number?** This will help me find your order faster.\n\n" +
-              "Order numbers typically look like: #1234 or ABC-1234",
+        text: `I searched for orders with email **${effectiveEmail}**, but I couldn't find any orders.
+
+` +
+              "This could mean:\n" +
+              "• The email address is different from what you used to place the order\n" +
+              "• The order hasn't been created in our system yet\n\n" +
+              "📦 **Do you have your order number?** Please provide it so I can look it up directly.\n\n" +
+              "Order numbers typically look like: #1234, #ABC1234, etc.",
         actions: [
+          { type: 'quick_reply', label: '📦 I have my order number', value: 'My order number is ' },
           { type: 'escalate', label: '🚀 Speak to Agent', priority: 'high' },
           { type: 'quick_reply', label: 'Try different email', value: 'My email is ' }
         ],
@@ -726,7 +732,8 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
           source: 'smart_integration', 
           confidence: 0.6, 
           integrationsUsed: ['shopify'],
-          needsInfo: 'order_number'
+          needsInfo: 'order_number',
+          searchedEmail: effectiveEmail
         }
       };
     }

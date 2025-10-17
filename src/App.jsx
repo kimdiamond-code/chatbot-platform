@@ -15,10 +15,6 @@ import CRMCustomerContext from './components/CRMCustomerContext.jsx';
 import ECommerceSupport from './components/ECommerceSupport.jsx';
 import MultiChannelSupport from './components/MultiChannelSupport.jsx';
 import SecurityCompliance from './components/SecurityCompliance.jsx';
-import ScenarioBuilder from './components/ScenarioBuilder.jsx';
-import CustomForms from './components/CustomForms.jsx';
-import SMSAgent from './components/SMSAgent.jsx';
-import PhoneAgent from './components/PhoneAgent.jsx';
 
 import FAQ from './components/FAQ.jsx';
 import WidgetStudio from './components/WidgetStudio.jsx';
@@ -169,13 +165,9 @@ const App = () => {
     { id: 'botbuilder', name: 'Bot Builder', component: BotBuilder },
     { id: 'livechat', name: 'Live Chat', component: EnhancedLiveChat },
     { id: 'proactive', name: 'Proactive', component: ProactiveEngagement },
-    { id: 'scenarios', name: 'Scenarios', component: ScenarioBuilder },
-    { id: 'forms', name: 'Forms', component: CustomForms },
     { id: 'crm', name: 'CRM', component: CRMCustomerContext },
     { id: 'ecommerce', name: 'E-Commerce', component: ECommerceSupport },
     { id: 'multichannel', name: 'Channels', component: MultiChannelSupport },
-    { id: 'sms', name: 'SMS', component: SMSAgent },
-    { id: 'phone', name: 'Phone', component: PhoneAgent },
     { id: 'faq', name: 'FAQ', component: FAQ },
     { id: 'widget', name: 'Widget', component: WidgetStudio },
     { id: 'webhooks', name: 'Webhooks', component: WebhookManagement },
