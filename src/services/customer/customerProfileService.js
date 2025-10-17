@@ -20,7 +20,7 @@ class CustomerProfileService {
     try {
       console.log('👤 Getting/creating customer profile:', email);
 
-      // Log data access for compliance (non-blocking)
+      // Log data access for compliance (non-blocking) - SKIP IF FAILS
       try {
         await privacyService.logDataAccess(
           email,
@@ -30,7 +30,8 @@ class CustomerProfileService {
           'system'
         );
       } catch (logError) {
-        console.warn('⚠️ Failed to log data access:', logError.message);
+        // Silently skip logging if it fails - don't break the flow
+        console.warn('⚠️ Skipped data access logging:', logError.message);
       }
 
       // Check cache first
@@ -70,6 +71,7 @@ class CustomerProfileService {
       }
     } catch (error) {
       console.error('❌ Error getting/creating customer profile:', error);
+      // Return null but don't throw - allow chat to continue without profile
       return null;
     }
   }
