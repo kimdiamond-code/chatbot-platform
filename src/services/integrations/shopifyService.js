@@ -91,6 +91,12 @@ export const shopifyService = {
       };
     } catch (error) {
       // Don't log as error if it's just a network issue or no credentials
+      console.error('❌ Full error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       if (error.message && error.message.includes('fetch failed')) {
         console.log('⚠️ API not reachable or no Shopify credentials saved yet');
       } else {
