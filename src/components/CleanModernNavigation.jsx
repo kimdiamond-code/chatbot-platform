@@ -40,10 +40,10 @@ const CleanModernNavigation = ({
       color: 'text-purple-600'
     },
     {
-      id: 'livechat',
-      label: 'Live Chat',
+      id: 'conversations',
+      label: 'Conversations',
       Icon: MessageSquare,
-      description: 'Real-time Conversations',
+      description: 'Chat Management',
       badge: realTimeMetrics.activeChats || 0,
       color: 'text-green-600'
     },

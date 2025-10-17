@@ -8,7 +8,7 @@ import CleanModernNavigation, { CleanHeader } from './components/CleanModernNavi
 import EnhancedDashboard from './components/EnhancedDashboard.jsx';
 import FullBotBuilder from './components/BotBuilder.jsx';
 import FullIntegrations from './components/Integrations.jsx';
-import LiveChat from './components/LiveChat.jsx';
+import Conversations from './components/Conversations.jsx';
 import Analytics from './components/Analytics.jsx';
 import ProactiveEngagement from './components/ProactiveEngagement.jsx';
 import CRMCustomerContext from './components/CRMCustomerContext.jsx';
@@ -41,18 +41,18 @@ const BotBuilder = () => {
   );
 };
 
-// Enhanced Live Chat Component
-const EnhancedLiveChat = ({ onNavigate }) => {
+// Enhanced Conversations Component
+const EnhancedConversations = ({ onNavigate }) => {
   return (
     <React.Suspense fallback={
       <div className="flex items-center justify-center min-h-screen glass-premium">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Live Chat...</p>
+          <p className="text-gray-600">Loading Conversations...</p>
         </div>
       </div>
     }>
-      <LiveChat onNavigate={onNavigate} />
+      <Conversations onNavigate={onNavigate} />
     </React.Suspense>
   );
 };
@@ -163,7 +163,7 @@ const App = () => {
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', component: EnhancedDashboard },
     { id: 'botbuilder', name: 'Bot Builder', component: BotBuilder },
-    { id: 'livechat', name: 'Live Chat', component: EnhancedLiveChat },
+    { id: 'conversations', name: 'Conversations', component: EnhancedConversations },
     { id: 'proactive', name: 'Proactive', component: ProactiveEngagement },
     { id: 'crm', name: 'CRM', component: CRMCustomerContext },
     { id: 'ecommerce', name: 'E-Commerce', component: ECommerceSupport },
