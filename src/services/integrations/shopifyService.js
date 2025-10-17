@@ -64,26 +64,10 @@ export const shopifyService = {
         return null;
       }
 
-      // Verify the credentials are still valid
-      const verifyResponse = await fetch('/api/consolidated', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          endpoint: 'database',
-          action: 'shopify_verifyCredentials',
-          store_url: shopDomain,
-          access_token: accessToken
-        })
-      });
+      // TEMPORARILY SKIP VERIFICATION TO DEBUG
+      console.log('⚠️ Skipping verification temporarily');
 
-      const verifyData = await verifyResponse.json();
-      
-      if (!verifyData.success) {
-        console.error('Shopify credentials are no longer valid:', verifyData.error);
-        return null;
-      }
-
-      console.log('✅ Shopify credentials found and verified:', { shopDomain, hasToken: !!accessToken });
+      console.log('✅ Shopify credentials found (not verified):', { shopDomain, hasToken: !!accessToken });
       return {
         shopDomain,
         accessToken,
