@@ -99,7 +99,9 @@ export default function Conversations() {
       }
       setShowDeleteConfirm(false)
       setConversationToDelete(null)
-      console.log('✅ Conversation deleted')
+      // Force immediate refetch
+      await refetch()
+      console.log('✅ Conversation deleted and list refreshed')
     } catch (error) {
       console.error('❌ Failed to delete conversation:', error)
       alert('Failed to delete conversation')
@@ -116,7 +118,9 @@ export default function Conversations() {
       }
       setSelectedConversations([])
       setShowBulkDeleteConfirm(false)
-      console.log('✅ Selected conversations deleted')
+      // Force immediate refetch
+      await refetch()
+      console.log('✅ Selected conversations deleted and list refreshed')
     } catch (error) {
       console.error('❌ Failed to delete conversations:', error)
       alert('Failed to delete conversations')
@@ -128,7 +132,9 @@ export default function Conversations() {
       await clearAllConversations()
       setSelectedConversation(null)
       setShowClearAllConfirm(false)
-      console.log('✅ All conversations cleared')
+      // Force immediate refetch
+      await refetch()
+      console.log('✅ All conversations cleared and list refreshed')
     } catch (error) {
       console.error('❌ Failed to clear conversations:', error)
       alert('Failed to clear conversations')
