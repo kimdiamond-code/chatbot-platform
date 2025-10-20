@@ -12,7 +12,17 @@ import {
   Settings,
   Menu,
   X,
-  Zap
+  Zap,
+  GitBranch,
+  FileText,
+  MessageCircle,
+  Phone,
+  HelpCircle,
+  PenTool,
+  Webhook,
+  ShoppingCart,
+  Users,
+  Shield
 } from 'lucide-react';
 
 const CleanModernNavigation = ({ 
@@ -48,6 +58,20 @@ const CleanModernNavigation = ({
       color: 'text-green-600'
     },
     {
+      id: 'scenarios',
+      label: 'Scenarios',
+      Icon: GitBranch,
+      description: 'Conversation Flows',
+      color: 'text-pink-600'
+    },
+    {
+      id: 'forms',
+      label: 'Forms',
+      Icon: FileText,
+      description: 'Custom Forms',
+      color: 'text-emerald-600'
+    },
+    {
       id: 'proactive',
       label: 'Proactive',
       Icon: Zap,
@@ -55,11 +79,67 @@ const CleanModernNavigation = ({
       color: 'text-yellow-600'
     },
     {
+      id: 'crm',
+      label: 'CRM',
+      Icon: Users,
+      description: 'Customer Context',
+      color: 'text-cyan-600'
+    },
+    {
+      id: 'ecommerce',
+      label: 'E-Commerce',
+      Icon: ShoppingCart,
+      description: 'Product Support',
+      color: 'text-rose-600'
+    },
+    {
+      id: 'multichannel',
+      label: 'Channels',
+      Icon: MessageCircle,
+      description: 'Multi-Channel',
+      color: 'text-violet-600'
+    },
+    {
+      id: 'sms',
+      label: 'SMS',
+      Icon: MessageCircle,
+      description: 'SMS Agent',
+      color: 'text-lime-600'
+    },
+    {
+      id: 'phone',
+      label: 'Phone',
+      Icon: Phone,
+      description: 'Phone Agent',
+      color: 'text-amber-600'
+    },
+    {
       id: 'faq',
       label: 'FAQ',
-      Icon: BookOpen,
+      Icon: HelpCircle,
       description: 'Help & Support',
       color: 'text-indigo-600'
+    },
+    {
+      id: 'widget',
+      label: 'Widget',
+      Icon: PenTool,
+      description: 'Widget Studio',
+      color: 'text-fuchsia-600'
+    },
+    {
+      id: 'webhooks',
+      label: 'Webhooks',
+      Icon: Webhook,
+      description: 'Webhook Management',
+      color: 'text-sky-600'
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      Icon: TrendingUp,
+      description: 'Performance Metrics',
+      color: 'text-teal-600'
     },
     {
       id: 'integrations',
@@ -69,11 +149,11 @@ const CleanModernNavigation = ({
       color: 'text-orange-600'
     },
     {
-      id: 'analytics',
-      label: 'Analytics',
-      Icon: TrendingUp,
-      description: 'Performance Metrics',
-      color: 'text-teal-600'
+      id: 'security',
+      label: 'Security',
+      Icon: Shield,
+      description: 'Compliance',
+      color: 'text-red-600'
     },
     {
       id: 'settings',
