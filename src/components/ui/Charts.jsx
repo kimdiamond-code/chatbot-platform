@@ -81,8 +81,8 @@ export const SimpleBarChart = ({ data, dataKey, title, color = '#10B981' }) => {
   return (
     <div className="w-full">
       {title && <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>}
-      <div className="relative h-64 bg-gray-50 rounded-lg p-6">
-        <div className="h-full flex items-end justify-between pb-6">
+      <div className="relative h-64 bg-gray-50 rounded-lg p-6 pb-10">
+        <div className="h-full flex items-end justify-between">
           {data.map((point, index) => {
             const height = (point[dataKey] / maxValue) * 100;
             return (
@@ -101,9 +101,9 @@ export const SimpleBarChart = ({ data, dataKey, title, color = '#10B981' }) => {
           })}
         </div>
         {/* X-axis labels */}
-        <div className="absolute bottom-2 left-6 right-6 flex justify-between text-xs text-gray-500">
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500 px-6 pb-2">
           {data.map((point, index) => (
-            <span key={index} className="flex-1 text-center">
+            <span key={index} className="flex-1 text-center -rotate-45 origin-center" style={{ writingMode: 'horizontal-tb' }}>
               {point.hour || point.date || index}
             </span>
           ))}
