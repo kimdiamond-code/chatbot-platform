@@ -81,26 +81,33 @@ export const SimpleBarChart = ({ data, dataKey, title, color = '#10B981' }) => {
   return (
     <div className="w-full">
       {title && <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>}
-      <div className="relative h-64 bg-gray-50 rounded-lg p-4 flex items-end justify-between">
-        {data.map((point, index) => {
-          const height = (point[dataKey] / maxValue) * 100;
-          return (
-            <div key={index} className="flex flex-col items-center flex-1 mx-1">
-              <div 
-                className="w-full rounded-t-sm transition-all duration-300 hover:opacity-80"
-                style={{ 
-                  height: `${height}%`, 
-                  backgroundColor: color,
-                  minHeight: '2px'
-                }}
-                title={`${point.hour || point.date}: ${point[dataKey]}`}
-              />
-              <span className="text-xs text-gray-500 mt-1 truncate">
-                {point.hour || point.date || index}
-              </span>
-            </div>
-          );
-        })}
+      <div className="relative h-64 bg-gray-50 rounded-lg p-6">
+        <div className="h-full flex items-end justify-between pb-6">
+          {data.map((point, index) => {
+            const height = (point[dataKey] / maxValue) * 100;
+            return (
+              <div key={index} className="flex flex-col items-center flex-1 mx-1">
+                <div 
+                  className="w-full rounded-t-sm transition-all duration-300 hover:opacity-80"
+                  style={{ 
+                    height: `${height}%`, 
+                    backgroundColor: color,
+                    minHeight: '4px'
+                  }}
+                  title={`${point.hour || point.date}: ${point[dataKey]}`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        {/* X-axis labels */}
+        <div className="absolute bottom-2 left-6 right-6 flex justify-between text-xs text-gray-500">
+          {data.map((point, index) => (
+            <span key={index} className="flex-1 text-center">
+              {point.hour || point.date || index}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
