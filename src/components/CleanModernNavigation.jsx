@@ -1,4 +1,4 @@
-// Clean Modern Navigation - Professional Design
+// Clean Modern Navigation - Professional Design v2.0.11
 import React, { useState, useEffect } from 'react';
 import AgentStackLogo from './AgentStackLogo.jsx';
 import { authService } from '../services/authService';
