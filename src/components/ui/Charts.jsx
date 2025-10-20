@@ -12,7 +12,7 @@ export const SimpleLineChart = ({ data, dataKey, title, color = '#3B82F6' }) => 
   return (
     <div className="w-full">
       {title && <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>}
-      <div className="relative h-32 bg-gray-50 rounded-lg p-4">
+      <div className="relative h-64 bg-gray-50 rounded-lg p-4">
         <svg className="w-full h-full" viewBox="0 0 400 120">
           {/* Grid lines */}
           <defs>
@@ -81,7 +81,7 @@ export const SimpleBarChart = ({ data, dataKey, title, color = '#10B981' }) => {
   return (
     <div className="w-full">
       {title && <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>}
-      <div className="relative h-32 bg-gray-50 rounded-lg p-4 flex items-end justify-between">
+      <div className="relative h-64 bg-gray-50 rounded-lg p-4 flex items-end justify-between">
         {data.map((point, index) => {
           const height = (point[dataKey] / maxValue) * 100;
           return (

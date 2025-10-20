@@ -204,23 +204,23 @@ const CleanModernNavigation = ({
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
                 className={`
-                  w-full p-3 rounded-lg transition-all duration-200 relative group text-left
+                  w-full p-2 rounded-lg transition-all duration-200 relative group text-left
                   ${activeTab === item.id 
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/50 scale-105' 
                     : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:scale-102'
                   }
                 `}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
                   <div className="relative flex items-center justify-center">
                     <item.Icon 
-                      size={20} 
+                      size={18} 
                       className={`transition-all duration-200 ${
                         activeTab === item.id ? 'text-white' : item.color
                       }`}
@@ -229,12 +229,11 @@ const CleanModernNavigation = ({
                   </div>
                   
                   <div className="flex-1">
-                    <p className="font-semibold">{item.label}</p>
-                    <p className="text-xs opacity-75">{item.description}</p>
+                    <p className="font-semibold text-sm">{item.label}</p>
                   </div>
                   
                   {item.badge !== undefined && (
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                       activeTab === item.id ? 'bg-white/20' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {item.badge}
