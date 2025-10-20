@@ -13,7 +13,7 @@ export const SimpleLineChart = ({ data, dataKey, title, color = '#3B82F6' }) => 
     <div className="w-full">
       {title && <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>}
       <div className="relative h-64 bg-gray-50 rounded-lg p-4">
-        <svg className="w-full h-full" viewBox="0 0 400 120">
+        <svg className="w-full h-full" viewBox="0 0 400 240">
           {/* Grid lines */}
           <defs>
             <pattern id="grid" width="40" height="24" patternUnits="userSpaceOnUse">
@@ -26,7 +26,7 @@ export const SimpleLineChart = ({ data, dataKey, title, color = '#3B82F6' }) => 
           <path
             d={data.map((point, index) => {
               const x = (index / (data.length - 1)) * 360 + 20;
-              const y = 100 - ((point[dataKey] - minValue) / range) * 80;
+              const y = 220 - ((point[dataKey] - minValue) / range) * 200;
               return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
             }).join(' ')}
             fill="none"
@@ -38,7 +38,7 @@ export const SimpleLineChart = ({ data, dataKey, title, color = '#3B82F6' }) => 
           {/* Data points */}
           {data.map((point, index) => {
             const x = (index / (data.length - 1)) * 360 + 20;
-            const y = 100 - ((point[dataKey] - minValue) / range) * 80;
+            const y = 220 - ((point[dataKey] - minValue) / range) * 200;
             return (
               <circle
                 key={index}
