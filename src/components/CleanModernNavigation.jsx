@@ -33,21 +33,15 @@ const CleanModernNavigation = ({
   isMobile,
   realTimeMetrics = {} 
 }) => {
-  // Enhanced navigation items with professional icons
+  // Enhanced navigation items with professional icons - Organized by category
   const navigationItems = [
+    // CORE (ungrouped)
     {
       id: 'dashboard',
       label: 'Dashboard',
       Icon: LayoutDashboard,
       description: 'Analytics & Overview',
       color: 'text-blue-600'
-    },
-    {
-      id: 'botbuilder',
-      label: 'Bot Builder',
-      Icon: Bot,
-      description: 'AI Assistant Setup',
-      color: 'text-purple-600'
     },
     {
       id: 'conversations',
@@ -58,11 +52,37 @@ const CleanModernNavigation = ({
       color: 'text-green-600'
     },
     {
+      id: 'analytics',
+      label: 'Analytics',
+      Icon: TrendingUp,
+      description: 'Performance Metrics',
+      color: 'text-teal-600'
+    },
+    
+    // DIVIDER
+    { divider: true, label: 'Configuration' },
+    
+    // BOT SETUP + ENGAGEMENT
+    {
+      id: 'botbuilder',
+      label: 'Bot Builder',
+      Icon: Bot,
+      description: 'AI Assistant Setup',
+      color: 'text-purple-600'
+    },
+    {
       id: 'scenarios',
       label: 'Scenarios',
       Icon: GitBranch,
       description: 'Conversation Flows',
       color: 'text-pink-600'
+    },
+    {
+      id: 'faq',
+      label: 'Knowledge Base',
+      Icon: BookOpen,
+      description: 'Help & Support',
+      color: 'text-indigo-600'
     },
     {
       id: 'forms',
@@ -79,19 +99,17 @@ const CleanModernNavigation = ({
       color: 'text-yellow-600'
     },
     {
-      id: 'crm',
-      label: 'CRM',
-      Icon: Users,
-      description: 'Customer Context',
-      color: 'text-cyan-600'
+      id: 'widget',
+      label: 'Widget',
+      Icon: PenTool,
+      description: 'Widget Studio',
+      color: 'text-fuchsia-600'
     },
-    {
-      id: 'ecommerce',
-      label: 'E-Commerce',
-      Icon: ShoppingCart,
-      description: 'Product Support',
-      color: 'text-rose-600'
-    },
+    
+    // DIVIDER
+    { divider: true, label: 'Channels' },
+    
+    // CHANNELS
     {
       id: 'multichannel',
       label: 'Channels',
@@ -113,33 +131,24 @@ const CleanModernNavigation = ({
       description: 'Phone Agent',
       color: 'text-amber-600'
     },
+    
+    // DIVIDER
+    { divider: true, label: 'Integrations' },
+    
+    // INTEGRATIONS & DATA
     {
-      id: 'faq',
-      label: 'FAQ',
-      Icon: HelpCircle,
-      description: 'Help & Support',
-      color: 'text-indigo-600'
+      id: 'crm',
+      label: 'CRM',
+      Icon: Users,
+      description: 'Customer Context',
+      color: 'text-cyan-600'
     },
     {
-      id: 'widget',
-      label: 'Widget',
-      Icon: PenTool,
-      description: 'Widget Studio',
-      color: 'text-fuchsia-600'
-    },
-    {
-      id: 'webhooks',
-      label: 'Webhooks',
-      Icon: Webhook,
-      description: 'Webhook Management',
-      color: 'text-sky-600'
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      Icon: TrendingUp,
-      description: 'Performance Metrics',
-      color: 'text-teal-600'
+      id: 'ecommerce',
+      label: 'E-Commerce',
+      Icon: ShoppingCart,
+      description: 'Product Support',
+      color: 'text-rose-600'
     },
     {
       id: 'integrations',
@@ -148,6 +157,18 @@ const CleanModernNavigation = ({
       description: 'Connect Services',
       color: 'text-orange-600'
     },
+    {
+      id: 'webhooks',
+      label: 'Webhooks',
+      Icon: Webhook,
+      description: 'Webhook Management',
+      color: 'text-sky-600'
+    },
+    
+    // DIVIDER
+    { divider: true, label: 'System' },
+    
+    // SYSTEM
     {
       id: 'security',
       label: 'Security',
@@ -205,43 +226,61 @@ const CleanModernNavigation = ({
 
           {/* Navigation Items */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigationItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={`
-                  w-full p-2 rounded-lg transition-all duration-200 relative group text-left
-                  ${activeTab === item.id 
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/50 scale-105' 
-                    : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:scale-102'
-                  }
-                `}
-              >
-                <div className="flex items-center space-x-2">
-                  <div className="relative flex items-center justify-center">
-                    <item.Icon 
-                      size={18} 
-                      className={`transition-all duration-200 ${
-                        activeTab === item.id ? 'text-white' : item.color
-                      }`}
-                      strokeWidth={activeTab === item.id ? 2.5 : 2}
-                    />
+            {navigationItems.map((item, index) => {
+              // Render divider
+              if (item.divider) {
+                return (
+                  <div key={`divider-${index}`} className="pt-4 pb-2">
+                    <div className="flex items-center space-x-2 px-2">
+                      <div className="h-px flex-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200"></div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        {item.label}
+                      </span>
+                      <div className="h-px flex-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200"></div>
+                    </div>
                   </div>
-                  
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{item.label}</p>
+                );
+              }
+              
+              // Render navigation button
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`
+                    w-full p-2 rounded-lg transition-all duration-200 relative group text-left
+                    ${activeTab === item.id 
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/50 scale-105' 
+                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:scale-102'
+                    }
+                  `}
+                >
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex items-center justify-center">
+                      <item.Icon 
+                        size={18} 
+                        className={`transition-all duration-200 ${
+                          activeTab === item.id ? 'text-white' : item.color
+                        }`}
+                        strokeWidth={activeTab === item.id ? 2.5 : 2}
+                      />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{item.label}</p>
+                    </div>
+                    
+                    {item.badge !== undefined && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                        activeTab === item.id ? 'bg-white/20' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
                   </div>
-                  
-                  {item.badge !== undefined && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      activeTab === item.id ? 'bg-white/20' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </nav>
 
           {/* User Profile Section */}
