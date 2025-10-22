@@ -12,7 +12,7 @@ export const SimpleLineChart = ({ data, dataKey, title, color = '#3B82F6' }) => 
   return (
     <div className="w-full">
       {title && <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>}
-      <div className="relative h-64 bg-gray-50 rounded-lg p-4">
+      <div className="relative h-72 bg-gray-50 rounded-lg p-4 pb-12">
         <svg className="w-full h-full" viewBox="0 0 400 240">
           {/* Grid lines */}
           <defs>
@@ -60,9 +60,19 @@ export const SimpleLineChart = ({ data, dataKey, title, color = '#3B82F6' }) => 
         </div>
         
         {/* X-axis labels */}
-        <div className="absolute bottom-0 left-0 w-full flex justify-between text-xs text-gray-500 -mb-6">
+        <div className="absolute bottom-0 left-0 w-full flex justify-around px-4 pb-2">
           {data.map((point, index) => (
-            <span key={index} className={index % 2 === 0 ? '' : 'opacity-50'}>
+            <span 
+              key={index} 
+              className="text-[10px] text-gray-500 whitespace-nowrap"
+              style={{ 
+                transform: 'rotate(-45deg) translateY(4px)',
+                transformOrigin: 'center',
+                display: 'inline-block',
+                width: '60px',
+                textAlign: 'left'
+              }}
+            >
               {point.hour || point.date || index}
             </span>
           ))}
