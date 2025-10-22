@@ -22,7 +22,8 @@ import {
   Webhook,
   ShoppingCart,
   Users,
-  Shield
+  Shield,
+  Globe
 } from 'lucide-react';
 
 const CleanModernNavigation = ({ 
@@ -104,6 +105,13 @@ const CleanModernNavigation = ({
       Icon: PenTool,
       description: 'Widget Studio',
       color: 'text-fuchsia-600'
+    },
+    {
+      id: 'testwebsite',
+      label: 'Test Website',
+      Icon: Globe,
+      description: 'Test on your site',
+      color: 'text-blue-600'
     },
     
     // DIVIDER
