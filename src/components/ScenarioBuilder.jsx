@@ -4,7 +4,7 @@ import { dbService } from '../services/databaseService.js';
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 // Icon Components
-const GitBranch = () => <span className="text-xl">🔀</span>;
+const GitBranch = () => <span className="text-xl">🎯</span>;
 const Plus = () => <span className="text-xl">➕</span>;
 const Trash = () => <span className="text-xl">🗑️</span>;
 const Save = () => <span className="text-xl">💾</span>;
@@ -13,12 +13,16 @@ const Edit = () => <span className="text-xl">✏️</span>;
 const Copy = () => <span className="text-xl">📋</span>;
 const MessageSquare = () => <span className="text-xl">💬</span>;
 const ArrowRight = () => <span className="text-xl">→</span>;
+const Info = () => <span className="text-xl">ℹ️</span>;
+const Lightbulb = () => <span className="text-xl">💡</span>;
+const CheckCircle = () => <span className="text-xl">✅</span>;
 
 const ScenarioBuilder = () => {
   const [scenarios, setScenarios] = useState([]);
   const [activeScenario, setActiveScenario] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   // Form state for creating/editing scenarios
   const [scenarioForm, setScenarioForm] = useState({
@@ -224,15 +228,25 @@ const ScenarioBuilder = () => {
   return (
     <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-gray-50 to-purple-50">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <GitBranch /> Scenario Builder
-          </h1>
-          <p className="text-gray-600 mt-1">Create conversation flows and automated scenarios</p>
-        </div>
-        
-        <div className="flex gap-3">
+      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <GitBranch /> Scenarios
+            </h1>
+            <p className="text-lg text-gray-700 mt-2 font-medium">Teach your bot how to handle specific situations</p>
+            <p className="text-gray-600 mt-2 max-w-3xl">
+              Scenarios are step-by-step instructions that tell your bot exactly what to do when customers ask about specific topics or trigger certain conditions. Think of them as training scripts for common situations.
+            </p>
+            <button
+              onClick={() => setShowHelp(!showHelp)}
+              className="mt-3 text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+            >
+              <Info /> {showHelp ? 'Hide' : 'Show'} Examples & Tips
+            </button>
+          </div>
+          
+          <div className="flex gap-3 ml-4">
           {!isCreating && (
             <button
               onClick={createNewScenario}
@@ -259,86 +273,176 @@ const ScenarioBuilder = () => {
                saveStatus === 'saving' ? 'Saving...' : 'Save All'}
             </button>
           )}
+          </div>
         </div>
+        
+        {/* Help Section */}
+        {showHelp && (
+          <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <h3 className="font-bold text-blue-900 flex items-center gap-2 mb-3">
+                  <Lightbulb /> Common Use Cases
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Order Tracking:</strong> Guide customers through checking their order status step by step</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Product Questions:</strong> Answer specific questions about features, sizing, or availability</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Returns & Refunds:</strong> Walk customers through your return policy and process</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Store Hours:</strong> Provide location and operating hours information</span>
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <h3 className="font-bold text-green-900 flex items-center gap-2 mb-3">
+                  <MessageSquare /> How It Works
+                </h3>
+                <ol className="space-y-2 text-sm text-gray-700 list-decimal list-inside">
+                  <li><strong>Name your scenario:</strong> Give it a clear name like "Check Order Status"</li>
+                  <li><strong>Set the trigger:</strong> Choose when this scenario should activate (keywords, URLs, etc.)</li>
+                  <li><strong>Add steps:</strong> Write what the bot should say or ask in sequence</li>
+                  <li><strong>Save & activate:</strong> Your bot will now handle that situation automatically</li>
+                </ol>
+                <div className="mt-3 pt-3 border-t border-green-300">
+                  <p className="text-xs text-green-800 italic">
+                    💡 Tip: Start with 2-3 simple scenarios and expand as you learn what customers ask most.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Creation/Edit Form */}
       {isCreating ? (
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">
-            {activeScenario ? 'Edit Scenario' : 'Create New Scenario'}
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {activeScenario ? 'Edit Scenario' : 'Create New Scenario'}
+            </h2>
+            <button
+              onClick={() => {
+                setIsCreating(false);
+                setActiveScenario(null);
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ✕ Close
+            </button>
+          </div>
+          
+          {/* Instructional Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-blue-900">
+              <strong>🎯 Quick Start:</strong> Give your scenario a clear name, set when it should trigger, then add the conversation steps. Each step is what your bot will say or ask.
+            </p>
+          </div>
           
           {/* Basic Info */}
-          <div className="space-y-4 mb-6">
+          <div className="space-y-5 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Scenario Name *
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                1. What is this scenario for? *
               </label>
               <input
                 type="text"
                 value={scenarioForm.name}
                 onChange={(e) => setScenarioForm({ ...scenarioForm, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Order Tracking, Product Inquiry, Refund Request"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg"
+                placeholder="e.g., Check Order Status, Return an Item, Find Store Hours"
               />
+              <p className="text-xs text-gray-500 mt-1">Keep it simple and action-oriented</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                2. Brief description (optional)
               </label>
               <textarea
                 value={scenarioForm.description}
                 onChange={(e) => setScenarioForm({ ...scenarioForm, description: e.target.value })}
                 rows={2}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Describe what this scenario does..."
+                placeholder="e.g., Helps customers track their order by collecting order number and email"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Trigger Type
-                </label>
-                <select
-                  value={scenarioForm.trigger}
-                  onChange={(e) => setScenarioForm({ ...scenarioForm, trigger: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="keyword">Keyword Match</option>
-                  <option value="intent">Intent Detection</option>
-                  <option value="url">URL Visit</option>
-                  <option value="time">Time on Page</option>
-                  <option value="manual">Manual Trigger</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                3. When should this scenario activate?
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Trigger Type
+                  </label>
+                  <select
+                    value={scenarioForm.trigger}
+                    onChange={(e) => setScenarioForm({ ...scenarioForm, trigger: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="keyword">When customer says specific words</option>
+                    <option value="intent">When customer has specific intent</option>
+                    <option value="url">When visiting specific page</option>
+                    <option value="time">After time on page</option>
+                    <option value="manual">Manual/Agent-triggered only</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Trigger Value
-                </label>
-                <input
-                  type="text"
-                  value={scenarioForm.triggerValue}
-                  onChange={(e) => setScenarioForm({ ...scenarioForm, triggerValue: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder={
-                    scenarioForm.trigger === 'keyword' ? 'e.g., order, track, help' :
-                    scenarioForm.trigger === 'intent' ? 'e.g., product_inquiry' :
-                    scenarioForm.trigger === 'url' ? 'e.g., /checkout' :
-                    scenarioForm.trigger === 'time' ? 'e.g., 30 (seconds)' :
-                    'Leave empty for manual'
-                  }
-                />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {scenarioForm.trigger === 'keyword' ? 'Keywords (comma-separated)' :
+                     scenarioForm.trigger === 'intent' ? 'Intent Name' :
+                     scenarioForm.trigger === 'url' ? 'Page URL' :
+                     scenarioForm.trigger === 'time' ? 'Seconds' :
+                     'Leave Empty'}
+                  </label>
+                  <input
+                    type="text"
+                    value={scenarioForm.triggerValue}
+                    onChange={(e) => setScenarioForm({ ...scenarioForm, triggerValue: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder={
+                      scenarioForm.trigger === 'keyword' ? 'order, track, status, where is my' :
+                      scenarioForm.trigger === 'intent' ? 'product_inquiry' :
+                      scenarioForm.trigger === 'url' ? '/checkout' :
+                      scenarioForm.trigger === 'time' ? '30' :
+                      'No trigger needed'
+                    }
+                  />
+                  {scenarioForm.trigger === 'keyword' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Bot will activate when customer message contains any of these words
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Steps Section */}
           <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">Conversation Steps</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">4. Build the Conversation</h3>
+                <p className="text-sm text-gray-600 mt-1">Add what the bot should say or ask, step by step</p>
+              </div>
+              {scenarioForm.steps.length === 0 && (
+                <span className="text-sm text-gray-500 italic">No steps yet - add your first one below</span>
+              )}
+            </div>
             
             {/* Existing Steps */}
             {scenarioForm.steps.length > 0 && (
@@ -407,137 +511,108 @@ const ScenarioBuilder = () => {
             )}
 
             {/* Add New Step Form */}
-            <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-              <h4 className="font-semibold text-gray-900 mb-3">Add New Step</h4>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-5 border-2 border-blue-300">
+              <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                <Plus /> Add Step #{scenarioForm.steps.length + 1}
+              </h4>
+              <p className="text-xs text-gray-600 mb-4">What should the bot say or ask at this point in the conversation?</p>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Step Type
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    What type of step is this?
                   </label>
-                  <select
-                    value={currentStep.type}
-                    onChange={(e) => setCurrentStep({ ...currentStep, type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="message">Bot Message</option>
-                    <option value="question">Question (Wait for input)</option>
-                    <option value="action">Trigger Action</option>
-                    <option value="condition">Conditional Branch</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep({ ...currentStep, type: 'message' })}
+                      className={`px-4 py-3 rounded-lg border-2 text-left ${
+                        currentStep.type === 'message'
+                          ? 'border-blue-500 bg-blue-100 text-blue-900'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="font-semibold">💬 Bot Says</div>
+                      <div className="text-xs">Bot sends a message</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep({ ...currentStep, type: 'question' })}
+                      className={`px-4 py-3 rounded-lg border-2 text-left ${
+                        currentStep.type === 'question'
+                          ? 'border-blue-500 bg-blue-100 text-blue-900'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="font-semibold">❓ Bot Asks</div>
+                      <div className="text-xs">Wait for customer input</div>
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Content *
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    {currentStep.type === 'question' ? 'What question should the bot ask?' : 'What should the bot say?'} *
                   </label>
                   <textarea
                     value={currentStep.content}
                     onChange={(e) => setCurrentStep({ ...currentStep, content: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="What should the bot say or do in this step?"
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder={
+                      currentStep.type === 'question'
+                        ? 'e.g., "Can you provide your order number?" or "What is your email address?"'
+                        : 'e.g., "I\'ll help you track your order!" or "Let me look that up for you."'
+                    }
                   />
                 </div>
 
-                {(currentStep.type === 'question' || currentStep.type === 'condition') && (
+                {currentStep.type === 'question' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Expected Input Type
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      What type of answer are you expecting? (optional)
                     </label>
                     <select
                       value={currentStep.expectedInput}
                       onChange={(e) => setCurrentStep({ ...currentStep, expectedInput: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                     >
-                      <option value="">Any text</option>
-                      <option value="email">Email</option>
-                      <option value="phone">Phone</option>
-                      <option value="number">Number</option>
+                      <option value="">Any text response</option>
+                      <option value="email">Email address</option>
+                      <option value="phone">Phone number</option>
+                      <option value="number">Number only</option>
                       <option value="date">Date</option>
-                      <option value="choice">Multiple Choice</option>
                     </select>
-                  </div>
-                )}
-
-                {/* Conditional Logic */}
-                {currentStep.type === 'condition' && (
-                  <div className="border-t border-blue-200 pt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Response Conditions
-                      </label>
-                      <button
-                        onClick={addCondition}
-                        className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
-                      >
-                        <Plus /> Add Condition
-                      </button>
-                    </div>
-                    
-                    {currentStep.nextStepConditions.map((cond, index) => (
-                      <div key={index} className="grid grid-cols-3 gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={cond.value}
-                          onChange={(e) => updateCondition(index, 'value', e.target.value)}
-                          placeholder="User says..."
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
-                        <select
-                          value={cond.action}
-                          onChange={(e) => updateCondition(index, 'action', e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
-                        >
-                          <option value="continue">Continue</option>
-                          <option value="jump">Jump to step</option>
-                          <option value="end">End scenario</option>
-                          <option value="escalate">Escalate to human</option>
-                        </select>
-                        <div className="flex gap-1">
-                          <input
-                            type="text"
-                            value={cond.message}
-                            onChange={(e) => updateCondition(index, 'message', e.target.value)}
-                            placeholder="Response..."
-                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                          />
-                          <button
-                            onClick={() => removeCondition(index)}
-                            className="text-red-600 hover:text-red-700 px-2"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    <p className="text-xs text-gray-500 mt-1">
+                      This helps validate the customer's response
+                    </p>
                   </div>
                 )}
 
                 <button
                   onClick={addStep}
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all"
                 >
-                  <Plus /> Add Step
+                  <Plus /> Add This Step to Scenario
                 </button>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+          <div className="flex gap-3 mt-6 pt-6 border-t-2 border-gray-300">
             <button
               onClick={saveScenario}
-              className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 font-medium"
+              className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
             >
-              {activeScenario ? 'Update Scenario' : 'Create Scenario'}
+              <Save /> {activeScenario ? 'Save Changes' : 'Create Scenario'}
             </button>
             <button
               onClick={() => {
                 setIsCreating(false);
                 setActiveScenario(null);
               }}
-              className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-6 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
             >
               Cancel
             </button>
@@ -600,19 +675,22 @@ const ScenarioBuilder = () => {
           ))}
 
           {scenarios.length === 0 && !isCreating && (
-            <div className="col-span-full text-center py-12">
-              <GitBranch />
-              <h3 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
-                No Scenarios Yet
+            <div className="col-span-full text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+              <div className="text-6xl mb-4">🎯</div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Ready to Train Your Bot?
               </h3>
-              <p className="text-gray-600 mb-6">
-                Create your first conversation scenario to automate customer interactions
+              <p className="text-gray-600 mb-3 max-w-md mx-auto">
+                Scenarios teach your bot how to handle specific customer questions and situations automatically.
+              </p>
+              <p className="text-sm text-gray-500 mb-6 max-w-lg mx-auto">
+                For example: "When a customer asks about order tracking, collect their order number and email, then show the tracking info."
               </p>
               <button
                 onClick={createNewScenario}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 inline-flex items-center gap-2 font-bold text-lg shadow-lg hover:shadow-xl transition-all"
               >
-                <Plus /> Create First Scenario
+                <Plus /> Create Your First Scenario
               </button>
             </div>
           )}

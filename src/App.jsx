@@ -23,7 +23,7 @@ import PhoneAgent from './components/PhoneAgent.jsx';
 import FAQ from './components/FAQ.jsx';
 import WidgetStudio from './components/WidgetStudio.jsx';
 import WebhookManagement from './components/WebhookManagement.jsx';
-import TestWebsite from './pages/TestWebsite/TestWebsite.jsx';
+
 
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
 import { debugEnvVars } from './utils/debugEnv.js';
@@ -179,7 +179,7 @@ const App = () => {
     { id: 'phone', name: 'Phone', component: PhoneAgent },
     { id: 'faq', name: 'FAQ', component: FAQ },
     { id: 'widget', name: 'Widget', component: WidgetStudio },
-    { id: 'testwebsite', name: 'Test Website', component: TestWebsite },
+    
     { id: 'webhooks', name: 'Webhooks', component: WebhookManagement },
     { id: 'analytics', name: 'Analytics', component: Analytics },
     { id: 'integrations', name: 'Integrations', component: FullIntegrations },

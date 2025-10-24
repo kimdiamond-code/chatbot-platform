@@ -4,7 +4,7 @@ import { dbService } from '../services/databaseService.js';
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 // Icon Components
-const FileText = () => <span className="text-xl">📝</span>;
+const FileText = () => <span className="text-xl">📋</span>;
 const Plus = () => <span className="text-xl">➕</span>;
 const Trash = () => <span className="text-xl">🗑️</span>;
 const Save = () => <span className="text-xl">💾</span>;
@@ -12,6 +12,9 @@ const Download = () => <span className="text-xl">⬇️</span>;
 const Edit = () => <span className="text-xl">✏️</span>;
 const Eye = () => <span className="text-xl">👁️</span>;
 const Table = () => <span className="text-xl">📊</span>;
+const Info = () => <span className="text-xl">ℹ️</span>;
+const Lightbulb = () => <span className="text-xl">💡</span>;
+const CheckCircle = () => <span className="text-xl">✅</span>;
 
 const CustomForms = () => {
   const [forms, setForms] = useState([]);
@@ -20,6 +23,7 @@ const CustomForms = () => {
   const [selectedForm, setSelectedForm] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   const [formBuilder, setFormBuilder] = useState({
     name: '',
@@ -220,15 +224,25 @@ const CustomForms = () => {
   return (
     <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-gray-50 to-green-50">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <FileText /> Custom Forms
-          </h1>
-          <p className="text-gray-600 mt-1">Create forms to collect data from customers</p>
-        </div>
-        
-        <div className="flex gap-3">
+      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <FileText /> Forms
+            </h1>
+            <p className="text-lg text-gray-700 mt-2 font-medium">Collect information from customers during conversations</p>
+            <p className="text-gray-600 mt-2 max-w-3xl">
+              Forms let your bot gather specific information from customers (like email, phone, feedback) in a structured way. The bot asks the questions, collects the answers, and saves them for you to review.
+            </p>
+            <button
+              onClick={() => setShowHelp(!showHelp)}
+              className="mt-3 text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+            >
+              <Info /> {showHelp ? 'Hide' : 'Show'} Examples & Tips
+            </button>
+          </div>
+          
+          <div className="flex gap-3 ml-4">
           <div className="flex bg-white rounded-lg border border-gray-200 p-1">
             <button
               onClick={() => setActiveView('forms')}
@@ -278,7 +292,57 @@ const CustomForms = () => {
                saveStatus === 'saving' ? 'Saving...' : 'Save All'}
             </button>
           )}
+          </div>
         </div>
+        
+        {/* Help Section */}
+        {showHelp && (
+          <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <h3 className="font-bold text-blue-900 flex items-center gap-2 mb-3">
+                  <Lightbulb /> Common Use Cases
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Contact Form:</strong> Collect name, email, and message from potential customers</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Feedback Survey:</strong> Ask customers to rate their experience and provide comments</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Quote Request:</strong> Gather project details, budget, and contact info from leads</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle />
+                    <span><strong>Support Ticket:</strong> Collect issue details, urgency level, and customer info</span>
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <h3 className="font-bold text-green-900 flex items-center gap-2 mb-3">
+                  <FileText /> How It Works
+                </h3>
+                <ol className="space-y-2 text-sm text-gray-700 list-decimal list-inside">
+                  <li><strong>Create your form:</strong> Add a name and the fields you want to collect</li>
+                  <li><strong>Choose field types:</strong> Text, email, phone, dropdowns, checkboxes, etc.</li>
+                  <li><strong>Mark required fields:</strong> Make sure you get critical information</li>
+                  <li><strong>Use in conversations:</strong> Bot will ask each question and wait for answers</li>
+                  <li><strong>Review submissions:</strong> See all responses in the Submissions tab</li>
+                </ol>
+                <div className="mt-3 pt-3 border-t border-green-300">
+                  <p className="text-xs text-green-800 italic">
+                    💡 Tip: Keep forms short (3-5 fields) for better completion rates.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {activeView === 'forms' && (
@@ -286,34 +350,53 @@ const CustomForms = () => {
           {/* Form Builder */}
           {isCreating ? (
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">
-                {selectedForm ? 'Edit Form' : 'Create New Form'}
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {selectedForm ? 'Edit Form' : 'Create New Form'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setIsCreating(false);
+                    setSelectedForm(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕ Close
+                </button>
+              </div>
               
-              <div className="space-y-4 mb-6">
+              {/* Instructional Banner */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-900">
+                  <strong>📋 Quick Start:</strong> Name your form, then add the fields (questions) you want to ask customers. Each field is one piece of information you'll collect.
+                </p>
+              </div>
+              
+              <div className="space-y-5 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Form Name *
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    1. What is this form called? *
                   </label>
                   <input
                     type="text"
                     value={formBuilder.name}
                     onChange={(e) => setFormBuilder({ ...formBuilder, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Contact Form, Feedback Survey, Registration"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg"
+                    placeholder="e.g., Contact Form, Feedback Survey, Quote Request"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Give it a name you'll recognize later</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    2. What's it for? (optional)
                   </label>
                   <textarea
                     value={formBuilder.description}
                     onChange={(e) => setFormBuilder({ ...formBuilder, description: e.target.value })}
                     rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Describe what this form is for..."
+                    placeholder="e.g., Collect customer contact info and inquiry details"
                   />
                 </div>
               </div>
@@ -321,8 +404,9 @@ const CustomForms = () => {
               {/* Existing Fields */}
               {formBuilder.fields.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-3 text-gray-900">Form Fields</h3>
-                  <div className="space-y-2">
+                  <h3 className="text-lg font-bold mb-3 text-gray-900">3. Your Form Fields</h3>
+                  <p className="text-sm text-gray-600 mb-3">These are the questions your bot will ask customers</p>
+                  <div className="space-y-3">
                     {formBuilder.fields.map((field, index) => (
                       <div key={field.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <div className="flex items-start justify-between">
@@ -360,63 +444,77 @@ const CustomForms = () => {
               )}
 
               {/* Add New Field */}
-              <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">Add New Field</h4>
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-5 border-2 border-green-300 mb-6">
+                <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  <Plus /> Add Field #{formBuilder.fields.length + 1}
+                </h4>
+                <p className="text-xs text-gray-600 mb-4">Each field is one question the bot will ask</p>
                 
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Field Label *
-                      </label>
-                      <input
-                        type="text"
-                        value={newField.label}
-                        onChange={(e) => setNewField({ ...newField, label: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., Full Name, Email Address"
-                      />
-                    </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      What information do you want? *
+                    </label>
+                    <input
+                      type="text"
+                      value={newField.label}
+                      onChange={(e) => setNewField({ ...newField, label: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Full Name, Email Address, Phone Number, Message"
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Field Type
-                      </label>
-                      <select
-                        value={newField.type}
-                        onChange={(e) => setNewField({ ...newField, type: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="text">Text</option>
-                        <option value="email">Email</option>
-                        <option value="phone">Phone</option>
-                        <option value="number">Number</option>
-                        <option value="date">Date</option>
-                        <option value="textarea">Long Text</option>
-                        <option value="select">Dropdown</option>
-                        <option value="radio">Radio Buttons</option>
-                        <option value="checkbox">Checkboxes</option>
-                      </select>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      What type of answer?
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'text', icon: '📝', label: 'Short Text' },
+                        { value: 'email', icon: '📧', label: 'Email' },
+                        { value: 'phone', icon: '📞', label: 'Phone' },
+                        { value: 'number', icon: '🔢', label: 'Number' },
+                        { value: 'date', icon: '📅', label: 'Date' },
+                        { value: 'textarea', icon: '📝', label: 'Long Text' },
+                        { value: 'select', icon: '🔽', label: 'Dropdown' },
+                        { value: 'radio', icon: '◉', label: 'Choice' },
+                        { value: 'checkbox', icon: '☑️', label: 'Checkboxes' },
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setNewField({ ...newField, type: type.value })}
+                          className={`px-3 py-2 rounded-lg border-2 text-left transition-all ${
+                            newField.type === type.value
+                              ? 'border-green-500 bg-green-100 text-green-900 shadow-md'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                          }`}
+                        >
+                          <div className="text-lg">{type.icon}</div>
+                          <div className="text-xs font-medium">{type.label}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Placeholder Text
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Placeholder text (optional)
                     </label>
                     <input
                       type="text"
                       value={newField.placeholder}
                       onChange={(e) => setNewField({ ...newField, placeholder: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter placeholder text..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Enter your full name..."
                     />
+                    <p className="text-xs text-gray-500 mt-1">Helpful hint shown in the field</p>
                   </div>
 
                   {['select', 'radio', 'checkbox'].includes(newField.type) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Options (comma-separated)
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        What are the options?
                       </label>
                       <input
                         type="text"
@@ -425,45 +523,49 @@ const CustomForms = () => {
                           ...newField, 
                           options: e.target.value.split(',').map(o => o.trim()).filter(o => o) 
                         })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Option 1, Option 2, Option 3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Small, Medium, Large (separate with commas)"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Type each option separated by commas</p>
                     </div>
                   )}
 
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white rounded-lg p-3 border border-gray-300 hover:border-green-400">
                     <input
                       type="checkbox"
                       checked={newField.required}
                       onChange={(e) => setNewField({ ...newField, required: e.target.checked })}
-                      className="rounded"
+                      className="rounded w-5 h-5"
                     />
-                    <span className="text-sm font-medium text-gray-700">Required field</span>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">Required field</div>
+                      <div className="text-xs text-gray-500">Customer must answer this question</div>
+                    </div>
                   </label>
 
                   <button
                     onClick={addField}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all"
                   >
-                    <Plus /> Add Field
+                    <Plus /> Add This Field to Form
                   </button>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-6 border-t-2 border-gray-300">
                 <button
                   onClick={saveForm}
-                  className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 font-medium"
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 rounded-lg hover:from-green-700 hover:to-emerald-700 font-bold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
                 >
-                  {selectedForm ? 'Update Form' : 'Create Form'}
+                  <Save /> {selectedForm ? 'Save Changes' : 'Create Form'}
                 </button>
                 <button
                   onClick={() => {
                     setIsCreating(false);
                     setSelectedForm(null);
                   }}
-                  className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  className="px-6 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
                 >
                   Cancel
                 </button>
@@ -524,19 +626,22 @@ const CustomForms = () => {
               })}
 
               {forms.length === 0 && !isCreating && (
-                <div className="col-span-full text-center py-12">
-                  <FileText />
-                  <h3 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
-                    No Forms Yet
+                <div className="col-span-full text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+                  <div className="text-6xl mb-4">📋</div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    Ready to Collect Information?
                   </h3>
-                  <p className="text-gray-600 mb-6">
-                    Create your first form to start collecting data from customers
+                  <p className="text-gray-600 mb-3 max-w-md mx-auto">
+                    Forms help you gather specific information from customers in an organized way.
+                  </p>
+                  <p className="text-sm text-gray-500 mb-6 max-w-lg mx-auto">
+                    For example: A contact form can collect name, email, and message. Your bot asks each question, and all responses are saved here.
                   </p>
                   <button
                     onClick={createNewForm}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 inline-flex items-center gap-2 font-bold text-lg shadow-lg hover:shadow-xl transition-all"
                   >
-                    <Plus /> Create First Form
+                    <Plus /> Create Your First Form
                   </button>
                 </div>
               )}
