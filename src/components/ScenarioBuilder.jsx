@@ -387,12 +387,11 @@ const SCENARIO_TEMPLATES = [
 const ScenarioBuilder = () => {
   const [scenarios, setScenarios] = useState([]);
   const [activeScenario, setActiveScenario] = useState(null);
-  const [activeView, setActiveView] = useState('scenarios'); // 'scenarios' or 'templates'
+  const [activeView, setActiveView] = useState('scenarios');
   const [isCreating, setIsCreating] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [showHelp, setShowHelp] = useState(false);
 
-  // Form state for creating/editing scenarios
   const [scenarioForm, setScenarioForm] = useState({
     name: '',
     description: '',
@@ -401,7 +400,6 @@ const ScenarioBuilder = () => {
     steps: []
   });
 
-  // Step form state
   const [currentStep, setCurrentStep] = useState({
     type: 'message',
     content: '',
@@ -494,12 +492,10 @@ const ScenarioBuilder = () => {
     };
 
     if (activeScenario) {
-      // Update existing
       setScenarios(scenarios.map(s => 
         s.id === activeScenario.id ? newScenario : s
       ));
     } else {
-      // Add new
       setScenarios([...scenarios, newScenario]);
     }
 
@@ -549,7 +545,6 @@ const ScenarioBuilder = () => {
       steps: [...scenarioForm.steps, newStep]
     });
 
-    // Reset step form
     setCurrentStep({
       type: 'message',
       content: '',
@@ -658,7 +653,6 @@ const ScenarioBuilder = () => {
           </div>
         </div>
         
-        {/* Help Section */}
         {showHelp && (
           <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
             <div className="grid md:grid-cols-2 gap-6">
@@ -761,12 +755,9 @@ const ScenarioBuilder = () => {
         </div>
       )}
 
-      {/* Creation/Edit Form - continues from original file... */}
-      {/* Due to length, continuing with remaining JSX from original ScenarioBuilder.jsx */}
-      
+      {/* Creation/Edit Form */}
       {activeView === 'scenarios' && isCreating && (
         <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-          {/* ... rest of the creation form from original file ... */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
               {activeScenario ? 'Edit Scenario' : 'Create New Scenario'}
@@ -781,14 +772,209 @@ const ScenarioBuilder = () => {
               ✕ Close
             </button>
           </div>
-          
-          {/* Include all the form fields from the original file */}
-          {/* For brevity, I'll note that the rest continues as in the original */}
+
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Scenario Name *
+                </label>
+                <input
+                  type="text"
+                  value={scenarioForm.name}
+                  onChange={(e) => setScenarioForm({ ...scenarioForm, name: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Order Tracking, Return Process, Product Questions"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={scenarioForm.description}
+                  onChange={(e) => setScenarioForm({ ...scenarioForm, description: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="What does this scenario handle?"
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Trigger Type
+                  </label>
+                  <select
+                    value={scenarioForm.trigger}
+                    onChange={(e) => setScenarioForm({ ...scenarioForm, trigger: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="keyword">Keyword</option>
+                    <option value="url">URL</option>
+                    <option value="time">Time on Page</option>
+                    <option value="exit">Exit Intent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Trigger Value
+                  </label>
+                  <input
+                    type="text"
+                    value={scenarioForm.triggerValue}
+                    onChange={(e) => setScenarioForm({ ...scenarioForm, triggerValue: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder={
+                      scenarioForm.trigger === 'keyword' ? 'order, track, status' :
+                      scenarioForm.trigger === 'url' ? '/checkout' :
+                      scenarioForm.trigger === 'time' ? '30' : 'true'
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            {scenarioForm.steps.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold mb-3 text-gray-900">Steps ({scenarioForm.steps.length})</h3>
+                <div className="space-y-3">
+                  {scenarioForm.steps.map((step, index) => (
+                    <div key={step.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold">
+                              Step {index + 1}
+                            </span>
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium capitalize">
+                              {step.type}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-900">{step.content}</p>
+                          {step.expectedInput && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              Expected: <span className="font-medium">{step.expectedInput}</span>
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => moveStep(step.id, 'up')}
+                            disabled={index === 0}
+                            className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => moveStep(step.id, 'down')}
+                            disabled={index === scenarioForm.steps.length - 1}
+                            className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30"
+                          >
+                            ▼
+                          </button>
+                          <button
+                            onClick={() => removeStep(step.id)}
+                            className="p-1 text-red-600 hover:text-red-700"
+                          >
+                            <Trash />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-5 border-2 border-green-300">
+              <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Plus /> Add Step
+              </h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Step Type
+                  </label>
+                  <select
+                    value={currentStep.type}
+                    onChange={(e) => setCurrentStep({ ...currentStep, type: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="message">Message (Bot says something)</option>
+                    <option value="question">Question (Bot asks for input)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    {currentStep.type === 'message' ? 'What should the bot say?' : 'What question should the bot ask?'}
+                  </label>
+                  <textarea
+                    value={currentStep.content}
+                    onChange={(e) => setCurrentStep({ ...currentStep, content: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder={
+                      currentStep.type === 'message' 
+                        ? "I'll help you track your order!" 
+                        : "What's your order number?"
+                    }
+                  />
+                </div>
+
+                {currentStep.type === 'question' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Expected Input Type
+                    </label>
+                    <select
+                      value={currentStep.expectedInput}
+                      onChange={(e) => setCurrentStep({ ...currentStep, expectedInput: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="text">Text</option>
+                      <option value="email">Email</option>
+                      <option value="phone">Phone</option>
+                      <option value="number">Number</option>
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  onClick={addStep}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 flex items-center justify-center gap-2 font-semibold"
+                >
+                  <Plus /> Add This Step
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-6 border-t-2 border-gray-300">
+              <button
+                onClick={saveScenario}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-bold text-lg flex items-center justify-center gap-2"
+              >
+                <Save /> {activeScenario ? 'Save Changes' : 'Create Scenario'}
+              </button>
+              <button
+                onClick={() => {
+                  setIsCreating(false);
+                  setActiveScenario(null);
+                }}
+                className="px-6 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {activeView === 'scenarios' && !isCreating && (
-        /* Scenarios List */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {scenarios.map((scenario) => (
             <div
