@@ -23,7 +23,9 @@ import {
   ShoppingCart,
   Users,
   Shield,
-  Globe
+  Globe,
+  CreditCard,
+  UserCog
 } from 'lucide-react';
 
 const CleanModernNavigation = ({ 
@@ -185,6 +187,21 @@ const CleanModernNavigation = ({
       color: 'text-red-600'
     },
     {
+      id: 'users',
+      label: 'Users',
+      Icon: UserCog,
+      description: 'User Management',
+      color: 'text-indigo-600',
+      adminOnly: true
+    },
+    {
+      id: 'billing',
+      label: 'Billing',
+      Icon: CreditCard,
+      description: 'Plans & Subscription',
+      color: 'text-emerald-600'
+    },
+    {
       id: 'settings',
       label: 'Settings',
       Icon: Settings,
@@ -234,7 +251,9 @@ const CleanModernNavigation = ({
 
           {/* Navigation Items */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigationItems.map((item, index) => {
+            {navigationItems
+              .filter(item => !item.adminOnly || authService.isAdmin())
+              .map((item, index) => {
               // Render divider
               if (item.divider) {
                 return (
