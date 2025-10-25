@@ -1427,7 +1427,236 @@ export default async function handler(req, res) {
       
       return res.status(400).json({ error: 'Invalid auth action' });
     }
-
+// ============================================================
+    // SUBSCRIPTION MANAGEMENT
+    // ============================================================
+    if (endpoint === 'subscription' || endpoint === 'subscriptions') {
+      
+      // Get organization subscription details
+      if (action === 'get' || action === 'getSubscription') {
+        const { organizationId } = body;
+        
+        try {
+          const subscription = await sql`
+            SELECT 
+              os.*,
+              jsonb_build_object(
+                'id', sp.id,
+                'name', sp.name,
+                'display_name', sp.display_name,
+                'description', sp.description,
+                'price_monthly', sp.price_monthly,
+                'price_yearly', sp.price_yearly,
+                'features', sp.features,
+                'limits', sp.limits
+              ) as plan
+            FROM organization_subscriptions os
+            JOIN subscription_plans sp ON os.plan_id = sp.id
+            WHERE os.organization_id = ${organizationId}
+          `;
+          
+          return res.status(200).json(subscription[0] || null);
+        } catch (error) {
+          console.error('Error fetching subscription:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      // Get active add-ons
+      if (action === 'addons') {
+        const { organizationId } = body;
+        
+        try {
+          const addons = await sql`
+            SELECT 
+              oa.id,
+              oa.status,
+              oa.purchased_at,
+              fa.name,
+              fa.display_name,
+              fa.description,
+              fa.price_monthly,
+              fa.price_yearly,
+              fa.features
+            FROM organization_addons oa
+            JOIN feature_addons fa ON oa.addon_id = fa.id
+            WHERE oa.organization_id = ${organizationId}
+            AND oa.status = 'active'
+            AND (oa.expires_at IS NULL OR oa.expires_at > NOW())
+          `;
+          
+          return res.status(200).json(addons || []);
+        } catch (error) {
+          console.error('Error fetching addons:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'plans') {
+        try {
+          const plans = await sql`
+            SELECT * FROM subscription_plans
+            WHERE is_active = true
+            ORDER BY sort_order ASC
+          `;
+          return res.status(200).json(plans);
+        } catch (error) {
+          console.error('Error fetching plans:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'available-addons') {
+        try {
+          const addons = await sql`
+            SELECT * FROM feature_addons
+            WHERE is_active = true
+            ORDER BY name
+          `;
+          return res.status(200).json(addons);
+        } catch (error) {
+          console.error('Error fetching available addons:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'check-feature' || action === 'checkFeature') {
+        const { organizationId, featureKey } = body;
+        
+        try {
+          const result = await sql`
+            SELECT has_feature_access(${organizationId}::uuid, ${featureKey}::text) as has_access
+          `;
+          return res.status(200).json({ 
+            success: true, 
+            hasAccess: result[0].has_access 
+          });
+        } catch (error) {
+          console.error('Error checking feature access:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'check-limit') {
+        const { organizationId, featureKey } = body;
+        
+        try {
+          const result = await sql`
+            SELECT check_usage_limit(${organizationId}::uuid, ${featureKey}::text) as limit_info
+          `;
+          return res.status(200).json(result[0].limit_info);
+        } catch (error) {
+          console.error('Error checking usage limit:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'updatePlan') {
+        const { organizationId, planId, billingCycle } = body;
+        
+        try {
+          const result = await sql`
+            UPDATE organization_subscriptions
+            SET 
+              plan_id = ${planId},
+              billing_cycle = ${billingCycle || 'monthly'},
+              updated_at = NOW()
+            WHERE organization_id = ${organizationId}
+            RETURNING *
+          `;
+          
+          return res.status(200).json({ success: true, subscription: result[0] });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'addAddon') {
+        const { organizationId, featureId, billingCycle } = body;
+        
+        try {
+          const result = await sql`
+            INSERT INTO organization_addons 
+              (organization_id, feature_id, status, billing_cycle, current_period_end)
+            VALUES 
+              (${organizationId}, ${featureId}, 'active', ${billingCycle || 'monthly'}, NOW() + INTERVAL '1 month')
+            ON CONFLICT (organization_id, feature_id)
+            DO UPDATE SET
+              status = 'active',
+              updated_at = NOW()
+            RETURNING *
+          `;
+          
+          return res.status(200).json({ success: true, addon: result[0] });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'removeAddon') {
+        const { organizationId, featureId } = body;
+        
+        try {
+          await sql`
+            UPDATE organization_addons
+            SET status = 'cancelled', updated_at = NOW()
+            WHERE organization_id = ${organizationId}
+            AND feature_id = ${featureId}
+          `;
+          
+          return res.status(200).json({ success: true });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      if (action === 'getUsage') {
+        const { organizationId, startDate, endDate } = body;
+        
+        try {
+          const conversations = await sql`
+            SELECT COUNT(*) as count
+            FROM conversations
+            WHERE organization_id = ${organizationId}
+            AND created_at >= ${startDate}
+            AND created_at <= ${endDate}
+          `;
+          
+          const knowledgeBase = await sql`
+            SELECT COUNT(*) as count
+            FROM knowledge_base
+            WHERE organization_id = ${organizationId}
+          `;
+          
+          const botConfigs = await sql`
+            SELECT COUNT(*) as count
+            FROM bot_configs
+            WHERE organization_id = ${organizationId}
+          `;
+          
+          const agents = await sql`
+            SELECT COUNT(*) as count
+            FROM agents
+            WHERE organization_id = ${organizationId}
+            AND is_active = true
+          `;
+          
+          return res.status(200).json({ 
+            success: true, 
+            usage: {
+              conversations_this_period: parseInt(conversations[0].count),
+              knowledge_base_articles: parseInt(knowledgeBase[0].count),
+              bot_configs: parseInt(botConfigs[0].count),
+              team_members: parseInt(agents[0].count)
+            }
+          });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
+      return res.status(400).json({ error: 'Invalid subscription action' });
+    }
     // ============================================================
     // PRIVACY & COMPLIANCE OPERATIONS
     // ============================================================

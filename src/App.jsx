@@ -19,6 +19,7 @@ import ScenarioBuilder from './components/ScenarioBuilder.jsx';
 import CustomForms from './components/CustomForms.jsx';
 import SMSAgent from './components/SMSAgent.jsx';
 import PhoneAgent from './components/PhoneAgent.jsx';
+import BillingPage from './pages/BillingPage.jsx';
 
 import FAQ from './components/FAQ.jsx';
 import WidgetStudio from './components/WidgetStudio.jsx';
@@ -185,6 +186,7 @@ const App = () => {
     { id: 'integrations', name: 'Integrations', component: FullIntegrations },
     { id: 'security', name: 'Security', component: SecurityCompliance },
     ...(authService.isAdmin() ? [{ id: 'users', name: 'Users', component: UserManagement }] : []),
+    { id: 'billing', name: 'Billing', component: BillingPage },
     { id: 'settings', name: 'Settings', component: EnhancedSettings }
   ];
 
