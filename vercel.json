@@ -12,8 +12,8 @@
   },
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/consolidated"
+      "source": "/api/consolidated",
+      "destination": "/api/consolidated.js"
     },
     {
       "source": "/((?!api).*)",

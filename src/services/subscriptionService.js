@@ -1,5 +1,4 @@
 // Subscription Service - Feature Access Control
-import dbService from './dbService';
 
 class SubscriptionService {
   constructor() {
@@ -27,7 +26,8 @@ class SubscriptionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          endpoint: 'subscription/get',
+          endpoint: 'subscription',
+          action: 'get',
           organizationId
         })
       });
@@ -60,7 +60,8 @@ class SubscriptionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          endpoint: 'subscription/addons',
+          endpoint: 'subscription',
+          action: 'addons',
           organizationId
         })
       });
@@ -107,7 +108,8 @@ class SubscriptionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          endpoint: 'subscription/check-limit',
+          endpoint: 'subscription',
+          action: 'check-limit',
           organizationId,
           featureKey
         })
@@ -131,7 +133,8 @@ class SubscriptionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          endpoint: 'subscription/plans'
+          endpoint: 'subscription',
+          action: 'plans'
         })
       });
 
@@ -153,7 +156,8 @@ class SubscriptionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          endpoint: 'subscription/available-addons'
+          endpoint: 'subscription',
+          action: 'available-addons'
         })
       });
 
