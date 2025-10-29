@@ -1,11 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { dbService } from '../services/databaseService';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { exportCompleteReport, generatePrintableReport } from '../utils/exportAnalytics';
+import { Play, Pause, Calendar, Target, TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function Analytics() {
   const [timeRange, setTimeRange] = useState('7d');
   const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [showComparisonPicker, setShowComparisonPicker] = useState(false);
+  const [comparisonStartDate, setComparisonStartDate] = useState('');
+  const [comparisonEndDate, setComparisonEndDate] = useState('');
+  const [goalMode, setGoalMode] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goals, setGoals] = useState({
+    conversionRate: 5,
+    aiGeneratedSales: 10000,
+    aiGeneratedOrders: 100,
+    engagementRate: 60
+  });
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [previousData, setPreviousData] = useState(null);
+  const autoRefreshInterval = useRef(null);
+
   const [analyticsData, setAnalyticsData] = useState({
     insights: {
       shoppersIntelligence: {},
@@ -30,29 +51,67 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [timeRange]);
+  }, [timeRange, customStartDate, customEndDate]);
 
-  const fetchAnalytics = async () => {
+  // Comparison mode effect
+  useEffect(() => {
+    if (comparisonMode && comparisonStartDate && comparisonEndDate) {
+      const prevStartDate = new Date(comparisonStartDate);
+      const prevEndDate = new Date(comparisonEndDate);
+      fetchPreviousPeriodData(prevStartDate, prevEndDate);
+    } else if (!comparisonMode) {
+      setPreviousData(null);
+      setComparisonStartDate('');
+      setComparisonEndDate('');
+    }
+  }, [comparisonMode, comparisonStartDate, comparisonEndDate]);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshInterval.current = setInterval(() => {
+        fetchAnalytics();
+      }, 30000); // 30 seconds
+    } else {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+      }
+    }
+    return () => {
+      if (autoRefreshInterval.current) {
+        clearInterval(autoRefreshInterval.current);
+      }
+    };
+  }, [autoRefresh]);
+
+  const fetchAnalytics = async (isComparison = false) => {
     setLoading(true);
     try {
       // Calculate date range
-      const endDate = new Date();
-      const startDate = new Date();
-      switch(timeRange) {
-        case '24h':
-          startDate.setHours(startDate.getHours() - 24);
-          break;
-        case '7d':
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-        case '30d':
-          startDate.setDate(startDate.getDate() - 30);
-          break;
-        case '90d':
-          startDate.setDate(startDate.getDate() - 90);
-          break;
-        default:
-          startDate.setDate(startDate.getDate() - 7);
+      let endDate, startDate;
+
+      if (customStartDate && customEndDate) {
+        startDate = new Date(customStartDate);
+        endDate = new Date(customEndDate);
+      } else {
+        endDate = new Date();
+        startDate = new Date();
+        switch(timeRange) {
+          case '24h':
+            startDate.setHours(startDate.getHours() - 24);
+            break;
+          case '7d':
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+          case '30d':
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+          case '90d':
+            startDate.setDate(startDate.getDate() - 90);
+            break;
+          default:
+            startDate.setDate(startDate.getDate() - 7);
+        }
       }
 
       // Fetch conversations from Neon database
@@ -79,12 +138,62 @@ export default function Analytics() {
 
       // Process analytics
       processAnalytics(conversationsWithMessages);
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('Error fetching analytics:', error);
       // Show demo data on error
       processAnalytics([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPreviousPeriodData = async (prevStartDate, prevEndDate) => {
+    try {
+      const conversations = await dbService.getConversations('00000000-0000-0000-0000-000000000001');
+      const filteredConversations = conversations.filter(conv => {
+        const convDate = new Date(conv.created_at);
+        return convDate >= prevStartDate && convDate <= prevEndDate;
+      });
+
+      const conversationsWithMessages = await Promise.all(
+        filteredConversations.map(async (conv) => {
+          try {
+            const messages = await dbService.getMessages(conv.id);
+            return { ...conv, messages };
+          } catch (error) {
+            return { ...conv, messages: [] };
+          }
+        })
+      );
+
+      // Calculate previous period metrics
+      const totalConversations = conversationsWithMessages.length;
+      const aiGeneratedOrders = conversationsWithMessages.filter(c => c.metadata?.orderPlaced).length;
+      const aiGeneratedSales = conversationsWithMessages
+        .filter(c => c.metadata?.orderValue)
+        .reduce((sum, c) => sum + (c.metadata.orderValue || 0), 0);
+      const conversionRate = totalConversations > 0 ? (aiGeneratedOrders / totalConversations) * 100 : 0;
+      const engagedConversations = conversationsWithMessages.filter(c =>
+        (c.messages?.length || 0) >= 3
+      ).length;
+      const engagementRate = totalConversations > 0 ? (engagedConversations / totalConversations) * 100 : 0;
+
+      setPreviousData({
+        conversionRate,
+        aiGeneratedSales,
+        aiGeneratedOrders,
+        engagementRate
+      });
+    } catch (error) {
+      console.error('Error fetching previous period data:', error);
+      // Generate demo comparison data
+      setPreviousData({
+        conversionRate: 3.2,
+        aiGeneratedSales: 8500,
+        aiGeneratedOrders: 85,
+        engagementRate: 52
+      });
     }
   };
 
@@ -262,26 +371,85 @@ export default function Analytics() {
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  const calculateChange = (current, previous) => {
+    if (!previous || previous === 0) return null;
+    const change = ((current - previous) / previous) * 100;
+    return {
+      value: Math.abs(change).toFixed(1),
+      isPositive: change >= 0
+    };
+  };
+
+  const calculateGoalProgress = (current, goal) => {
+    if (!goal || goal === 0) return 0;
+    return Math.min((current / goal) * 100, 100);
+  };
+
+  const handleSaveGoals = () => {
+    setShowGoalModal(false);
+    // Goals are already saved in state
+  };
+
+  // Loading Skeleton Component
+  const LoadingSkeleton = () => (
+    <div className="p-6 max-w-[1800px] mx-auto space-y-6 animate-pulse">
+      {/* Header Skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-8 w-64 bg-gray-200 rounded mb-2"></div>
+          <div className="h-4 w-96 bg-gray-200 rounded"></div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-32 bg-gray-200 rounded"></div>
+          <div className="h-10 w-24 bg-gray-200 rounded"></div>
+          <div className="h-10 w-24 bg-gray-200 rounded"></div>
+        </div>
       </div>
-    );
+
+      {/* Metric Cards Skeleton */}
+      <div>
+        <div className="h-6 w-48 bg-gray-200 rounded mb-4"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(7)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm p-6">
+              <div className="h-4 w-32 bg-gray-200 rounded mb-4"></div>
+              <div className="h-8 w-24 bg-gray-200 rounded mb-2"></div>
+              <div className="h-3 w-20 bg-gray-200 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return <LoadingSkeleton />;
   }
 
   return (
     <div className="p-6 max-w-[1800px] mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-1">Comprehensive insights into your chatbot performance</p>
+          <p className="text-gray-600 mt-1">
+            Comprehensive insights into your chatbot performance
+            {lastRefresh && autoRefresh && (
+              <span className="ml-2 text-sm text-green-600">
+                Live (refreshed {lastRefresh.toLocaleTimeString()})
+              </span>
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value)}
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={timeRange}
+            onChange={(e) => {
+              setTimeRange(e.target.value);
+              setCustomStartDate('');
+              setCustomEndDate('');
+              setShowDatePicker(false);
+            }}
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
           >
             <option value="24h">Last 24 Hours</option>
@@ -289,7 +457,47 @@ export default function Analytics() {
             <option value="30d">Last 30 Days</option>
             <option value="90d">Last 90 Days</option>
           </select>
-          <button 
+
+          {/* Calendar Icon for Date Picker */}
+          <button
+            onClick={() => setShowDatePicker(!showDatePicker)}
+            className={`p-2 rounded-lg transition-colors ${
+              showDatePicker || (customStartDate && customEndDate)
+                ? 'bg-blue-100 text-blue-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Custom Date Range"
+          >
+            <Calendar size={20} />
+          </button>
+
+          {/* Auto-Refresh Toggle */}
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`p-2 rounded-lg transition-colors ${
+              autoRefresh
+                ? 'bg-green-100 text-green-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title={autoRefresh ? 'Pause Auto-Refresh' : 'Start Auto-Refresh'}
+          >
+            {autoRefresh ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+
+          {/* Goal Tracking Toggle */}
+          <button
+            onClick={() => setGoalMode(!goalMode)}
+            className={`p-2 rounded-lg transition-colors ${
+              goalMode
+                ? 'bg-purple-100 text-purple-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Goal Tracking"
+          >
+            <Target size={20} />
+          </button>
+
+          <button
             onClick={fetchAnalytics}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -302,21 +510,21 @@ export default function Analytics() {
               Export
             </button>
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-              <button 
+              <button
                 onClick={() => exportCompleteReport(analyticsData, 'csv')}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 rounded-t-lg"
               >
                 <i className="fas fa-file-csv mr-2"></i>
                 Export as CSV
               </button>
-              <button 
+              <button
                 onClick={() => exportCompleteReport(analyticsData, 'json')}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700"
               >
                 <i className="fas fa-file-code mr-2"></i>
                 Export as JSON
               </button>
-              <button 
+              <button
                 onClick={() => generatePrintableReport(analyticsData)}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm text-gray-700 rounded-b-lg"
               >
@@ -328,6 +536,133 @@ export default function Analytics() {
         </div>
       </div>
 
+      {/* Date Picker */}
+      {showDatePicker && (
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Custom Date Ranges</h3>
+
+          {/* Current Period */}
+          <div className="mb-6">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Current Period</h4>
+            <div className="flex items-end gap-4 flex-wrap">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (customStartDate && customEndDate) {
+                    fetchAnalytics();
+                  }
+                }}
+                disabled={!customStartDate || !customEndDate}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+              >
+                Apply Current Period
+              </button>
+            </div>
+          </div>
+
+          {/* Comparison Period */}
+          <div className="border-t pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="checkbox"
+                id="enableComparison"
+                checked={comparisonMode}
+                onChange={(e) => {
+                  setComparisonMode(e.target.checked);
+                  if (!e.target.checked) {
+                    setShowComparisonPicker(false);
+                  }
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="enableComparison" className="text-sm font-medium text-gray-700 cursor-pointer">
+                Compare to another period
+              </label>
+            </div>
+
+            {comparisonMode && (
+              <div className="flex items-end gap-4 flex-wrap ml-6">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Comparison Start Date</label>
+                  <input
+                    type="date"
+                    value={comparisonStartDate}
+                    onChange={(e) => setComparisonStartDate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Comparison End Date</label>
+                  <input
+                    type="date"
+                    value={comparisonEndDate}
+                    onChange={(e) => setComparisonEndDate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </div>
+                {comparisonStartDate && comparisonEndDate && (
+                  <div className="text-xs text-green-600 flex items-center gap-1">
+                    ✓ Comparison active
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Comparison Mode Info */}
+      {comparisonMode && comparisonStartDate && comparisonEndDate && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-blue-800 font-semibold">
+                Comparison Mode Active
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Current: {customStartDate || new Date(new Date().setDate(new Date().getDate() - 7)).toLocaleDateString()} - {customEndDate || new Date().toLocaleDateString()}
+                {' vs '}
+                Comparison: {new Date(comparisonStartDate).toLocaleDateString()} - {new Date(comparisonEndDate).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Goal Tracking Info */}
+      {goalMode && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-purple-800">
+              Goal tracking is enabled. Progress bars show completion towards your targets.
+            </p>
+            <button
+              onClick={() => setShowGoalModal(true)}
+              className="text-sm text-purple-600 hover:text-purple-700 font-semibold underline"
+            >
+              Edit Goals
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sales Metrics */}
       <div>
         <h2 className="text-xl font-bold text-gray-900 mb-4">Sales Performance</h2>
@@ -336,50 +671,54 @@ export default function Analytics() {
             title="Conversion Rate"
             value={`${analyticsData.sales.conversionRate}%`}
             icon="📈"
-            trend="+2.3%"
-            trendUp={true}
+            comparisonMode={comparisonMode}
+            change={comparisonMode && previousData ? calculateChange(parseFloat(analyticsData.sales.conversionRate), previousData.conversionRate) : null}
+            goalMode={goalMode}
+            goal={goals.conversionRate}
+            currentValue={parseFloat(analyticsData.sales.conversionRate)}
+            progress={goalMode ? calculateGoalProgress(parseFloat(analyticsData.sales.conversionRate), goals.conversionRate) : null}
           />
           <MetricCard
             title="AI Generated Sales"
             value={`$${analyticsData.sales.aiGeneratedSales}`}
             icon="💰"
-            trend="+$1,234"
-            trendUp={true}
+            comparisonMode={comparisonMode}
+            change={comparisonMode && previousData ? calculateChange(parseFloat(analyticsData.sales.aiGeneratedSales), previousData.aiGeneratedSales) : null}
+            goalMode={goalMode}
+            goal={goals.aiGeneratedSales}
+            currentValue={parseFloat(analyticsData.sales.aiGeneratedSales)}
+            progress={goalMode ? calculateGoalProgress(parseFloat(analyticsData.sales.aiGeneratedSales), goals.aiGeneratedSales) : null}
           />
           <MetricCard
             title="AI Generated Orders"
             value={analyticsData.sales.aiGeneratedOrders}
             icon="🛒"
-            trend="+15"
-            trendUp={true}
+            comparisonMode={comparisonMode}
+            change={comparisonMode && previousData ? calculateChange(analyticsData.sales.aiGeneratedOrders, previousData.aiGeneratedOrders) : null}
+            goalMode={goalMode}
+            goal={goals.aiGeneratedOrders}
+            currentValue={analyticsData.sales.aiGeneratedOrders}
+            progress={goalMode ? calculateGoalProgress(analyticsData.sales.aiGeneratedOrders, goals.aiGeneratedOrders) : null}
           />
           <MetricCard
             title="Average Order Value"
             value={`$${analyticsData.sales.aov}`}
             icon="💵"
-            trend="+$12"
-            trendUp={true}
           />
           <MetricCard
             title="PDP Redirects"
             value={analyticsData.sales.pdpRedirects}
             icon="🔗"
-            trend="+8"
-            trendUp={true}
           />
           <MetricCard
             title="Add to Cart"
             value={analyticsData.sales.addToCart}
             icon="🛍️"
-            trend="+12"
-            trendUp={true}
           />
           <MetricCard
             title="Conversations"
             value={analyticsData.sales.conversations}
             icon="💬"
-            trend="+45"
-            trendUp={true}
           />
         </div>
       </div>
@@ -393,6 +732,12 @@ export default function Analytics() {
             value={`${analyticsData.engagement.engagementRate}%`}
             icon="⚡"
             subtitle={`${analyticsData.engagement.totalEngaged} engaged conversations`}
+            comparisonMode={comparisonMode}
+            change={comparisonMode && previousData ? calculateChange(parseFloat(analyticsData.engagement.engagementRate), previousData.engagementRate) : null}
+            goalMode={goalMode}
+            goal={goals.engagementRate}
+            currentValue={parseFloat(analyticsData.engagement.engagementRate)}
+            progress={goalMode ? calculateGoalProgress(parseFloat(analyticsData.engagement.engagementRate), goals.engagementRate) : null}
           />
           <MetricCard
             title="Proactive Engagement"
@@ -553,12 +898,98 @@ export default function Analytics() {
           </PieChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Goal Modal */}
+      {showGoalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Set Your Goals</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Conversion Rate Goal (%)
+                </label>
+                <input
+                  type="number"
+                  value={goals.conversionRate}
+                  onChange={(e) => setGoals({ ...goals, conversionRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="e.g., 5"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  AI Generated Sales Goal ($)
+                </label>
+                <input
+                  type="number"
+                  value={goals.aiGeneratedSales}
+                  onChange={(e) => setGoals({ ...goals, aiGeneratedSales: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="e.g., 10000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  AI Generated Orders Goal
+                </label>
+                <input
+                  type="number"
+                  value={goals.aiGeneratedOrders}
+                  onChange={(e) => setGoals({ ...goals, aiGeneratedOrders: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="e.g., 100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Engagement Rate Goal (%)
+                </label>
+                <input
+                  type="number"
+                  value={goals.engagementRate}
+                  onChange={(e) => setGoals({ ...goals, engagementRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="e.g., 60"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowGoalModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveGoals}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Save Goals
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // Metric Card Component
-function MetricCard({ title, value, icon, trend, trendUp, subtitle }) {
+function MetricCard({
+  title,
+  value,
+  icon,
+  trend,
+  trendUp,
+  subtitle,
+  comparisonMode,
+  change,
+  goalMode,
+  goal,
+  currentValue,
+  progress
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
@@ -566,10 +997,46 @@ function MetricCard({ title, value, icon, trend, trendUp, subtitle }) {
         <span className="text-2xl">{icon}</span>
       </div>
       <p className="text-3xl font-bold text-gray-900 mb-2">{value}</p>
+
       {subtitle && (
         <p className="text-sm text-gray-600">{subtitle}</p>
       )}
-      {trend && (
+
+      {/* Comparison Mode - Show percentage change with arrows */}
+      {comparisonMode && change && (
+        <div className="flex items-center gap-1 mt-2">
+          {change.isPositive ? (
+            <TrendingUp size={16} className="text-green-600" />
+          ) : (
+            <TrendingDown size={16} className="text-red-600" />
+          )}
+          <span className={`text-sm font-semibold ${change.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            {change.value}%
+          </span>
+          <span className="text-xs text-gray-500">vs previous period</span>
+        </div>
+      )}
+
+      {/* Goal Mode - Show progress bar */}
+      {goalMode && goal && progress !== null && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+            <span>Goal: {goal}</span>
+            <span>{progress.toFixed(0)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-500 ${
+                progress >= 100 ? 'bg-green-500' : 'bg-blue-500'
+              }`}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
+      {/* Legacy trend display (fallback) */}
+      {!comparisonMode && trend && (
         <div className="flex items-center gap-1">
           <span className={`text-sm font-semibold ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
             {trendUp ? '↑' : '↓'} {trend}
