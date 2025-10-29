@@ -461,40 +461,40 @@ export default function Analytics() {
           {/* Calendar Icon for Date Picker */}
           <button
             onClick={() => setShowDatePicker(!showDatePicker)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               showDatePicker || (customStartDate && customEndDate)
                 ? 'bg-blue-100 text-blue-600'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
-            title="Custom Date Range"
           >
-            <Calendar size={20} />
+            <Calendar size={18} />
+            <span className="text-sm font-medium">Date Range</span>
           </button>
 
           {/* Auto-Refresh Toggle */}
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               autoRefresh
                 ? 'bg-green-100 text-green-600'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
-            title={autoRefresh ? 'Pause Auto-Refresh' : 'Start Auto-Refresh'}
           >
-            {autoRefresh ? <Pause size={20} /> : <Play size={20} />}
+            {autoRefresh ? <Pause size={18} /> : <Play size={18} />}
+            <span className="text-sm font-medium">{autoRefresh ? 'Live' : 'Auto-Refresh'}</span>
           </button>
 
           {/* Goal Tracking Toggle */}
           <button
             onClick={() => setGoalMode(!goalMode)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               goalMode
                 ? 'bg-purple-100 text-purple-600'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
-            title="Goal Tracking"
           >
-            <Target size={20} />
+            <Target size={18} />
+            <span className="text-sm font-medium">Goals</span>
           </button>
 
           <button
