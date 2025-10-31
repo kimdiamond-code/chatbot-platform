@@ -110,14 +110,22 @@ export default function Conversations() {
 
   const handleBulkDelete = async () => {
     try {
-      for (const convId of selectedConversations) {
-        await deleteConversation(convId)
-        if (selectedConversation?.id === convId) {
-          setSelectedConversation(null)
-        }
+      // Delete all selected conversations in parallel
+      await Promise.all(
+        selectedConversations.map(convId => deleteConversation(convId))
+      )
+      
+      // Clear selection if we deleted the selected conversation
+      if (selectedConversations.includes(selectedConversation?.id)) {
+        setSelectedConversation(null)
       }
+      
       setSelectedConversations([])
       setShowBulkDeleteConfirm(false)
+      
+      // Small delay to ensure backend completes
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       // Force immediate refetch
       await refetch()
       console.log('✅ Selected conversations deleted and list refreshed')
