@@ -24,6 +24,8 @@ import BillingPage from './pages/BillingPage.jsx';
 import FAQ from './components/FAQ.jsx';
 import WidgetStudio from './components/WidgetStudio.jsx';
 import WebhookManagement from './components/WebhookManagement.jsx';
+import { OnboardingManager } from './components/onboarding';
+import { TooltipProvider } from './components/onboarding';
 
 
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
@@ -194,30 +196,35 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <div className="min-h-screen gradient-background flex overflow-hidden">
-        <CleanModernNavigation
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          isMobile={isMobile}
-          realTimeMetrics={realTimeMetrics}
-        />
-
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <CleanHeader
+      <TooltipProvider>
+        <div className="min-h-screen gradient-background flex overflow-hidden">
+          <CleanModernNavigation
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
+            isMobile={isMobile}
             realTimeMetrics={realTimeMetrics}
           />
 
-          <main className="flex-1 overflow-y-auto glass-background">
-            <div className="min-h-full">
-              <ActiveComponent onNavigate={setActiveTab} />
-            </div>
-          </main>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <CleanHeader
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+              realTimeMetrics={realTimeMetrics}
+            />
+
+            <main className="flex-1 overflow-y-auto glass-background">
+              <div className="min-h-full">
+                <ActiveComponent onNavigate={setActiveTab} />
+              </div>
+            </main>
+          </div>
+
+          {/* Onboarding System */}
+          <OnboardingManager onNavigate={setActiveTab} />
         </div>
-      </div>
+      </TooltipProvider>
     </AuthProvider>
   );
 };
