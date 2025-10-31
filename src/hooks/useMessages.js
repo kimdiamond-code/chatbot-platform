@@ -45,6 +45,10 @@ export const useMessages = (conversationId) => {
           metadata: messageData.metadata || {}
         });
 
+        if (!savedMessage) {
+          throw new Error('Failed to save message - API returned null');
+        }
+
         console.log('✅ Message saved to database:', savedMessage.id);
 
         // 📊 ANALYTICS: Track message sent with new comprehensive tracker
@@ -197,6 +201,10 @@ export const useMessages = (conversationId) => {
 
   // Send a test customer message (for testing smart responses)
   const sendCustomerMessage = async (content, customerEmail = null) => {
+    if (!conversationId) {
+      throw new Error('No conversation selected. Please select a conversation first.');
+    }
+    
     return sendMessage({
       conversation_id: conversationId,
       content: content,

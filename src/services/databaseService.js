@@ -317,10 +317,17 @@ class DatabaseService {
     try {
       const result = await this.call('create_message', messageData);
       // API returns { message: {...} }
-      return result.message || result;
+      const message = result.message || result;
+      
+      if (!message || !message.id) {
+        console.error('❌ API returned invalid message:', result);
+        throw new Error('Invalid response from API - no message ID');
+      }
+      
+      return message;
     } catch (error) {
       console.error('Database createMessage error:', error);
-      return null;
+      throw error;
     }
   }
 

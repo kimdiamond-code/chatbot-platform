@@ -603,12 +603,12 @@ export default function Conversations() {
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
+                        if (e.key === 'Enter' && !e.shiftKey && inputMessage.trim()) {
                           e.preventDefault();
-                          if (inputMessage.trim()) {
-                            sendCustomerMessage(inputMessage.trim());
-                            setInputMessage('');
-                          }
+                          sendCustomerMessage(inputMessage.trim()).catch(err => {
+                            alert(err.message || 'Failed to send message');
+                          });
+                          setInputMessage('');
                         }
                       }}
                       placeholder="Type a message..."
@@ -618,11 +618,14 @@ export default function Conversations() {
                       type="button"
                       onClick={() => {
                         if (inputMessage.trim()) {
-                          sendCustomerMessage(inputMessage.trim());
+                          sendCustomerMessage(inputMessage.trim()).catch(err => {
+                            alert(err.message || 'Failed to send message');
+                          });
                           setInputMessage('');
                         }
                       }}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full font-medium text-sm"
+                      disabled={!inputMessage.trim()}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Send
                     </button>
