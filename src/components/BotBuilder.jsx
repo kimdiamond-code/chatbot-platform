@@ -72,7 +72,8 @@ const BotBuilder = () => {
       brandName: 'ChatBot',
       bubbleIcon: '💬',
       bubbleColor: '#3B82F6',
-      bubbleSize: 'large'
+      bubbleSize: 'large',
+      bubbleStyle: 'solid'
     }
   });
 
@@ -132,7 +133,8 @@ const BotBuilder = () => {
             brandName: 'ChatBot',
             bubbleIcon: '💬',
             bubbleColor: '#3B82F6',
-            bubbleSize: 'large'
+            bubbleSize: 'large',
+            bubbleStyle: 'solid'
           }
         };
         setBotConfig(appConfig);
@@ -317,8 +319,14 @@ const BotBuilder = () => {
     <div className="space-y-4">
       <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
         <h3 className="font-semibold text-gray-900 mb-3">Avatar</h3>
-        <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
-          {['🤖', '👨‍💼', '👩‍💼', '🧑‍💻', '👨‍🔧', '👩‍🔧', '🦸‍♂️', '🦸‍♀️', '🐶', '🐱', '🦊', '🐼'].map((avatar) => (
+        <div className="grid grid-cols-5 md:grid-cols-8 gap-2">
+          {[
+            '🤖', '👨‍💼', '👩‍💼', '🧑‍💻', '👨‍🔧', '👩‍🔧', 
+            '👨‍⚕️', '👩‍⚕️', '👨‍🏫', '👩‍🏫', '👨‍💻', '👩‍💻',
+            '🦸‍♂️', '🦸‍♀️', '👔', '💼', '🎯', '⚡',
+            '🌟', '💡', '🏆', '🎓', '📱', '💬',
+            '🐶', '🐱', '🦊', '🐼', '🦁', '🐻', '🐨', '🦉'
+          ].map((avatar) => (
             <button
               key={avatar}
               onClick={() => updateConfig('root', { avatar })}
@@ -332,6 +340,7 @@ const BotBuilder = () => {
             </button>
           ))}
         </div>
+        <p className="text-xs text-gray-500 mt-3">Choose an avatar that represents your brand</p>
       </div>
 
       <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">

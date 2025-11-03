@@ -178,121 +178,140 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
   };
 
   return (
-    <div 
-      className={`h-full flex flex-col ${borderRadiusMap[customization.borderRadius]} shadow-lg border border-gray-200 overflow-hidden`}
-      style={{ 
-        backgroundColor: customization.backgroundColor,
-        fontFamily: customization.fontFamily
-      }}
-    >
-      {/* Header */}
+    <div className="h-full flex flex-col items-end justify-end p-6 bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Preview Label */}
+      <div className="mb-2 text-right">
+        <p className="text-sm font-semibold text-gray-700">Website Widget Preview</p>
+        <p className="text-xs text-gray-500">This is how visitors will see your chatbot</p>
+      </div>
+      
+      {/* Widget Preview Container - positioned like on a website */}
       <div 
-        className="p-4 border-b border-gray-200 text-white relative"
+        className={`w-96 h-[600px] flex flex-col ${borderRadiusMap[customization.borderRadius]} shadow-2xl border border-gray-200 overflow-hidden`}
         style={{ 
-          backgroundColor: customization.primaryColor
+          backgroundColor: customization.backgroundColor,
+          fontFamily: customization.fontFamily
         }}
       >
-        <div className="flex items-center gap-3">
-          {customization.logo ? (
-            <img 
-              src={customization.logo} 
-              alt="Logo" 
-              className="w-10 h-10 rounded-full object-cover bg-white p-1"
-            />
-          ) : (
-            <span className="text-3xl">{botConfig.avatar}</span>
-          )}
-          <div>
-            <h3 className="font-semibold">{customization.brandName || botConfig.name}</h3>
-            <p className="text-xs opacity-90">Online • Live Preview</p>
+        {/* Header */}
+        <div 
+          className="p-3 border-b border-gray-200 text-white relative flex-shrink-0"
+          style={{ 
+            backgroundColor: customization.primaryColor
+          }}
+        >
+          <div className="flex items-center gap-2">
+            {customization.logo ? (
+              <img 
+                src={customization.logo} 
+                alt="Logo" 
+                className="w-8 h-8 rounded-full object-cover bg-white p-1"
+              />
+            ) : (
+              <span className="text-2xl">{botConfig.avatar}</span>
+            )}
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm">{customization.brandName || botConfig.name}</h3>
+              <p className="text-xs opacity-90">Online • Live Preview</p>
+            </div>
+            <button 
+              onClick={clearPreviewChat}
+              className="text-white hover:bg-white hover:bg-opacity-20 p-1.5 rounded text-xs"
+              title="Clear chat"
+            >
+              🔄
+            </button>
           </div>
         </div>
-        <button 
-          onClick={clearPreviewChat}
-          className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg text-xs"
-        >
-          🔄 Clear
-        </button>
-      </div>
       
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {chatMessages.map(msg => (
-          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div 
-              className={`max-w-xs px-4 py-2 ${borderRadiusMap[customization.borderRadius]} ${fontSizeMap[customization.fontSize]} ${
-                msg.sender === 'user' 
-                  ? 'text-white rounded-br-sm' 
-                  : 'shadow-sm rounded-bl-sm'
-              }`}
-              style={{
-                backgroundColor: msg.sender === 'user' ? customization.userMessageBg : customization.botMessageBg,
-                color: msg.sender === 'user' ? '#FFFFFF' : customization.textColor
-              }}
-            >
-              {msg.content}
-            </div>
-          </div>
-        ))}
-        
-        {isTyping && (
-          <div className="flex justify-start">
-            <div 
-              className={`px-4 py-2 ${borderRadiusMap[customization.borderRadius]} rounded-bl-sm shadow-sm`}
-              style={{
-                backgroundColor: customization.botMessageBg,
-                color: customization.textColor
-              }}
-            >
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: customization.primaryColor }}></div>
-                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: customization.primaryColor, animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: customization.primaryColor, animationDelay: '0.2s' }}></div>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {chatMessages.map(msg => (
+            <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div 
+                className={`max-w-[280px] px-3 py-2 ${borderRadiusMap[customization.borderRadius]} ${fontSizeMap[customization.fontSize]} ${
+                  msg.sender === 'user' 
+                    ? 'text-white rounded-br-sm' 
+                    : 'shadow-sm rounded-bl-sm'
+                }`}
+                style={{
+                  backgroundColor: msg.sender === 'user' ? customization.userMessageBg : customization.botMessageBg,
+                  color: msg.sender === 'user' ? '#FFFFFF' : customization.textColor
+                }}
+              >
+                {msg.content}
               </div>
             </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Input Area */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex space-x-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Test your bot..."
-            className={`flex-1 px-3 py-2 border border-gray-300 ${borderRadiusMap[customization.borderRadius]} focus:ring-2 ${fontSizeMap[customization.fontSize]}`}
-            style={{
-              focusRing: customization.primaryColor
-            }}
-            disabled={isTyping}
-          />
-          <button
-            type="button"
-            onClick={(e) => sendPreviewMessage(e)}
-            disabled={!newMessage.trim() || isTyping}
-            className={`text-white px-4 py-2 ${borderRadiusMap[customization.borderRadius]} disabled:opacity-50 disabled:cursor-not-allowed ${fontSizeMap[customization.fontSize]} font-medium transition-colors cursor-pointer`}
-            style={{
-              backgroundColor: customization.primaryColor,
-              ':hover': { backgroundColor: customization.secondaryColor }
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = customization.secondaryColor}
-            onMouseLeave={(e) => e.target.style.backgroundColor = customization.primaryColor}
-          >
-            {isTyping ? '...' : 'Send'}
-          </button>
+          ))}
+          
+          {isTyping && (
+            <div className="flex justify-start">
+              <div 
+                className={`px-3 py-2 ${borderRadiusMap[customization.borderRadius]} rounded-bl-sm shadow-sm`}
+                style={{
+                  backgroundColor: customization.botMessageBg,
+                  color: customization.textColor
+                }}
+              >
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: customization.primaryColor }}></div>
+                  <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: customization.primaryColor, animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: customization.primaryColor, animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
-        {/* Branding */}
-        {customization.showBranding && (
-          <div className="mt-3 text-center">
-            <p className="text-xs opacity-50" style={{ color: customization.textColor }}>
-              Powered by {customization.brandName || 'ChatBot Platform'}
-            </p>
+        {/* Input Area */}
+        <div className="p-3 border-t border-gray-200 flex-shrink-0">
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message..."
+              className={`flex-1 px-3 py-2 border border-gray-300 ${borderRadiusMap[customization.borderRadius]} focus:ring-2 ${fontSizeMap[customization.fontSize]}`}
+              style={{
+                focusRing: customization.primaryColor
+              }}
+              disabled={isTyping}
+            />
+            <button
+              type="button"
+              onClick={(e) => sendPreviewMessage(e)}
+              disabled={!newMessage.trim() || isTyping}
+              className={`text-white px-4 py-2 ${borderRadiusMap[customization.borderRadius]} disabled:opacity-50 disabled:cursor-not-allowed ${fontSizeMap[customization.fontSize]} font-medium transition-colors cursor-pointer`}
+              style={{
+                backgroundColor: customization.primaryColor,
+                ':hover': { backgroundColor: customization.secondaryColor }
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = customization.secondaryColor}
+              onMouseLeave={(e) => e.target.style.backgroundColor = customization.primaryColor}
+            >
+              {isTyping ? '...' : 'Send'}
+            </button>
           </div>
-        )}
+          
+          {/* Branding - Always show AgenStack.ai */}
+          {customization.showBranding && (
+            <div className="mt-2 text-center">
+              <a 
+                href="https://agenstack.ai" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs opacity-60 hover:opacity-100 transition-opacity inline-flex items-center gap-1"
+                style={{ color: customization.textColor }}
+              >
+                Powered by <span className="font-semibold">AgenStack.ai</span>
+              </a>
+              <p className="text-xs opacity-40 mt-1" style={{ color: customization.textColor }}>
+                Remove branding on Business & Enterprise plans
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

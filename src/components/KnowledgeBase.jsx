@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Book, Search, Plus, Edit, Trash2, Eye, FileText, Folder, Tag, Clock, TrendingUp, HelpCircle, Upload, Link2 } from 'lucide-react';
+import { authService } from '../services/authService';
 
 const KnowledgeBase = () => {
   const [activeTab, setActiveTab] = useState('articles');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const isAdmin = authService.isAdmin();
   
   const [articles, setArticles] = useState([
     {
@@ -54,11 +56,60 @@ const KnowledgeBase = () => {
       lastUpdated: '2024-03-20',
       tags: ['troubleshooting', 'support', 'FAQ'],
       status: 'published'
+    },
+    {
+      id: 5,
+      title: 'How to Set Up Your First Chatbot',
+      category: 'How-to Guides',
+      content: 'Step-by-step guide to creating and deploying your first chatbot in under 10 minutes...',
+      author: 'Admin',
+      views: 1823,
+      helpful: 91,
+      lastUpdated: '2024-03-19',
+      tags: ['how-to', 'setup', 'beginner'],
+      status: 'published'
+    },
+    {
+      id: 6,
+      title: 'How to Connect Shopify to Your Bot',
+      category: 'How-to Guides',
+      content: 'Complete walkthrough for integrating your Shopify store with the chatbot platform...',
+      author: 'Integration Team',
+      views: 1456,
+      helpful: 88,
+      lastUpdated: '2024-03-21',
+      tags: ['how-to', 'shopify', 'integration'],
+      status: 'published'
+    },
+    {
+      id: 7,
+      title: 'How to Train Your Bot with Custom Data',
+      category: 'How-to Guides',
+      content: 'Learn how to upload documents and train your bot with your own business knowledge...',
+      author: 'Tech Team',
+      views: 1289,
+      helpful: 85,
+      lastUpdated: '2024-03-18',
+      tags: ['how-to', 'training', 'AI'],
+      status: 'published'
+    },
+    {
+      id: 8,
+      title: 'How to Add Proactive Engagement Triggers',
+      category: 'How-to Guides',
+      content: 'Guide to setting up automated messages based on user behavior and site activity...',
+      author: 'Marketing Team',
+      views: 967,
+      helpful: 83,
+      lastUpdated: '2024-03-17',
+      tags: ['how-to', 'proactive', 'engagement'],
+      status: 'published'
     }
   ]);
 
   const [categories] = useState([
     { name: 'Getting Started', count: 12, icon: '🚀' },
+    { name: 'How-to Guides', count: 18, icon: '📖' },
     { name: 'Advanced Features', count: 8, icon: '⚡' },
     { name: 'Integrations', count: 15, icon: '🔌' },
     { name: 'Troubleshooting', count: 6, icon: '🔧' },
@@ -241,8 +292,8 @@ const KnowledgeBase = () => {
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Knowledge Base</h1>
-        <p className="text-gray-600">Manage help articles, documentation, and web scraping for intelligent bot responses</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Help Center / FAQs</h1>
+        <p className="text-gray-600">Manage help articles, documentation, and resources for customer support</p>
       </div>
 
       {/* Stats */}
@@ -358,12 +409,14 @@ const KnowledgeBase = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  New Article
+                    />
+                    </div>
+                    {isAdmin && (
+                    <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
+                      <Plus className="w-4 h-4" />
+                        New Article
                 </button>
+              )}
               </div>
 
               {/* Articles Grid */}
@@ -403,15 +456,19 @@ const KnowledgeBase = () => {
                     </div>
                     
                     <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                      <button className="flex-1 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors">
-                        Edit
-                      </button>
+                      {isAdmin && (
+                        <button className="flex-1 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors">
+                          Edit
+                        </button>
+                      )}
                       <button className="flex-1 py-1 text-gray-600 hover:bg-gray-50 rounded text-sm transition-colors">
                         Preview
                       </button>
-                      <button className="flex-1 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors">
-                        Delete
-                      </button>
+                      {isAdmin && (
+                        <button className="flex-1 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors">
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -737,7 +794,7 @@ const KnowledgeBase = () => {
 
       {activeTab === 'analytics' && (
         <div className="glass-premium p-6 rounded-xl">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Knowledge Base Analytics</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Help Center Analytics</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-4 bg-white border border-gray-200 rounded-lg">

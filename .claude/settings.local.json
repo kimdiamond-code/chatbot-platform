@@ -6,7 +6,12 @@
       "Bash(git push:*)",
       "Bash(vercel:*)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(./QUICK_DEPLOY.bat)",
+      "Bash(if [ -d \"node_modules/cheerio\" ])",
+      "Bash(then echo \"[OK] Cheerio already installed, skipping...\")",
+      "Bash(else echo \"[1/3] Installing cheerio...\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

@@ -385,28 +385,42 @@ const CustomizationTab = ({ botConfig, updateConfig }) => {
       {/* Typography */}
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="text-xl">📝</span> Typography
+          <span className="text-xl">📝</span> Typography & Font
         </h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4">
           {/* Font Family */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Font Family
             </label>
-            <select
-              value={customization.fontFamily}
-              onChange={(e) => updateConfig('customization', { fontFamily: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="system-ui">System Default</option>
-              <option value="Inter">Inter</option>
-              <option value="Roboto">Roboto</option>
-              <option value="Open Sans">Open Sans</option>
-              <option value="Lato">Lato</option>
-              <option value="Montserrat">Montserrat</option>
-              <option value="Poppins">Poppins</option>
-            </select>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'system-ui', label: 'System' },
+                { value: 'Inter', label: 'Inter' },
+                { value: 'Roboto', label: 'Roboto' },
+                { value: 'Open Sans', label: 'Open Sans' },
+                { value: 'Lato', label: 'Lato' },
+                { value: 'Montserrat', label: 'Montserrat' },
+                { value: 'Poppins', label: 'Poppins' },
+                { value: 'Arial', label: 'Arial' },
+                { value: 'Helvetica', label: 'Helvetica' },
+                { value: 'Georgia', label: 'Georgia' }
+              ].map((font) => (
+                <button
+                  key={font.value}
+                  onClick={() => updateConfig('customization', { fontFamily: font.value })}
+                  className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
+                    customization.fontFamily === font.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  style={{ fontFamily: font.value }}
+                >
+                  {font.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Font Size */}
@@ -414,15 +428,39 @@ const CustomizationTab = ({ botConfig, updateConfig }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Font Size
             </label>
-            <select
-              value={customization.fontSize}
-              onChange={(e) => updateConfig('customization', { fontSize: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'small', label: 'Small (12px)' },
+                { value: 'medium', label: 'Medium (14px)' },
+                { value: 'large', label: 'Large (16px)' }
+              ].map((size) => (
+                <button
+                  key={size.value}
+                  onClick={() => updateConfig('customization', { fontSize: size.value })}
+                  className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
+                    customization.fontSize === size.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {size.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Preview Text */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <p className="text-xs text-gray-500 mb-2">Preview:</p>
+            <p 
+              className={`${
+                customization.fontSize === 'small' ? 'text-xs' :
+                customization.fontSize === 'large' ? 'text-base' : 'text-sm'
+              }`}
+              style={{ fontFamily: customization.fontFamily }}
             >
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large</option>
-            </select>
+              The quick brown fox jumps over the lazy dog. This is how your chat text will look.
+            </p>
           </div>
         </div>
       </div>
@@ -510,17 +548,17 @@ const CustomizationTab = ({ botConfig, updateConfig }) => {
       {/* Chat Bubble */}
       <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="text-xl">💬</span> Chat Bubble Preview
+          <span className="text-xl">💬</span> Chat Bubble Launcher
         </h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4">
           {/* Bubble Icon */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Icon
+              Bubble Icon
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {['💬', '💭', '🤖', '👋', '💡', '❓', '📧', '✨'].map((icon) => (
+            <div className="grid grid-cols-6 md:grid-cols-10 gap-2">
+              {['💬', '💭', '🤖', '👋', '💡', '❓', '📧', '✨', '👍', '❤️', '🌟', '🔔', '🏆', '🎯', '🚀', '💻', '📱', '👥', '☎️', '📨'].map((icon) => (
                 <button
                   key={icon}
                   onClick={() => updateConfig('customization', { bubbleIcon: icon })}
@@ -536,66 +574,117 @@ const CustomizationTab = ({ botConfig, updateConfig }) => {
             </div>
           </div>
 
-          {/* Bubble Color */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bubble Color
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={customization.bubbleColor}
-                onChange={(e) => updateConfig('customization', { bubbleColor: e.target.value })}
-                className="w-12 h-12 rounded-lg border-2 border-gray-300 cursor-pointer"
-              />
-              <input
-                type="text"
-                value={customization.bubbleColor}
-                onChange={(e) => updateConfig('customization', { bubbleColor: e.target.value })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-              />
+          {/* Bubble Styling */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Bubble Color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bubble Color
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={customization.bubbleColor}
+                  onChange={(e) => updateConfig('customization', { bubbleColor: e.target.value })}
+                  className="w-12 h-12 rounded-lg border-2 border-gray-300 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={customization.bubbleColor}
+                  onChange={(e) => updateConfig('customization', { bubbleColor: e.target.value })}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Bubble Size */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bubble Size
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'small', label: 'Small' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'large', label: 'Large' }
+                ].map((size) => (
+                  <button
+                    key={size.value}
+                    onClick={() => updateConfig('customization', { bubbleSize: size.value })}
+                    className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
+                      customization.bubbleSize === size.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {size.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-
-          {/* Bubble Size */}
+          
+          {/* Bubble Style Options */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bubble Size
+              Bubble Style
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {['small', 'medium', 'large'].map((size) => (
+              {[
+                { value: 'solid', label: 'Solid', desc: 'Filled background' },
+                { value: 'outline', label: 'Outline', desc: 'Border only' },
+                { value: 'gradient', label: 'Gradient', desc: 'Modern gradient' }
+              ].map((style) => (
                 <button
-                  key={size}
-                  onClick={() => updateConfig('customization', { bubbleSize: size })}
-                  className={`px-3 py-2 rounded-lg border-2 transition-all text-sm capitalize ${
-                    customization.bubbleSize === size
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  key={style.value}
+                  onClick={() => updateConfig('customization', { bubbleStyle: style.value })}
+                  className={`px-3 py-3 rounded-lg border-2 transition-all text-left ${
+                    (customization.bubbleStyle || 'solid') === style.value
+                      ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  {size}
+                  <div className="text-sm font-medium">{style.label}</div>
+                  <div className="text-xs text-gray-500">{style.desc}</div>
                 </button>
               ))}
             </div>
           </div>
           
           {/* Live Preview */}
-          <div className="col-span-2">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Preview
+              Live Preview
             </label>
-            <div className="bg-gray-100 rounded-lg p-8 flex justify-end items-end" style={{ minHeight: '120px' }}>
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-8 flex justify-end items-end" style={{ minHeight: '150px' }}>
               <button
-                className={`flex items-center justify-center shadow-lg transition-all hover:scale-105 ${
-                  customization.bubbleSize === 'small' ? 'w-12 h-12' :
-                  customization.bubbleSize === 'large' ? 'w-16 h-16' :
-                  'w-14 h-14'
-                } rounded-full`}
-                style={{ backgroundColor: customization.bubbleColor }}
+                className={`flex items-center justify-center shadow-xl transition-all hover:scale-110 rounded-full ${
+                  customization.bubbleSize === 'small' ? 'w-12 h-12 text-xl' :
+                  customization.bubbleSize === 'large' ? 'w-20 h-20 text-3xl' :
+                  'w-16 h-16 text-2xl'
+                } ${
+                  (customization.bubbleStyle || 'solid') === 'outline' ? 'bg-white border-4' :
+                  (customization.bubbleStyle || 'solid') === 'gradient' ? 'bg-gradient-to-br' : ''
+                }`}
+                style={{ 
+                  backgroundColor: (customization.bubbleStyle || 'solid') === 'solid' ? customization.bubbleColor : 'white',
+                  borderColor: (customization.bubbleStyle || 'solid') === 'outline' ? customization.bubbleColor : 'transparent',
+                  backgroundImage: (customization.bubbleStyle || 'solid') === 'gradient' ? 
+                    `linear-gradient(135deg, ${customization.bubbleColor}, ${customization.primaryColor})` : 'none'
+                }}
               >
-                <span className="text-2xl">{customization.bubbleIcon}</span>
+                <span 
+                  style={{ 
+                    color: (customization.bubbleStyle || 'solid') === 'outline' ? customization.bubbleColor : 'white' 
+                  }}
+                >
+                  {customization.bubbleIcon}
+                </span>
               </button>
             </div>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              This is how your chat bubble will appear on your website
+            </p>
           </div>
         </div>
       </div>

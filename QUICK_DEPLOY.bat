@@ -43,6 +43,6 @@ echo ========================================
 echo   DONE!
 echo ========================================
 echo.
-echo Functions deployed: 5 / 12 (41%% used)
+echo Functions deployed: 5 / 12 (41% used)
 echo.
 pause
