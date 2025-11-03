@@ -135,4 +135,4 @@ class BackendPromptSecurity {
   }
 }
 
-module.exports = new BackendPromptSecurity();
+export default new BackendPromptSecurity();

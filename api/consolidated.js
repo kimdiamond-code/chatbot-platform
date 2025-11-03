@@ -4,7 +4,7 @@
 // ===================================================================
 
 import { getDatabase } from './database-config.js';
-const promptSecurity = require('./promptSecurityBackend.js');
+import promptSecurity from './promptSecurityBackend.js';
 
 let sql;
 try {
