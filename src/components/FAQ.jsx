@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { HelpCircle, Search, Plus, Edit, Trash2, Link2, FileText, ChevronDown, ChevronUp, ExternalLink, Tag, TrendingUp } from 'lucide-react';
+import { authService } from '../services/authService';
 
 const FAQ = () => {
   const [activeTab, setActiveTab] = useState('faqs');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const isAdmin = authService.isAdmin();
   
   const [faqs, setFaqs] = useState([
     {
@@ -154,35 +156,75 @@ const FAQ = () => {
     },
     {
       id: 2,
-      title: 'Advanced Bot Configuration',
-      description: 'Deep dive into personality settings, custom intents, and workflow automation.',
-      category: 'Advanced',
-      readTime: '12 min',
-      views: 1456
+      title: 'How to Set Up Your First Chatbot',
+      description: 'Step-by-step guide to creating and deploying your first chatbot in under 10 minutes.',
+      category: 'Getting Started',
+      readTime: '10 min',
+      views: 1823
     },
     {
       id: 3,
-      title: 'Shopify Product Recommendations',
-      description: 'Set up intelligent product recommendations based on customer behavior.',
-      category: 'E-Commerce',
+      title: 'How to Connect Shopify to Your Bot',
+      description: 'Complete walkthrough for integrating your Shopify store with the chatbot platform.',
+      category: 'Integrations',
       readTime: '8 min',
-      views: 987
+      views: 1456
     },
     {
       id: 4,
-      title: 'Proactive Messaging Strategies',
-      description: 'Best practices for engaging visitors at the right time with the right message.',
-      category: 'Proactive',
-      readTime: '10 min',
-      views: 1234
+      title: 'How to Train Your Bot with Custom Data',
+      description: 'Learn how to upload documents and train your bot with your own business knowledge.',
+      category: 'AI Training',
+      readTime: '12 min',
+      views: 1289
     },
     {
       id: 5,
-      title: 'CRM Integration Best Practices',
-      description: 'How to sync customer data and conversation history with your CRM.',
-      category: 'Integrations',
+      title: 'How to Add Proactive Engagement Triggers',
+      description: 'Guide to setting up automated messages based on user behavior and site activity.',
+      category: 'Proactive Engagement',
+      readTime: '10 min',
+      views: 967
+    },
+    {
+      id: 6,
+      title: 'Advanced Bot Configuration',
+      description: 'Deep dive into personality settings, custom intents, and workflow automation.',
+      category: 'Advanced',
+      readTime: '14 min',
+      views: 892
+    },
+    {
+      id: 7,
+      title: 'Shopify Product Recommendations Setup',
+      description: 'Set up intelligent product recommendations based on customer behavior and preferences.',
+      category: 'E-Commerce',
       readTime: '9 min',
-      views: 876
+      views: 856
+    },
+    {
+      id: 8,
+      title: 'Proactive Messaging Strategies',
+      description: 'Best practices for engaging visitors at the right time with the right message.',
+      category: 'Proactive Engagement',
+      readTime: '11 min',
+      views: 743
+    },
+    {
+      id: 9,
+      title: 'CRM Integration Best Practices',
+      description: 'How to sync customer data and conversation history with your CRM system.',
+      category: 'Integrations',
+      readTime: '13 min',
+      views: 678
+    },
+    {
+      id: 10,
+      title: 'Widget Customization Guide',
+      description: 'Customize your chat widget to match your brand perfectly with colors, fonts, and positioning.',
+      category: 'Customization',
+      readTime: '7 min',
+      views: 621
     }
   ]);
 
@@ -203,7 +245,7 @@ const FAQ = () => {
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">FAQ & Help Center</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Help Center / FAQs</h1>
         <p className="text-gray-600">Find answers to common questions and browse helpful guides</p>
       </div>
 
@@ -250,7 +292,7 @@ const FAQ = () => {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto">
-        {['faqs', 'how_to_articles', 'popular', 'add_faq'].map((tab) => (
+        {['faqs', 'how_to_articles', 'popular', ...(isAdmin ? ['add_faq'] : [])].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
