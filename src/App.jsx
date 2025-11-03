@@ -180,7 +180,7 @@ const App = () => {
     { id: 'multichannel', name: 'Channels', component: MultiChannelSupport },
     { id: 'sms', name: 'SMS', component: SMSAgent },
     { id: 'phone', name: 'Phone', component: PhoneAgent },
-    { id: 'faq', name: 'FAQ', component: FAQ },
+    { id: 'faq', name: 'Help Center/FAQs', component: FAQ },
     { id: 'widget', name: 'Widget', component: WidgetStudio },
     
     { id: 'webhooks', name: 'Webhooks', component: WebhookManagement },

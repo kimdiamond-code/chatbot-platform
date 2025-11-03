@@ -7,6 +7,7 @@ const FAQ = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const isAdmin = authService.isAdmin();
   
   const [faqs, setFaqs] = useState([
@@ -444,7 +445,128 @@ const FAQ = () => {
         </div>
       )}
 
-      {activeTab === 'how_to_articles' && (
+      {activeTab === 'how_to_articles' && selectedArticle && (
+        <div className="glass-premium p-8 rounded-xl max-w-4xl mx-auto">
+          <button 
+            onClick={() => setSelectedArticle(null)}
+            className="mb-6 flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium"
+          >
+            ← Back to All Articles
+          </button>
+          
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <FileText className="w-8 h-8 text-blue-600" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{selectedArticle.title}</h1>
+                <div className="flex items-center gap-3 text-sm text-gray-500 mt-2">
+                  <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded">{selectedArticle.category}</span>
+                  <span>⏱️ {selectedArticle.readTime}</span>
+                  <span>👁️ {selectedArticle.views} views</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-lg text-gray-600 mb-6">{selectedArticle.description}</p>
+          </div>
+          
+          <div className="prose prose-blue max-w-none">
+            <div className="bg-blue-50 border-l-4 border-blue-600 p-4 mb-6">
+              <p className="text-sm font-medium text-blue-900">📘 What you'll learn in this guide:</p>
+              <ul className="text-sm text-blue-800 mt-2 space-y-1">
+                <li>Step-by-step instructions with screenshots</li>
+                <li>Best practices and tips from experts</li>
+                <li>Common troubleshooting solutions</li>
+                <li>Video tutorials and examples</li>
+              </ul>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Introduction</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              This comprehensive guide will walk you through everything you need to know about {selectedArticle.title.toLowerCase()}. 
+              Whether you're a beginner or an advanced user, you'll find valuable insights and practical tips to help you succeed.
+            </p>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 1: Getting Started</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Before diving in, make sure you have access to your dashboard and all necessary permissions. 
+              Navigate to the relevant section in your platform to begin the setup process.
+            </p>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 my-6">
+              <p className="text-sm font-medium text-gray-900 mb-2">💡 Pro Tip:</p>
+              <p className="text-sm text-gray-700">
+                Always test your configuration in a staging environment before deploying to production. 
+                This helps catch potential issues early and ensures a smooth rollout.
+              </p>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 2: Configuration</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Configure your settings according to your specific needs. Pay attention to:
+            </p>
+            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
+              <li>Authentication and security settings</li>
+              <li>Integration endpoints and API keys</li>
+              <li>Notification preferences</li>
+              <li>Data retention policies</li>
+            </ul>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 3: Testing & Validation</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Once configured, thoroughly test all functionality to ensure everything works as expected. 
+              Use the built-in testing tools and review the logs for any errors or warnings.
+            </p>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-6">
+              <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Important:</p>
+              <p className="text-sm text-yellow-800">
+                Document your configuration settings and keep them in a secure location. 
+                This will be invaluable for troubleshooting and future updates.
+              </p>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Best Practices</h2>
+            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
+              <li>Regularly review and update your configuration</li>
+              <li>Monitor performance metrics and optimize as needed</li>
+              <li>Keep detailed documentation of changes</li>
+              <li>Stay informed about platform updates and new features</li>
+            </ul>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Troubleshooting</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              If you encounter issues, check the following:
+            </p>
+            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
+              <li>Verify all credentials and API keys are correct</li>
+              <li>Check network connectivity and firewall settings</li>
+              <li>Review error logs for specific error messages</li>
+              <li>Consult the support documentation or contact support</li>
+            </ul>
+            
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 my-6">
+              <p className="text-sm font-medium text-green-900 mb-2">✅ Next Steps:</p>
+              <p className="text-sm text-green-800">
+                Now that you've completed this guide, explore advanced features and integrations to get the most out of the platform.
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Was this guide helpful?</h3>
+            <div className="flex gap-3">
+              <button className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2">
+                👍 Yes, very helpful
+              </button>
+              <button className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2">
+                👎 Needs improvement
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'how_to_articles' && !selectedArticle && (
         <div className="glass-premium p-6 rounded-xl">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">How-To Articles & Guides</h2>
           
@@ -463,7 +585,10 @@ const FAQ = () => {
                     </div>
                   </div>
                 </div>
-                <button className="w-full mt-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => setSelectedArticle(article)}
+                  className="w-full mt-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                >
                   Read Guide
                   <ExternalLink className="w-4 h-4" />
                 </button>
