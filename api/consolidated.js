@@ -4,6 +4,7 @@
 // ===================================================================
 
 import { getDatabase } from './database-config.js';
+const promptSecurity = require('./promptSecurityBackend.js');
 
 let sql;
 try {
@@ -1010,7 +1011,20 @@ export default async function handler(req, res) {
     if (endpoint === 'openai') {
       if (action === 'chat') {
         const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 500 } = body;
-        
+
+        // Security validation
+        try {
+          promptSecurity.validateMessages(messages);
+          const orgId = body.organizationId || 'default';
+          const ip = req.headers['x-forwarded-for'] || 'unknown';
+          promptSecurity.checkRateLimit(orgId, ip);
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            error: 'Security validation failed'
+          });
+        }
+
         try {
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
