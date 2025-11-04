@@ -1,32 +1,28 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { authService } from './services/authService';
+import rbacService, { PERMISSIONS } from './services/rbacService';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
-import UserManagement from './pages/UserManagement.jsx';
 import CleanModernNavigation, { CleanHeader } from './components/CleanModernNavigation.jsx';
 import EnhancedDashboard from './components/EnhancedDashboard.jsx';
 import FullBotBuilder from './components/BotBuilder.jsx';
-import FullIntegrations from './components/Integrations.jsx';
 import Conversations from './components/Conversations.jsx';
 import Analytics from './components/Analytics.jsx';
 import ProactiveEngagement from './components/ProactiveEngagement.jsx';
 import CRMCustomerContext from './components/CRMCustomerContext.jsx';
 import ECommerceSupport from './components/ECommerceSupport.jsx';
 import MultiChannelSupport from './components/MultiChannelSupport.jsx';
-import SecurityCompliance from './components/SecurityCompliance.jsx';
 import ScenarioBuilder from './components/ScenarioBuilder.jsx';
 import CustomForms from './components/CustomForms.jsx';
 import SMSAgent from './components/SMSAgent.jsx';
 import PhoneAgent from './components/PhoneAgent.jsx';
 import BillingPage from './pages/BillingPage.jsx';
-
 import FAQ from './components/FAQ.jsx';
-import WidgetStudio from './components/WidgetStudio.jsx';
-import WebhookManagement from './components/WebhookManagement.jsx';
+import WidgetStudioSimplified from './components/WidgetStudioSimplified.jsx';
+import AdminPanel from './components/AdminPanel.jsx';
 import { OnboardingManager } from './components/onboarding';
 import { TooltipProvider } from './components/onboarding';
-
 
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
 import { debugEnvVars } from './utils/debugEnv.js';
@@ -80,8 +76,8 @@ const EnhancedSettings = () => (
           <p className="text-sm text-gray-600">Platform preferences and defaults</p>
         </div>
         <div className="glass-dynamic p-6 rounded-xl">
-          <h3 className="font-bold text-lg text-purple-900 mb-2">Security & Access</h3>
-          <p className="text-sm text-gray-600">User permissions and authentication</p>
+          <h3 className="font-bold text-lg text-purple-900 mb-2">Profile Settings</h3>
+          <p className="text-sm text-gray-600">Your account and preferences</p>
         </div>
         <div className="glass-dynamic p-6 rounded-xl">
           <h3 className="font-bold text-lg text-green-900 mb-2">Notifications</h3>
@@ -108,23 +104,31 @@ const App = () => {
   });
 
   useEffect(() => {
+    // Initialize RBAC with current user role
+    if (currentUser) {
+      rbacService.setUserRole(currentUser.role || 'user');
+    }
+
     // Subscribe to auth changes
     const unsubscribe = authService.subscribe((user) => {
       setIsAuthenticated(!!user);
       setCurrentUser(user);
+      if (user) {
+        rbacService.setUserRole(user.role || 'user');
+      }
     });
 
     return unsubscribe;
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     // Check for OAuth success redirect
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('shopify') === 'connected') {
-      setActiveTab('integrations');
+      setActiveTab('admin');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    console.log('🚀 agenstack.ai chat - v2.0');
+    console.log('🚀 agenstack.ai chat - v2.0 with RBAC');
     
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -168,31 +172,72 @@ const App = () => {
   }
   */
 
-  const navigation = [
-    { id: 'dashboard', name: 'Dashboard', component: EnhancedDashboard },
-    { id: 'botbuilder', name: 'Bot Builder', component: BotBuilder },
-    { id: 'conversations', name: 'Conversations', component: EnhancedConversations },
-    { id: 'scenarios', name: 'Scenarios', component: ScenarioBuilder },
-    { id: 'forms', name: 'Forms', component: CustomForms },
-    { id: 'proactive', name: 'Proactive', component: ProactiveEngagement },
-    { id: 'crm', name: 'CRM', component: CRMCustomerContext },
-    { id: 'ecommerce', name: 'E-Commerce', component: ECommerceSupport },
-    { id: 'multichannel', name: 'Channels', component: MultiChannelSupport },
-    { id: 'sms', name: 'SMS', component: SMSAgent },
-    { id: 'phone', name: 'Phone', component: PhoneAgent },
-    { id: 'faq', name: 'Help Center/FAQs', component: FAQ },
-    { id: 'widget', name: 'Widget', component: WidgetStudio },
+  // ALL AVAILABLE NAVIGATION ITEMS (before filtering)
+  const allNavigation = [
+    // User-accessible features
+    { id: 'dashboard', name: 'Dashboard', component: EnhancedDashboard, feature: 'dashboard' },
+    { id: 'conversations', name: 'Conversations', component: EnhancedConversations, feature: 'conversations' },
+    { id: 'widget', name: 'Widget', component: WidgetStudioSimplified, feature: 'widget' },
+    { id: 'analytics', name: 'Analytics', component: Analytics, feature: 'analytics' },
+    { id: 'settings', name: 'Settings', component: EnhancedSettings, feature: 'settings' },
     
-    { id: 'webhooks', name: 'Webhooks', component: WebhookManagement },
-    { id: 'analytics', name: 'Analytics', component: Analytics },
-    { id: 'integrations', name: 'Integrations', component: FullIntegrations },
-    { id: 'security', name: 'Security', component: SecurityCompliance },
-    ...(authService.isAdmin() ? [{ id: 'users', name: 'Users', component: UserManagement }] : []),
-    { id: 'billing', name: 'Billing', component: BillingPage },
-    { id: 'settings', name: 'Settings', component: EnhancedSettings }
+    // Manager+ features
+    { id: 'botbuilder', name: 'Bot Builder', component: BotBuilder, feature: 'botbuilder' },
+    { id: 'scenarios', name: 'Scenarios', component: ScenarioBuilder, feature: 'scenarios' },
+    { id: 'forms', name: 'Forms', component: CustomForms, feature: 'forms' },
+    { id: 'proactive', name: 'Proactive', component: ProactiveEngagement, feature: 'proactive' },
+    { id: 'crm', name: 'CRM', component: CRMCustomerContext, feature: 'crm' },
+    { id: 'ecommerce', name: 'E-Commerce', component: ECommerceSupport, feature: 'ecommerce' },
+    { id: 'multichannel', name: 'Channels', component: MultiChannelSupport, feature: 'multichannel' },
+    { id: 'sms', name: 'SMS', component: SMSAgent, feature: 'sms' },
+    { id: 'phone', name: 'Phone', component: PhoneAgent, feature: 'phone' },
+    { id: 'faq', name: 'Help Center/FAQs', component: FAQ, feature: 'faq' },
+    { id: 'billing', name: 'Billing', component: BillingPage, feature: 'billing' },
+    
+    // Admin/Developer ONLY - Consolidated in Admin Panel
+    { 
+      id: 'admin', 
+      name: '🔒 Admin Panel', 
+      component: AdminPanel, 
+      feature: 'admin',
+      adminOnly: true,
+      description: 'Webhooks, API Keys, Security, Users'
+    }
   ];
 
+  // FILTER NAVIGATION BASED ON USER ROLE
+  const navigation = allNavigation.filter(nav => {
+    // If no feature specified, allow all
+    if (!nav.feature) return true;
+    
+    // Admin-only features
+    if (nav.adminOnly) {
+      return rbacService.isAdminOrDeveloper();
+    }
+    
+    // Check if user can access this feature
+    return rbacService.canAccessFeature(nav.feature);
+  });
+
   const ActiveComponent = navigation.find(nav => nav.id === activeTab)?.component || EnhancedDashboard;
+
+  // Show role indicator in dev mode (remove in production)
+  const roleIndicator = currentUser && (
+    <div className="fixed bottom-4 right-4 z-50 bg-white rounded-lg shadow-lg p-3 border-2 border-blue-500">
+      <div className="text-xs text-gray-600">Current Role:</div>
+      <div className={`text-sm font-bold px-2 py-1 rounded ${rbacService.getRoleBadgeColor(currentUser.role)}`}>
+        {rbacService.getRoleDisplayName(currentUser.role)}
+      </div>
+      <div className="text-xs text-gray-500 mt-1">
+        {navigation.length} features accessible
+      </div>
+      {rbacService.isAdminOrDeveloper() && (
+        <div className="text-xs text-red-600 font-semibold mt-1">
+          🔒 Admin Access
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <AuthProvider>
@@ -205,6 +250,7 @@ const App = () => {
             setSidebarOpen={setSidebarOpen}
             isMobile={isMobile}
             realTimeMetrics={realTimeMetrics}
+            navigation={navigation}
           />
 
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -223,6 +269,9 @@ const App = () => {
 
           {/* Onboarding System */}
           <OnboardingManager onNavigate={setActiveTab} />
+
+          {/* Dev Role Indicator - Remove in production */}
+          {roleIndicator}
         </div>
       </TooltipProvider>
     </AuthProvider>
