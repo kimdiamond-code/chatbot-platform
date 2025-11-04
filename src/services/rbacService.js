@@ -115,6 +115,8 @@ const rolePermissions = {
     PERMISSIONS.MANAGE_FORMS,
     PERMISSIONS.VIEW_BILLING,
     PERMISSIONS.VIEW_WIDGET_CODE, // Button only, not full code
+    PERMISSIONS.VIEW_INTEGRATIONS, // Can see integrations but not API keys
+    PERMISSIONS.MANAGE_INTEGRATIONS, // Can connect/disconnect integrations
   ],
   
   [ROLES.USER]: [
@@ -141,7 +143,7 @@ export const FEATURE_ACCESS = {
   widget: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT, ROLES.USER],
   webhooks: [ROLES.ADMIN, ROLES.DEVELOPER], // ADMIN/DEV ONLY - Hidden from AGENT
   analytics: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT],
-  integrations: [ROLES.ADMIN, ROLES.DEVELOPER], // ADMIN/DEV ONLY - Hidden from AGENT
+  integrations: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT], // Added AGENT - can connect integrations, no API keys
   security: [ROLES.ADMIN, ROLES.DEVELOPER], // ADMIN/DEV ONLY - Hidden from AGENT
   users: [ROLES.ADMIN], // ADMIN ONLY - Hidden from AGENT
   billing: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT], // Added AGENT

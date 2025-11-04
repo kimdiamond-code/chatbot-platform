@@ -21,6 +21,7 @@ import BillingPage from './pages/BillingPage.jsx';
 import FAQ from './components/FAQ.jsx';
 import WidgetStudioSimplified from './components/WidgetStudioSimplified.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
+import Integrations from './components/Integrations.jsx';
 import { OnboardingManager } from './components/onboarding';
 import { TooltipProvider } from './components/onboarding';
 
@@ -177,8 +178,7 @@ const App = () => {
     { id: 'conversations', name: 'Conversations', component: EnhancedConversations, feature: 'conversations' },
     { id: 'widget', name: 'Widget', component: WidgetStudioSimplified, feature: 'widget' },
     { id: 'analytics', name: 'Analytics', component: Analytics, feature: 'analytics' },
-    { id: 'settings', name: 'Settings', component: EnhancedSettings, feature: 'settings' },
-    
+
     // Manager+ features
     { id: 'botbuilder', name: 'Bot Builder', component: BotBuilder, feature: 'botbuilder' },
     { id: 'scenarios', name: 'Scenarios', component: ScenarioBuilder, feature: 'scenarios' },
@@ -190,13 +190,17 @@ const App = () => {
     { id: 'sms', name: 'SMS', component: SMSAgent, feature: 'sms' },
     { id: 'phone', name: 'Phone', component: PhoneAgent, feature: 'phone' },
     { id: 'faq', name: 'Help Center/FAQs', component: FAQ, feature: 'faq' },
-    { id: 'billing', name: 'Billing', component: BillingPage, feature: 'billing' },
-    
+    { id: 'integrations', name: 'Integrations', component: Integrations, feature: 'integrations' },
+
+    // Account section
+    { id: 'billing', name: 'Billing', component: BillingPage, feature: 'billing', section: 'account' },
+    { id: 'settings', name: 'Settings', component: EnhancedSettings, feature: 'settings', section: 'account' },
+
     // Admin/Developer ONLY - Consolidated in Admin Panel
-    { 
-      id: 'admin', 
-      name: '🔒 Admin Panel', 
-      component: AdminPanel, 
+    {
+      id: 'admin',
+      name: '🔒 Admin Panel',
+      component: AdminPanel,
       feature: 'admin',
       adminOnly: true,
       description: 'Webhooks, API Keys, Security, Users'
