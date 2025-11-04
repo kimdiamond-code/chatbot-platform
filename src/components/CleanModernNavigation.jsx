@@ -28,13 +28,14 @@ import {
   UserCog
 } from 'lucide-react';
 
-const CleanModernNavigation = ({ 
-  activeTab, 
-  setActiveTab, 
-  sidebarOpen, 
-  setSidebarOpen, 
+const CleanModernNavigation = ({
+  activeTab,
+  setActiveTab,
+  sidebarOpen,
+  setSidebarOpen,
   isMobile,
-  realTimeMetrics = {} 
+  realTimeMetrics = {},
+  navigation = [] // RBAC-filtered navigation from App.jsx
 }) => {
   // Enhanced navigation items with professional icons - Organized by category
   const navigationItems = [
@@ -210,6 +211,12 @@ const CleanModernNavigation = ({
     }
   ];
 
+  // Filter navigation items based on RBAC permissions from App.jsx
+  const allowedIds = navigation.map(nav => nav.id);
+  const filteredNavigationItems = navigationItems.filter(item =>
+    item.divider || allowedIds.includes(item.id)
+  );
+
   // Enhanced navigation click
   const handleNavClick = (itemId) => {
     setActiveTab(itemId);
@@ -251,9 +258,7 @@ const CleanModernNavigation = ({
 
           {/* Navigation Items */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigationItems
-              .filter(item => !item.adminOnly || authService.isAdmin())
-              .map((item, index) => {
+            {filteredNavigationItems.map((item, index) => {
               // Render divider
               if (item.divider) {
                 return (
