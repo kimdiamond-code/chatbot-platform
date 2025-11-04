@@ -1266,10 +1266,10 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'Email already registered. Please login.' });
           }
           
-          // Create new user with 'admin' role by default (for demo/testing)
+          // Create new user with 'agent' role by default
           const result = await sql`
             INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
-            VALUES ('00000000-0000-0000-0000-000000000001', ${email}, ${name}, 'admin', ${password}, true)
+            VALUES ('00000000-0000-0000-0000-000000000001', ${email}, ${name}, 'agent', ${password}, true)
             RETURNING id, email, name, role, organization_id
           `;
           
