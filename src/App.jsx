@@ -148,11 +148,10 @@ const App = () => {
     };
   }, []);
 
-  // Authentication check disabled for development
-  /* Temporarily disabled
+  // Authentication check - ENABLED
   if (!isAuthenticated) {
     if (showSignup) {
-      return <Signup 
+      return <Signup
         onSignupSuccess={() => {
           setIsAuthenticated(true);
           setCurrentUser(authService.getCurrentUser());
@@ -161,8 +160,8 @@ const App = () => {
         onSwitchToLogin={() => setShowSignup(false)}
       />;
     }
-    
-    return <Login 
+
+    return <Login
       onLoginSuccess={() => {
         setIsAuthenticated(true);
         setCurrentUser(authService.getCurrentUser());
@@ -170,7 +169,6 @@ const App = () => {
       onSwitchToSignup={() => setShowSignup(true)}
     />;
   }
-  */
 
   // ALL AVAILABLE NAVIGATION ITEMS (before filtering)
   const allNavigation = [
