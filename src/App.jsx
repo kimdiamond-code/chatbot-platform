@@ -93,7 +93,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Force authenticated for development
+  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
   const [showSignup, setShowSignup] = useState(false);
   const [realTimeMetrics, setRealTimeMetrics] = useState({
