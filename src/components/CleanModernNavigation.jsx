@@ -213,9 +213,36 @@ const CleanModernNavigation = ({
 
   // Filter navigation items based on RBAC permissions from App.jsx
   const allowedIds = navigation.map(nav => nav.id);
-  const filteredNavigationItems = navigationItems.filter(item =>
-    item.divider || allowedIds.includes(item.id)
-  );
+  
+  // Filter items and remove empty sections
+  const filteredItems = [];
+  let lastWasDivider = false;
+  
+  for (let i = 0; i < navigationItems.length; i++) {
+    const item = navigationItems[i];
+    
+    if (item.divider) {
+      // Check if there are any allowed items after this divider
+      const hasItemsAfter = navigationItems.slice(i + 1).some(
+        nextItem => !nextItem.divider && allowedIds.includes(nextItem.id)
+      );
+      
+      if (hasItemsAfter && !lastWasDivider) {
+        filteredItems.push(item);
+        lastWasDivider = true;
+      }
+    } else if (allowedIds.includes(item.id)) {
+      filteredItems.push(item);
+      lastWasDivider = false;
+    }
+  }
+  
+  // Remove trailing divider if exists
+  if (filteredItems.length > 0 && filteredItems[filteredItems.length - 1].divider) {
+    filteredItems.pop();
+  }
+  
+  const filteredNavigationItems = filteredItems;
 
   // Enhanced navigation click
   const handleNavClick = (itemId) => {
