@@ -109,58 +109,10 @@ const CleanModernNavigation = ({
       description: 'Widget Studio',
       color: 'text-fuchsia-600'
     },
-    {
-      id: 'testwebsite',
-      label: 'Test Website',
-      Icon: Globe,
-      description: 'Test on your site',
-      color: 'text-blue-600'
-    },
-    
-    // DIVIDER
-    { divider: true, label: 'Channels' },
-    
-    // CHANNELS
-    {
-      id: 'multichannel',
-      label: 'Channels',
-      Icon: MessageCircle,
-      description: 'Multi-Channel',
-      color: 'text-violet-600'
-    },
-    {
-      id: 'sms',
-      label: 'SMS',
-      Icon: MessageCircle,
-      description: 'SMS Agent',
-      color: 'text-lime-600'
-    },
-    {
-      id: 'phone',
-      label: 'Phone',
-      Icon: Phone,
-      description: 'Phone Agent',
-      color: 'text-amber-600'
-    },
     
     // DIVIDER
     { divider: true, label: 'Integrations' },
     
-    // INTEGRATIONS & DATA
-    {
-      id: 'crm',
-      label: 'CRM',
-      Icon: Users,
-      description: 'Customer Context',
-      color: 'text-cyan-600'
-    },
-    {
-      id: 'ecommerce',
-      label: 'E-Commerce',
-      Icon: ShoppingCart,
-      description: 'Product Support',
-      color: 'text-rose-600'
-    },
     {
       id: 'integrations',
       label: 'Integrations',
@@ -168,31 +120,17 @@ const CleanModernNavigation = ({
       description: 'Connect Services',
       color: 'text-orange-600'
     },
-    {
-      id: 'webhooks',
-      label: 'Webhooks',
-      Icon: Webhook,
-      description: 'Webhook Management',
-      color: 'text-sky-600'
-    },
     
     // DIVIDER
     { divider: true, label: 'System' },
     
-    // SYSTEM
+    // ADMIN PANEL - Single consolidated entry
     {
-      id: 'security',
-      label: 'Security',
+      id: 'admin',
+      label: '🔒 Admin Panel',
       Icon: Shield,
-      description: 'Compliance',
-      color: 'text-red-600'
-    },
-    {
-      id: 'users',
-      label: 'Users',
-      Icon: UserCog,
-      description: 'User Management',
-      color: 'text-indigo-600',
+      description: 'CRM, E-Commerce, Channels, Webhooks, Security, Users',
+      color: 'text-red-600',
       adminOnly: true
     },
     {

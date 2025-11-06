@@ -38,6 +38,30 @@ const AdminPanel = () => {
       description: 'Admin panel dashboard'
     },
     {
+      id: 'crm',
+      name: 'CRM',
+      icon: Users,
+      color: 'cyan',
+      description: 'Customer relationship management',
+      adminOnly: true
+    },
+    {
+      id: 'ecommerce',
+      name: 'E-Commerce',
+      icon: Settings,
+      color: 'rose',
+      description: 'Product support and order management',
+      adminOnly: true
+    },
+    {
+      id: 'multichannel',
+      name: 'Multi-Channel',
+      icon: Settings,
+      color: 'violet',
+      description: 'Messaging channels configuration',
+      adminOnly: true
+    },
+    {
       id: 'webhooks',
       name: 'Webhooks',
       icon: Webhook,
@@ -184,6 +208,9 @@ const AdminPanel = () => {
 
             {/* Section Content */}
             <div className="bg-white rounded-xl shadow-lg p-8">
+              {activeSection === 'crm' && <CRMSection />}
+              {activeSection === 'ecommerce' && <ECommerceSection />}
+              {activeSection === 'multichannel' && <MultiChannelSection />}
               {activeSection === 'webhooks' && <WebhooksSection />}
               {activeSection === 'api-keys' && <APIKeysSection />}
               {activeSection === 'widget-code' && <WidgetCodeSection />}
@@ -196,6 +223,87 @@ const AdminPanel = () => {
     </div>
   );
 };
+
+// CRM Section
+const CRMSection = () => (
+  <div>
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+        <Users className="w-5 h-5 text-cyan-600" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">CRM</h2>
+        <p className="text-sm text-gray-600">Customer relationship management</p>
+      </div>
+    </div>
+
+    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4 mb-6">
+      <p className="text-sm text-blue-800">
+        <strong>Admin Feature:</strong> Full CRM component will be loaded here.
+      </p>
+    </div>
+
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <p className="text-sm text-gray-600">
+        Import full CRMCustomerContext component for complete functionality
+      </p>
+    </div>
+  </div>
+);
+
+// E-Commerce Section
+const ECommerceSection = () => (
+  <div>
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+        <Settings className="w-5 h-5 text-rose-600" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">E-Commerce</h2>
+        <p className="text-sm text-gray-600">Product support and order management</p>
+      </div>
+    </div>
+
+    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4 mb-6">
+      <p className="text-sm text-blue-800">
+        <strong>Admin Feature:</strong> Full E-Commerce component will be loaded here.
+      </p>
+    </div>
+
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <p className="text-sm text-gray-600">
+        Import full ECommerceSupport component for complete functionality
+      </p>
+    </div>
+  </div>
+);
+
+// Multi-Channel Section
+const MultiChannelSection = () => (
+  <div>
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
+        <Settings className="w-5 h-5 text-violet-600" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">Multi-Channel</h2>
+        <p className="text-sm text-gray-600">Messaging channels configuration</p>
+      </div>
+    </div>
+
+    <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4 mb-6">
+      <p className="text-sm text-blue-800">
+        <strong>Admin Feature:</strong> Full Multi-Channel component will be loaded here.
+      </p>
+    </div>
+
+    <div className="p-4 bg-gray-50 rounded-lg">
+      <p className="text-sm text-gray-600">
+        Import full MultiChannelSupport component for complete functionality
+      </p>
+    </div>
+  </div>
+);
 
 // Webhooks Section
 const WebhooksSection = () => (
