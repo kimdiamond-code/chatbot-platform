@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import dbService from '../services/databaseService';
 import { apiKeysService } from '../services/apiKeysService.js';
+import rbacService, { PERMISSIONS } from '../services/rbacService';
 import ShopifyOAuthConfiguration from './ShopifyOAuthConfiguration.jsx';
 import KustomerOAuthIntegration from './integrations/KustomerOAuthIntegration.jsx';
 import MessengerIntegration from './integrations/MessengerIntegration.jsx';
@@ -502,7 +503,8 @@ const FullIntegrations = () => {
         </div>
       </div>
 
-      {/* API Keys Status Section */}
+      {/* API Keys Status Section - Admin/Developer Only */}
+      {rbacService.hasPermission(PERMISSIONS.VIEW_API_KEYS) && (
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -555,11 +557,12 @@ const FullIntegrations = () => {
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
             💡 <strong>Tip:</strong> OpenAI API key is required for smart bot responses. Other integrations like Kustomer can be connected directly through the integration cards below - no environment variables needed!
-          </p>
-        </div>
-      </div>
+            </p>
+            </div>
+            </div>
+    )}
 
-      {/* Integration Grid */}
+    {/* Integration Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredIntegrations.map(integration => (
           <div

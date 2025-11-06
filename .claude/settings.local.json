@@ -11,7 +11,11 @@
       "Bash(if [ -d \"node_modules/cheerio\" ])",
       "Bash(then echo \"[OK] Cheerio already installed, skipping...\")",
       "Bash(else echo \"[1/3] Installing cheerio...\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(./ACTIVATE_SECURITY.bat)",
+      "Bash(./DEPLOY_WITH_SECURITY.bat)",
+      "Bash(./ACTIVATE_ADMIN_PANEL.bat)",
+      "Bash(./DEPLOY_ADMIN_PANEL.bat)"
     ],
     "deny": [],
     "ask": []
