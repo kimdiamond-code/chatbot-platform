@@ -1,7 +1,7 @@
 // Training Service - Manages AI Training Data
 // Stores and retrieves training conversations for bot improvement
 
-import { dbService } from './dbService';
+import databaseService from './databaseService.js';
 
 class TrainingService {
   constructor() {
@@ -16,15 +16,14 @@ class TrainingService {
     try {
       console.log('📚 Marking conversations for training:', conversationIds);
 
-      // In production, you'd store this in database
-      // For now, we'll fetch and cache them
-      const conversations = await dbService.getConversations();
+      // Fetch conversations from database
+      const conversations = await databaseService.getConversations();
       const selectedConvs = conversations.filter(c => conversationIds.includes(c.id));
 
       // Fetch messages for each conversation
       const trainingExamples = [];
       for (const conv of selectedConvs) {
-        const messages = await dbService.getMessages(conv.id);
+        const messages = await databaseService.getMessages(conv.id);
         if (messages.length > 0) {
           trainingExamples.push({
             conversationId: conv.id,
