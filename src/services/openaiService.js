@@ -1,8 +1,9 @@
 // ChatBot Service with OpenAI Integration - SECURED VERSION
 // Handles AI responses, knowledge base, and conversation management
-// WITH PROMPT INJECTION PROTECTION
+// WITH PROMPT INJECTION PROTECTION AND TRAINING
 
 import promptSecurityService from './promptSecurity.js';
+import trainingService from './trainingService.js';
 
 // Utility functions
 const retryDelay = (attempt) => Math.min(1000 * Math.pow(2, attempt), 10000);
@@ -91,7 +92,7 @@ class ChatBotService {
     this.conversations = new Map(); // Store conversation contexts
     this.knowledgeBase = new Map(); // Store bot knowledge bases
     this.openaiClient = null; // Initialize lazily
-    this.maxPromptLength = 4000; // Maximum length for system prompts
+    this.maxPromptLength = 8000; // Increased for training examples
     this.maxRetries = 3; // Maximum number of retries for API calls
     
     // Base system prompt (will be secured automatically)
@@ -187,7 +188,7 @@ class ChatBotService {
 
   /**
    * Generate AI response using OpenAI API via backend proxy
-   * WITH PROMPT INJECTION PROTECTION
+   * WITH PROMPT INJECTION PROTECTION AND TRAINING DATA
    */
   async generateResponse(userMessage, conversationId, customerContext = {}) {
     try {
@@ -224,15 +225,23 @@ class ChatBotService {
         conversation.systemPrompt = this.defaultSystemPrompt;
       }
 
+      // ADD TRAINING CONTEXT to system prompt
+      let enhancedSystemPrompt = conversation.systemPrompt;
+      const trainingContext = trainingService.getTrainingContext();
+      if (trainingContext) {
+        enhancedSystemPrompt = conversation.systemPrompt + trainingContext;
+        console.log('📚 Added training context to bot prompt');
+      }
+
       // SECURITY: Create safe user message object
       const safeUserMessage = {
         role: 'user',
         content: sanitizedMessage
       };
 
-      // Build messages array for OpenAI with security-locked system prompt
+      // Build messages array for OpenAI with security-locked system prompt + training
       const messages = [
-        { role: 'system', content: conversation.systemPrompt }, // Security-locked prompt
+        { role: 'system', content: enhancedSystemPrompt }, // Security-locked prompt + training
         ...conversation.messages.slice(-10), // Keep last 10 messages for context
         safeUserMessage
       ];
@@ -269,7 +278,7 @@ class ChatBotService {
       );
       this.conversations.set(conversationId, conversation);
 
-      console.log('✅ OpenAI response generated securely');
+      console.log('✅ OpenAI response generated securely with training data');
       
       return {
         response: aiResponse,
@@ -278,7 +287,8 @@ class ChatBotService {
         metadata: {
           model: 'gpt-4o-mini',
           tokens: data.usage?.total_tokens || 0,
-          securityChecked: true
+          securityChecked: true,
+          trainingApplied: !!trainingContext
         }
       };
     } catch (error) {
@@ -306,6 +316,13 @@ class ChatBotService {
    */
   getSecurityStats() {
     return promptSecurityService.getSecurityStats();
+  }
+
+  /**
+   * Get training statistics
+   */
+  getTrainingStats() {
+    return trainingService.getStats();
   }
 }
 
@@ -355,6 +372,11 @@ if (typeof window !== 'undefined') {
   // Test prompt injection detection
   window.testPromptSecurity = (testMessage) => {
     return promptSecurityService.detectInjection(testMessage, 'test-conversation');
+  };
+
+  // Get training stats
+  window.getTrainingStats = () => {
+    return service.getTrainingStats();
   };
 }
 
