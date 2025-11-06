@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
-import { Book, Search, Plus, Edit, Trash2, Eye, FileText, Folder, Tag, Clock, TrendingUp, HelpCircle, Upload, Link2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Book, Search, Plus, Edit, Trash2, Eye, FileText, Folder, Tag, Clock, TrendingUp, HelpCircle, Upload, Link2, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
 import { authService } from '../services/authService';
+import { dbService } from '../services/dbService';
 
 const KnowledgeBase = () => {
   const [activeTab, setActiveTab] = useState('articles');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const isAdmin = authService.isAdmin();
+  
+  // Conversations for AI Training
+  const [conversations, setConversations] = useState([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [selectedConversations, setSelectedConversations] = useState([]);
+  const [conversationSearch, setConversationSearch] = useState('');
   
   const [articles, setArticles] = useState([
     {
@@ -183,6 +190,63 @@ const KnowledgeBase = () => {
     maxResults: 5
   });
 
+  // Fetch conversations when AI Training tab is active
+  useEffect(() => {
+    if (activeTab === 'ai_training') {
+      fetchConversations();
+    }
+  }, [activeTab]);
+
+  const fetchConversations = async () => {
+    setConversationsLoading(true);
+    try {
+      const data = await dbService.getConversations();
+      console.log('✅ Fetched conversations for training:', data.length);
+      setConversations(data);
+    } catch (error) {
+      console.error('❌ Failed to fetch conversations:', error);
+      setConversations([]);
+    } finally {
+      setConversationsLoading(false);
+    }
+  };
+
+  const toggleConversationSelection = (convId) => {
+    setSelectedConversations(prev =>
+      prev.includes(convId)
+        ? prev.filter(id => id !== convId)
+        : [...prev, convId]
+    );
+  };
+
+  const selectAllConversations = () => {
+    if (selectedConversations.length === filteredConversations.length) {
+      setSelectedConversations([]);
+    } else {
+      setSelectedConversations(filteredConversations.map(c => c.id));
+    }
+  };
+
+  const handleTrainWithSelected = () => {
+    if (selectedConversations.length === 0) {
+      alert('Please select at least one conversation');
+      return;
+    }
+    alert(`Training AI with ${selectedConversations.length} selected conversations. This feature will be fully implemented soon.`);
+    console.log('Training with conversations:', selectedConversations);
+  };
+
+  // Filter conversations based on search
+  const filteredConversations = conversations.filter(conv => {
+    if (!conversationSearch) return true;
+    const query = conversationSearch.toLowerCase();
+    return (
+      (conv.customer_name || '').toLowerCase().includes(query) ||
+      (conv.customer_email || '').toLowerCase().includes(query) ||
+      (conv.channel || '').toLowerCase().includes(query)
+    );
+  });
+
   const filteredArticles = articles.filter(article => {
     const matchesSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          article.content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -199,6 +263,9 @@ const KnowledgeBase = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-700';
       case 'processed': return 'bg-green-100 text-green-700';
       case 'processing': return 'bg-blue-100 text-blue-700';
+      case 'active': return 'bg-green-100 text-green-700';
+      case 'waiting': return 'bg-yellow-100 text-yellow-700';
+      case 'closed': return 'bg-gray-100 text-gray-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -676,117 +743,249 @@ const KnowledgeBase = () => {
       )}
 
       {activeTab === 'ai_training' && (
-        <div className="glass-premium p-6 rounded-xl">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Training Settings</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-medium text-gray-900 mb-3">Search Configuration</h3>
-              <div className="space-y-3">
-                <label className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">Auto-suggest answers</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={aiSettings.autoSuggest}
-                      onChange={(e) => setAiSettings({...aiSettings, autoSuggest: e.target.checked})}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </label>
-                
-                <label className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">Smart search</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={aiSettings.smartSearch}
-                      onChange={(e) => setAiSettings({...aiSettings, smartSearch: e.target.checked})}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </label>
-                
-                <label className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">Contextual answers</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={aiSettings.contextualAnswers}
-                      onChange={(e) => setAiSettings({...aiSettings, contextualAnswers: e.target.checked})}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </label>
-                
-                <label className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">Multilingual support</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={aiSettings.multilingualSupport}
-                      onChange={(e) => setAiSettings({...aiSettings, multilingualSupport: e.target.checked})}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </label>
+        <div className="space-y-6">
+          {/* Conversations for Training */}
+          <div className="glass-premium p-6 rounded-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <MessageSquare className="w-6 h-6 text-blue-600" />
+                  Training Conversations
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Select conversations to train your AI bot. Selected conversations will help improve bot responses.
+                </p>
               </div>
+              <button
+                onClick={fetchConversations}
+                disabled={conversationsLoading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {conversationsLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4" />
+                    Refresh
+                  </>
+                )}
+              </button>
             </div>
-            
-            <div>
-              <h3 className="font-medium text-gray-900 mb-3">Response Settings</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confidence Threshold
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={aiSettings.confidenceThreshold}
-                      onChange={(e) => setAiSettings({...aiSettings, confidenceThreshold: parseFloat(e.target.value)})}
-                      className="flex-1"
-                    />
-                    <span className="text-sm font-medium text-gray-900 w-12">{aiSettings.confidenceThreshold}</span>
+
+            {/* Search and Actions */}
+            <div className="flex gap-3 mb-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search conversations by name, email, or channel..."
+                  value={conversationSearch}
+                  onChange={(e) => setConversationSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                onClick={selectAllConversations}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm whitespace-nowrap"
+              >
+                {selectedConversations.length === filteredConversations.length && filteredConversations.length > 0 ? 'Deselect All' : 'Select All'}
+              </button>
+              <button
+                onClick={handleTrainWithSelected}
+                disabled={selectedConversations.length === 0}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap flex items-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Train Bot ({selectedConversations.length})
+              </button>
+            </div>
+
+            {/* Conversations List */}
+            {conversationsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading conversations...</p>
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="text-center py-12">
+                <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 mb-2">
+                  {conversationSearch ? 'No conversations match your search' : 'No conversations found'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {conversationSearch ? 'Try a different search term' : 'Create conversations in the Conversations tab to use them for training'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {filteredConversations.map(conv => (
+                  <div
+                    key={conv.id}
+                    onClick={() => toggleConversationSelection(conv.id)}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      selectedConversations.includes(conv.id)
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/30'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center h-6">
+                        {selectedConversations.includes(conv.id) ? (
+                          <CheckCircle className="w-5 h-5 text-blue-600" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-gray-300" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-medium text-gray-900">
+                            {conv.customer_name || 'Anonymous'}
+                          </h4>
+                          <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(conv.status)}`}>
+                            {conv.status}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div className="flex items-center gap-4">
+                            <span>📧 {conv.customer_email || 'No email'}</span>
+                            <span>📱 {conv.customer_phone || 'No phone'}</span>
+                            <span>📢 {conv.channel || 'web'}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Created: {new Date(conv.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Search Results
-                  </label>
-                  <input
-                    type="number"
-                    value={aiSettings.maxResults}
-                    onChange={(e) => setAiSettings({...aiSettings, maxResults: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-                  />
-                </div>
-                
-                <button className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Save AI Settings
-                </button>
+                ))}
               </div>
-            </div>
+            )}
+
+            {filteredConversations.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                <strong>ℹ️ Tip:</strong> Select conversations that contain good examples of customer interactions. 
+                The AI will learn from these conversations to provide better responses.
+              </div>
+            )}
           </div>
 
-          {/* Training Status */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
+          {/* AI Settings */}
+          <div className="glass-premium p-6 rounded-xl">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Training Settings</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-medium text-blue-900">AI Model Status</h4>
-                <p className="text-sm text-blue-700 mt-1">Last trained: March 20, 2024 • Next training: Scheduled for March 27</p>
+                <h3 className="font-medium text-gray-900 mb-3">Search Configuration</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Auto-suggest answers</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.autoSuggest}
+                        onChange={(e) => setAiSettings({...aiSettings, autoSuggest: e.target.checked})}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </label>
+                  
+                  <label className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Smart search</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.smartSearch}
+                        onChange={(e) => setAiSettings({...aiSettings, smartSearch: e.target.checked})}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </label>
+                  
+                  <label className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Contextual answers</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.contextualAnswers}
+                        onChange={(e) => setAiSettings({...aiSettings, contextualAnswers: e.target.checked})}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </label>
+                  
+                  <label className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Multilingual support</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={aiSettings.multilingualSupport}
+                        onChange={(e) => setAiSettings({...aiSettings, multilingualSupport: e.target.checked})}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </label>
+                </div>
               </div>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Train Now
-              </button>
+              
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Response Settings</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Confidence Threshold
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={aiSettings.confidenceThreshold}
+                        onChange={(e) => setAiSettings({...aiSettings, confidenceThreshold: parseFloat(e.target.value)})}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-medium text-gray-900 w-12">{aiSettings.confidenceThreshold}</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Max Search Results
+                    </label>
+                    <input
+                      type="number"
+                      value={aiSettings.maxResults}
+                      onChange={(e) => setAiSettings({...aiSettings, maxResults: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                    />
+                  </div>
+                  
+                  <button className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    Save AI Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Training Status */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-blue-900">AI Model Status</h4>
+                  <p className="text-sm text-blue-700 mt-1">Last trained: March 20, 2024 • Next training: Scheduled for March 27</p>
+                </div>
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  Train Now
+                </button>
+              </div>
             </div>
           </div>
         </div>
