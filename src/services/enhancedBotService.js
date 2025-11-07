@@ -316,7 +316,7 @@ class EnhancedBotService {
       const isHighConfidence = smartResult.response?.metadata?.confidence > 0.5; // Lowered from 0.7
       const hasIntegrationData = smartResult.integrationResults?.shopify?.orders?.length > 0 || hasProducts;
       
-      if (smartResult.response?.text && (isHighConfidence || hasProducts || hasIntegrationData)) {
+      if (smartResult.response?.text && (hasProducts || hasIntegrationData)) {
         console.log('✅ Using smart integration response', {
           confidence: smartResult.response.metadata.confidence,
           hasProducts,
