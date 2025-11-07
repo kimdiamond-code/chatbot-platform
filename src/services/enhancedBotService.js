@@ -334,7 +334,17 @@ class EnhancedBotService {
 
       // Otherwise, enhance OpenAI with integration context
       console.log('🤖 Enhancing OpenAI with integration context');
-      const aiResult = await chatBotService.generateResponse(messageContent, conversationId);
+      
+      // ✅ MULTI-TENANT FIX: Pass organization ID and customer context to OpenAI
+      const aiResult = await chatBotService.generateResponse(
+        messageContent, 
+        conversationId,
+        {
+          organizationId: '00000000-0000-0000-0000-000000000001',
+          email: effectiveEmail,
+          profile: customerProfile
+        }
+      );
       
       // Add any available actions from integrations
       if (smartResult.response?.actions?.length > 0) {
@@ -351,7 +361,14 @@ class EnhancedBotService {
       console.error('❌ Enhanced bot processing error:', error);
       // ALWAYS fallback to standard OpenAI or basic response
       try {
-        return await chatBotService.generateResponse(messageContent, conversationId);
+        // ✅ MULTI-TENANT FIX: Pass organization ID even in fallback
+        return await chatBotService.generateResponse(
+          messageContent, 
+          conversationId,
+          {
+            organizationId: '00000000-0000-0000-0000-000000000001'
+          }
+        );
       } catch (fallbackError) {
         console.error('❌ OpenAI fallback also failed:', fallbackError);
         // Final fallback - basic response

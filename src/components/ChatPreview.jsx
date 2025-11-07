@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { chatBotService } from '../services/openaiService.js';
 
+const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+
 const ChatPreview = ({ botConfig, onSaveTraining }) => {
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -98,13 +100,15 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
     setIsTyping(true);
 
     try {
+      // ✅ MULTI-TENANT FIX: Pass organization ID to load correct bot config
+      console.log('🤖 Sending message with org context:', DEFAULT_ORG_ID);
+      
       const botResult = await chatBotService.generateResponse(
         userInput,
         'bot-builder-preview',
         {
-          systemPrompt: botConfig.systemPrompt,
-          name: botConfig.name,
-          tone: botConfig.tone
+          organizationId: DEFAULT_ORG_ID,
+          // Let OpenAI service load config from database - don't pass manually
         }
       );
       
