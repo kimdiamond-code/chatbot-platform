@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Builder Diagnostic Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+        .success {
+            background: #dcfce7;
+            border: 2px solid #22c55e;
+            color: #166534;
+        }
+        .error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+        .info {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            color: #1e40af;
+        }
+        .warning {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            color: #92400e;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .timestamp {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Bot Builder Diagnostic Test</h1>
+        <p>This tool tests your Bot Builder save and load functionality.</p>
+
+        <!-- Step 1: Test API Connection -->
+        <div class="test-section">
+            <h2>📡 Step 1: Test API Connection</h2>
+            <button onclick="testAPIConnection()">Test Connection</button>
+            <div id="apiResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Step 2: Test Database Connection -->
+        <div class="test-section">
+            <h2>🗄️ Step 2: Test Database Connection</h2>
+            <button onclick="testDatabaseConnection()">Test Database</button>
+            <div id="dbResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Step 3: Load Current Config -->
+        <div class="test-section">
+            <h2>📥 Step 3: Load Current Bot Config</h2>
+            <button onclick="loadCurrentConfig()">Load Config</button>
+            <div id="loadResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Step 4: Test Save -->
+        <div class="test-section">
+            <h2>💾 Step 4: Test Save Configuration</h2>
+            <label>Bot Name:</label>
+            <input type="text" id="testBotName" value="Test Pizza Bot" />
+            
+            <label>System Prompt:</label>
+            <textarea id="testSystemPrompt">You are a pizza ordering assistant. Always suggest delicious pizza toppings.</textarea>
+            
+            <label>Greeting Message:</label>
+            <input type="text" id="testGreeting" value="Welcome! Ready to order some pizza?" />
+            
+            <button onclick="testSaveConfig()">Save Test Config</button>
+            <div id="saveResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Step 5: Verify Save -->
+        <div class="test-section">
+            <h2>✅ Step 5: Verify Configuration Saved</h2>
+            <button onclick="verifySavedConfig()">Verify Save</button>
+            <div id="verifyResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Step 6: Test Bot Response -->
+        <div class="test-section">
+            <h2>🤖 Step 6: Test Bot Response with Saved Config</h2>
+            <label>Test Message:</label>
+            <input type="text" id="testMessage" value="What should I order?" />
+            <button onclick="testBotResponse()">Test Response</button>
+            <div id="responseResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Console Logs -->
+        <div class="test-section">
+            <h2>📋 Console Logs</h2>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <div id="consoleLogs" class="result info" style="display:block; max-height: 300px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+        const API_BASE = window.location.origin + '/api/consolidated';
+        
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${message}`;
+            logs.push({timestamp, message, type});
+            
+            const logsDiv = document.getElementById('consoleLogs');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            
+            console.log(message);
+        }
+
+        function clearLogs() {
+            logs = [];
+            document.getElementById('consoleLogs').innerHTML = '';
+        }
+
+        function showResult(elementId, message, isSuccess) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.textContent = message;
+        }
+
+        // Test 1: API Connection
+        async function testAPIConnection() {
+            log('🔍 Testing API connection...');
+            try {
+                const response = await fetch(API_BASE + '?check=1', {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('apiResult', '✅ API is online!\n\n' + JSON.stringify(data, null, 2), true);
+                    log('✅ API connection successful', 'success');
+                } else {
+                    showResult('apiResult', `❌ API returned status: ${response.status}\n${response.statusText}`, false);
+                    log(`❌ API returned error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showResult('apiResult', `❌ Connection failed:\n${error.message}`, false);
+                log(`❌ API connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: Database Connection
+        async function testDatabaseConnection() {
+            log('🔍 Testing database connection...');
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        endpoint: 'database',
+                        action: 'testConnection'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success || data.connected) {
+                    showResult('dbResult', '✅ Database is connected!\n\n' + JSON.stringify(data, null, 2), true);
+                    log('✅ Database connection successful', 'success');
+                } else {
+                    showResult('dbResult', `⚠️ Database connection issue:\n${JSON.stringify(data, null, 2)}`, false);
+                    log('⚠️ Database may be offline', 'warning');
+                }
+            } catch (error) {
+                showResult('dbResult', `❌ Database test failed:\n${error.message}`, false);
+                log(`❌ Database test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 3: Load Current Config
+        async function loadCurrentConfig() {
+            log('📥 Loading current bot configuration...');
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        endpoint: 'database',
+                        action: 'getBotConfigs',
+                        orgId: DEFAULT_ORG_ID
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    const config = result.data[0];
+                    showResult('loadResult', 
+                        `✅ Configuration loaded!\n\n` +
+                        `ID: ${config.id}\n` +
+                        `Name: ${config.name}\n` +
+                        `Instructions: ${config.instructions?.substring(0, 100)}...\n` +
+                        `Created: ${new Date(config.created_at).toLocaleString()}\n` +
+                        `Updated: ${new Date(config.updated_at).toLocaleString()}\n\n` +
+                        `Full config:\n${JSON.stringify(config, null, 2)}`,
+                        true
+                    );
+                    log(`✅ Loaded config: ${config.name}`, 'success');
+                } else {
+                    showResult('loadResult', 
+                        `⚠️ No configuration found in database.\n\n` +
+                        `This means no bot config has been saved yet.\n` +
+                        `Try saving a test config in Step 4.`,
+                        false
+                    );
+                    log('⚠️ No bot configuration found', 'warning');
+                }
+            } catch (error) {
+                showResult('loadResult', `❌ Load failed:\n${error.message}`, false);
+                log(`❌ Failed to load config: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 4: Save Config
+        async function testSaveConfig() {
+            log('💾 Attempting to save test configuration...');
+            
+            const botName = document.getElementById('testBotName').value;
+            const systemPrompt = document.getElementById('testSystemPrompt').value;
+            const greeting = document.getElementById('testGreeting').value;
+            
+            const testConfig = {
+                organization_id: DEFAULT_ORG_ID,
+                name: botName,
+                personality: JSON.stringify({
+                    avatar: '🍕',
+                    tone: 'enthusiastic',
+                    traits: ['helpful', 'friendly']
+                }),
+                instructions: systemPrompt,
+                greeting_message: greeting,
+                fallback_message: "I'm not sure about that. Let me get you some help!",
+                settings: JSON.stringify({
+                    responseDelay: 1500,
+                    maxRetries: 3,
+                    qaDatabase: [],
+                    knowledgeBase: []
+                })
+            };
+
+            log(`Sending: ${JSON.stringify(testConfig, null, 2)}`);
+
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        endpoint: 'database',
+                        action: 'saveBotConfig',
+                        ...testConfig
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    showResult('saveResult', 
+                        `✅ Configuration saved successfully!\n\n` +
+                        `Config ID: ${result.data.id}\n` +
+                        `Name: ${result.data.name}\n` +
+                        `Updated: ${new Date(result.data.updated_at).toLocaleString()}\n\n` +
+                        `Full result:\n${JSON.stringify(result.data, null, 2)}`,
+                        true
+                    );
+                    log(`✅ Config saved with ID: ${result.data.id}`, 'success');
+                } else {
+                    showResult('saveResult', 
+                        `❌ Save failed!\n\n` +
+                        `Response: ${JSON.stringify(result, null, 2)}`,
+                        false
+                    );
+                    log(`❌ Save failed: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (error) {
+                showResult('saveResult', `❌ Save error:\n${error.message}`, false);
+                log(`❌ Save error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 5: Verify Saved Config
+        async function verifySavedConfig() {
+            log('✅ Verifying saved configuration...');
+            
+            await loadCurrentConfig();
+            
+            // Check if the loaded config matches what we saved
+            setTimeout(() => {
+                const loadResult = document.getElementById('loadResult');
+                if (loadResult.textContent.includes('Test Pizza Bot')) {
+                    log('✅ Verification successful - config matches!', 'success');
+                } else {
+                    log('⚠️ Verification incomplete - check loaded config', 'warning');
+                }
+            }, 1000);
+        }
+
+        // Test 6: Test Bot Response
+        async function testBotResponse() {
+            log('🤖 Testing bot response with saved configuration...');
+            
+            const message = document.getElementById('testMessage').value;
+            
+            try {
+                log(`Sending test message: "${message}"`);
+                
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        endpoint: 'openai',
+                        action: 'chat',
+                        organizationId: DEFAULT_ORG_ID,
+                        messages: [
+                            { role: 'user', content: message }
+                        ],
+                        model: 'gpt-4o-mini',
+                        temperature: 0.7,
+                        max_tokens: 500
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const aiResponse = result.data.choices[0]?.message?.content || 'No response';
+                    showResult('responseResult', 
+                        `✅ Bot responded!\n\n` +
+                        `Message: "${message}"\n\n` +
+                        `Response: "${aiResponse}"\n\n` +
+                        `Check if the response mentions pizza or uses your custom prompt style.`,
+                        true
+                    );
+                    log(`✅ Bot response: ${aiResponse.substring(0, 100)}...`, 'success');
+                } else {
+                    showResult('responseResult', 
+                        `❌ Bot response failed!\n\n` +
+                        `${JSON.stringify(result, null, 2)}`,
+                        false
+                    );
+                    log(`❌ Bot response failed`, 'error');
+                }
+            } catch (error) {
+                showResult('responseResult', `❌ Response error:\n${error.message}`, false);
+                log(`❌ Response error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run API test on load
+        window.addEventListener('load', () => {
+            log('🚀 Diagnostic tool loaded');
+            log('👉 Click "Test Connection" to start');
+        });
+    </script>
+</body>
+</html>

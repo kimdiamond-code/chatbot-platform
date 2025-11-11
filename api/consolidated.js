@@ -265,24 +265,45 @@ export default async function handler(req, res) {
       }
 
       if (action === 'saveBotConfig' || action === 'updateBotConfig') {
-        const { id, organization_id, name, personality, instructions, greeting_message, settings } = body;
+        const { id, organization_id, name, personality, instructions, greeting_message, fallback_message, settings } = body;
+        
+        // ✅ FIX: Handle both stringified and object formats
+        const personalityData = typeof personality === 'string' ? personality : JSON.stringify(personality || {});
+        const settingsData = typeof settings === 'string' ? settings : JSON.stringify(settings || {});
+        
+        console.log('💾 Saving bot config:', {
+          id,
+          organization_id,
+          name,
+          hasPersonality: !!personality,
+          hasSettings: !!settings,
+          hasInstructions: !!instructions
+        });
         
         if (id) {
+          // Update existing config
           const result = await sql`
             UPDATE bot_configs
-            SET name = ${name}, personality = ${personality}, instructions = ${instructions},
-                greeting_message = ${greeting_message}, settings = ${JSON.stringify(settings || {})},
+            SET name = ${name}, 
+                personality = ${personalityData}, 
+                instructions = ${instructions},
+                greeting_message = ${greeting_message}, 
+                fallback_message = ${fallback_message || "I'm not sure about that."},
+                settings = ${settingsData},
                 updated_at = NOW()
             WHERE id = ${id}
             RETURNING *
           `;
+          console.log('✅ Bot config updated:', result[0]?.id);
           return res.status(200).json({ success: true, data: result[0] });
         } else {
+          // Insert new config
           const result = await sql`
-            INSERT INTO bot_configs (organization_id, name, personality, instructions, greeting_message, settings)
-            VALUES (${organization_id}, ${name}, ${personality}, ${instructions}, ${greeting_message}, ${JSON.stringify(settings || {})})
+            INSERT INTO bot_configs (organization_id, name, personality, instructions, greeting_message, fallback_message, settings)
+            VALUES (${organization_id}, ${name}, ${personalityData}, ${instructions}, ${greeting_message}, ${fallback_message || "I'm not sure about that."}, ${settingsData})
             RETURNING *
           `;
+          console.log('✅ Bot config created:', result[0]?.id);
           return res.status(201).json({ success: true, data: result[0] });
         }
       }
