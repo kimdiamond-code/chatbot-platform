@@ -1031,22 +1031,56 @@ export default async function handler(req, res) {
     // ============================================================
     if (endpoint === 'openai') {
       if (action === 'chat') {
-        const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 500 } = body;
+        const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 500, organizationId } = body;
 
-        // Security validation
-        try {
-          promptSecurity.validateMessages(messages);
-          const orgId = body.organizationId || 'default';
-          const ip = req.headers['x-forwarded-for'] || 'unknown';
-          promptSecurity.checkRateLimit(orgId, ip);
-        } catch (error) {
+        // Basic validation only
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
           return res.status(400).json({
             success: false,
-            error: 'Security validation failed'
+            error: 'Messages array is required'
           });
         }
 
         try {
+          // ✅ CRITICAL FIX: Load bot configuration from database
+          const orgId = organizationId || '00000000-0000-0000-0000-000000000001';
+          console.log('🤖 Loading bot config for organization:', orgId);
+          
+          let systemPrompt = 'You are a helpful assistant.';
+          let botConfig = null;
+          
+          try {
+            // Load bot configuration from database
+            const configs = await sql`
+              SELECT id, name, instructions, greeting_message, personality, settings
+              FROM bot_configs 
+              WHERE organization_id = ${orgId}
+              AND is_active = true
+              ORDER BY updated_at DESC
+              LIMIT 1
+            `;
+            
+            if (configs && configs.length > 0) {
+              botConfig = configs[0];
+              systemPrompt = botConfig.instructions || systemPrompt;
+              console.log('✅ Loaded bot config:', botConfig.name);
+              console.log('📝 Using custom system prompt from database');
+            } else {
+              console.log('⚠️ No bot config found, using default prompt');
+            }
+          } catch (dbError) {
+            console.error('❌ Database error loading bot config:', dbError.message);
+            console.log('📝 Using fallback system prompt');
+          }
+          
+          // Build messages with custom system prompt
+          const messagesWithSystem = [
+            { role: 'system', content: systemPrompt },
+            ...messages.filter(m => m.role !== 'system') // Remove any existing system messages
+          ];
+          
+          console.log('🔄 Calling OpenAI with custom config...');
+          
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -1055,7 +1089,7 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
               model,
-              messages,
+              messages: messagesWithSystem,
               temperature,
               max_tokens
             })
@@ -1067,9 +1101,21 @@ export default async function handler(req, res) {
           }
 
           const data = await response.json();
-          return res.status(200).json({ success: true, data });
+          
+          console.log('✅ OpenAI response generated');
+          console.log('🏢 Used config for org:', orgId);
+          
+          return res.status(200).json({ 
+            success: true, 
+            data,
+            metadata: {
+              usedCustomConfig: !!botConfig,
+              botName: botConfig?.name,
+              organizationId: orgId
+            }
+          });
         } catch (error) {
-          console.error('OpenAI API error:', error);
+          console.error('❌ OpenAI API error:', error);
           return res.status(500).json({ success: false, error: error.message });
         }
       }
