@@ -24,6 +24,7 @@ import AdminPanel from './components/AdminPanel.jsx';
 import Integrations from './components/Integrations.jsx';
 import { OnboardingManager } from './components/onboarding';
 import { TooltipProvider } from './components/onboarding';
+import BotBuilderSaveTest from './components/BotBuilderSaveTest.jsx';
 
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
 import { debugEnvVars } from './utils/debugEnv.js';
@@ -204,6 +205,15 @@ const App = () => {
       feature: 'admin',
       adminOnly: true,
       description: 'Webhooks, API Keys, Security, Users'
+    },
+    // TEMPORARY: Save Test Component
+    {
+      id: 'savetest',
+      name: '🧪 Save Test',
+      component: BotBuilderSaveTest,
+      feature: 'admin',
+      adminOnly: true,
+      description: 'Test bot instructions save functionality'
     }
   ];
 
