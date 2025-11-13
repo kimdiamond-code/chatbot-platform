@@ -356,6 +356,8 @@ const DirectiveTab = React.memo(({ botConfig, updateConfig }) => (
           <label className="block text-sm font-medium text-gray-700 mb-1">Bot Name</label>
           <input
             type="text"
+            id="bot-name"
+            name="botName"
             value={botConfig.name || ''}
             onChange={(e) => updateConfig('root', { name: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -383,6 +385,8 @@ const DirectiveTab = React.memo(({ botConfig, updateConfig }) => (
     <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
       <h3 className="font-semibold text-gray-900 mb-3">System Instructions</h3>
       <textarea
+        id="system-prompt"
+        name="systemPrompt"
         value={botConfig.systemPrompt || ''}
         onChange={(e) => updateConfig('root', { systemPrompt: e.target.value })}
         rows={4}
@@ -452,6 +456,8 @@ const PersonalityTab = React.memo(({ botConfig, updateConfig }) => (
           <label className="block text-sm font-medium text-gray-700 mb-1">Greeting</label>
           <input
             type="text"
+            id="greeting-message"
+            name="greeting"
             value={botConfig.greeting || ''}
             onChange={(e) => updateConfig('root', { greeting: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -463,6 +469,8 @@ const PersonalityTab = React.memo(({ botConfig, updateConfig }) => (
           <label className="block text-sm font-medium text-gray-700 mb-1">Fallback</label>
           <input
             type="text"
+            id="fallback-message"
+            name="fallback"
             value={botConfig.fallback}
             onChange={(e) => updateConfig('root', { fallback: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
