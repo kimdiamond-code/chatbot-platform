@@ -27,6 +27,7 @@ const BotBuilder = () => {
   const [activeTab, setActiveTab] = useState('directive');
   const [saveStatus, setSaveStatus] = useState('');
   const [trainingConversations, setTrainingConversations] = useState([]);
+  const [configId, setConfigId] = useState(null); // Track config ID for updates
   
   const [botConfig, setBotConfig] = useState({
     name: 'ChatBot Assistant',
@@ -90,6 +91,8 @@ const BotBuilder = () => {
       
       if (dbConfig) {
         console.log('✅ Bot config loaded from database');
+        console.log('📋 Config ID:', dbConfig.id);
+        setConfigId(dbConfig.id); // Save config ID for updates
         const settings = JSON.parse(dbConfig.settings || '{}');
         const personality = JSON.parse(dbConfig.personality || '{}');
         
@@ -186,6 +189,7 @@ const BotBuilder = () => {
       });
 
       const dbConfig = {
+        ...(configId && { id: configId }), // Include ID if updating existing config
         organization_id: DEFAULT_ORG_ID,
         name: botConfig.name || 'ChatBot Assistant',
         personality: JSON.stringify({
@@ -208,7 +212,10 @@ const BotBuilder = () => {
         })
       };
       
-      await dbService.saveBotConfig(dbConfig);
+      console.log('📤 Sending to dbService.saveBotConfig:', dbConfig);
+      const result = await dbService.saveBotConfig(dbConfig);
+      console.log('📥 Save result:', result);
+      
       localStorage.setItem('chatbot-config', JSON.stringify(botConfig));
       
       console.log('✅ Bot configuration saved successfully');
