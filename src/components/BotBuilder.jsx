@@ -85,11 +85,6 @@ const BotBuilder = () => {
     }
   });
 
-  useEffect(() => {
-    loadBotConfiguration();
-    loadTrainingData();
-  }, [loadBotConfiguration]); // Reload when loadBotConfiguration changes
-
   const loadBotConfiguration = useCallback(async () => {
     try {
       console.log('📥 Loading bot configuration from database...');
@@ -206,6 +201,12 @@ const BotBuilder = () => {
     localStorage.setItem('training-conversations', JSON.stringify(conversations));
     setTrainingConversations(conversations);
   };
+
+  // ✅ Load configuration on mount and when organization changes
+  useEffect(() => {
+    loadBotConfiguration();
+    loadTrainingData();
+  }, [loadBotConfiguration]);
 
   // ✅ FIX: Use useCallback to prevent function recreation
   const updateConfig = useCallback((section, updates) => {
