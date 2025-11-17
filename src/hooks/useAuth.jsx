@@ -30,6 +30,7 @@ export function AuthProvider({ children }) {
 
 			if (!response.ok) {
 				console.error('❌ API request failed:', response.status)
+				console.log('⚠️ Using Supabase user only (no organization data)')
 				setUser(supabaseUser)
 				return
 			}
@@ -37,8 +38,21 @@ export function AuthProvider({ children }) {
 			const { success, agent } = await response.json()
 
 			if (!success || !agent) {
-				console.error('❌ No agent data found for:', supabaseUser.email)
-				setUser(supabaseUser)
+				console.warn('⚠️ No agent record found in Neon database for:', supabaseUser.email)
+				console.log('🛠️ This user needs an agent record created in the database')
+				console.log('📝 Run this SQL in Neon:')
+				console.log(`INSERT INTO agents (organization_id, email, name, role, is_active) VALUES (gen_random_uuid(), '${supabaseUser.email}', '${supabaseUser.email.split('@')[0]}', 'admin', true);`)
+				
+				// Use Supabase user as fallback but mark as incomplete
+				const fallbackUser = {
+					...supabaseUser,
+					organization_id: null,
+					role: 'user',
+					name: supabaseUser.email,
+					_incomplete: true,
+					_error: 'No agent record in Neon database'
+				}
+				setUser(fallbackUser)
 				return
 			}
 
@@ -60,6 +74,7 @@ export function AuthProvider({ children }) {
 			setUser(fullUser)
 		} catch (error) {
 			console.error('❌ Error in loadFullUserData:', error)
+			console.log('⚠️ Using Supabase user only (error occurred)')
 			setUser(supabaseUser) // Fallback
 		}
 	}

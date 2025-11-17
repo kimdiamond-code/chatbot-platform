@@ -26,9 +26,10 @@ const FullIntegrations = () => {
   const organizationId = user?.organization_id;
   
   console.log('🏛️ Integrations - Using Organization ID:', organizationId);
+  console.log('👤 Full user object:', user);
   
-  // Require authentication
-  if (!organizationId) {
+  // Require authentication AND valid organization
+  if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md">
@@ -42,6 +43,42 @@ const FullIntegrations = () => {
             >
               Go to Login
             </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!organizationId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-2xl">
+          <div className="text-center">
+            <span className="text-6xl mb-4 block">⚠️</span>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Setup Required</h2>
+            <p className="text-gray-600 mb-4">Your user account is not properly configured in the database.</p>
+            
+            {user?._incomplete && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+                <h3 className="font-semibold text-yellow-900 mb-2">Missing Agent Record</h3>
+                <p className="text-sm text-yellow-800 mb-3">
+                  Logged in as: <strong>{user.email}</strong><br/>
+                  Error: {user._error}
+                </p>
+                <p className="text-sm text-yellow-800 mb-2 font-semibold">Run this SQL in Neon Database:</p>
+                <div className="bg-yellow-100 p-3 rounded font-mono text-xs overflow-x-auto">
+                  INSERT INTO agents (organization_id, email, name, role, is_active)<br/>
+                  VALUES (gen_random_uuid(), '{user.email}', '{user.email.split('@')[0]}', 'admin', true);
+                </div>
+              </div>
+            )}
+            
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+            >
+              Retry After Database Update
+            </button>
           </div>
         </div>
       </div>
