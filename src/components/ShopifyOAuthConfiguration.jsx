@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import dbService from '../services/databaseService';
 
 // OAuth Connection Button Component
-const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoading, setError }) => {
+const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoading, setError, organizationId }) => {
   const handleOAuthConnect = async () => {
     setError('');
     
@@ -14,7 +15,7 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
     setIsLoading(true);
 
     try {
-      // Initiate OAuth flow
+      // Initiate OAuth flow with user's organization ID
       const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: {
@@ -24,7 +25,7 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
           endpoint: 'database',
           action: 'shopify_oauth_initiate',
           shop: shopDomain,
-          organizationId: '00000000-0000-0000-0000-000000000001'
+          organizationId: organizationId
         })
       });
 
@@ -95,6 +96,21 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
 };
 
 const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
+  const { user } = useAuth();
+  const organizationId = user?.organization_id;
+  
+  // Require authentication
+  if (!organizationId) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+          <span className="text-4xl mb-2 block">⚠️</span>
+          <h3 className="text-lg font-semibold text-yellow-900 mb-2">Authentication Required</h3>
+          <p className="text-yellow-800">Please log in to connect your Shopify store.</p>
+        </div>
+      </div>
+    );
+  }
   const [step, setStep] = useState('choose-method'); 
   const [setupMode, setSetupMode] = useState('oauth'); // 'oauth', 'api' or 'quick'
   const [shopDomain, setShopDomain] = useState('');
@@ -109,8 +125,11 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
   }, []);
 
   const loadExistingConfiguration = async () => {
+    if (!organizationId) return;
+    
     try {
-      const integrations = await dbService.getIntegrations('00000000-0000-0000-0000-000000000001');
+      console.log('🔍 Loading Shopify config for organization:', organizationId);
+      const integrations = await dbService.getIntegrations(organizationId);
       const shopifyIntegration = integrations?.find(i => i.integration_id === 'shopify');
 
       if (shopifyIntegration && shopifyIntegration.credentials && shopifyIntegration.status === 'connected') {
@@ -150,7 +169,7 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
       }
 
       const configData = {
-        organization_id: '00000000-0000-0000-0000-000000000001',
+        organization_id: organizationId,
         integration_id: 'shopify',
         integration_name: 'Shopify',
         status: 'limited',
@@ -238,7 +257,7 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
       const shopName = extractShopDomain(shopDomain);
 
       const configData = {
-        organization_id: '00000000-0000-0000-0000-000000000001',
+        organization_id: organizationId,
         integration_id: 'shopify',
         integration_name: 'Shopify',
         status: 'connected',
@@ -293,8 +312,12 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
     setIsLoading(true);
     
     try {
+      console.log('💾 Saving API connection for organization:', organizationId);
+      
+      console.log('🔌 Disconnecting Shopify for organization:', organizationId);
+      
       await dbService.upsertIntegration({
-        organization_id: '00000000-0000-0000-0000-000000000001',
+        organization_id: organizationId,
         integration_id: 'shopify',
         integration_name: 'Shopify',
         status: 'disconnected',
@@ -456,6 +479,7 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
                   isLoading={isLoading}
                   setIsLoading={setIsLoading}
                   setError={setError}
+                  organizationId={organizationId}
                 />
               </div>
             </div>

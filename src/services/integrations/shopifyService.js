@@ -1,17 +1,21 @@
 /**
  * Shopify Service - Product & Cart Operations  
  * Uses consolidated API with OAuth credentials from database
+ * MULTI-TENANT: Each organization has their own Shopify connection
  */
 
 import { apiRequest } from '../../utils/api';
 
-const ORGANIZATION_ID = '00000000-0000-0000-0000-000000000001';
-
 export const shopifyService = {
   /**
    * Get Shopify integration credentials from database
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async getCredentials(organizationId = ORGANIZATION_ID) {
+  async getCredentials(organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required for Shopify operations');
+      return null;
+    }
     try {
       console.log('🔍 Fetching Shopify credentials from:', '/api/consolidated');
       
@@ -92,8 +96,14 @@ export const shopifyService = {
 
   /**
    * Get products list
+   * @param {number} limit - Maximum number of products to return
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async getProducts(limit = 50, organizationId = ORGANIZATION_ID) {
+  async getProducts(limit = 50, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return this._getDemoProducts();
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       
@@ -130,8 +140,14 @@ export const shopifyService = {
 
   /**
    * Search products by query
+   * @param {string} query - Search query
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async searchProducts(query, organizationId = ORGANIZATION_ID) {
+  async searchProducts(query, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return [];
+    }
     try {
       const products = await this.getProducts(50, organizationId);
       
@@ -158,8 +174,14 @@ export const shopifyService = {
 
   /**
    * Find customer by email
+   * @param {string} email - Customer email
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async findCustomerByEmail(email, organizationId = ORGANIZATION_ID) {
+  async findCustomerByEmail(email, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return null;
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       
@@ -178,8 +200,15 @@ export const shopifyService = {
 
   /**
    * Get customer orders
+   * @param {string} customerEmail - Customer email
+   * @param {number} limit - Maximum orders to return
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async getCustomerOrders(customerEmail, limit = 10, organizationId = ORGANIZATION_ID) {
+  async getCustomerOrders(customerEmail, limit = 10, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return [];
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       
@@ -214,8 +243,15 @@ export const shopifyService = {
   
   /**
    * Get draft orders (cart items) for a customer
+   * @param {string} customerEmail - Customer email
+   * @param {number} limit - Maximum draft orders to return
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async getDraftOrders(customerEmail, limit = 10, organizationId = ORGANIZATION_ID) {
+  async getDraftOrders(customerEmail, limit = 10, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return [];
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       
@@ -254,8 +290,14 @@ export const shopifyService = {
 
   /**
    * Find order by number
+   * @param {string} orderNumber - Order number to find
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async findOrderByNumber(orderNumber, organizationId = ORGANIZATION_ID) {
+  async findOrderByNumber(orderNumber, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return null;
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       
@@ -291,8 +333,13 @@ export const shopifyService = {
 
   /**
    * Verify Shopify connection
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async verifyConnection(organizationId = ORGANIZATION_ID) {
+  async verifyConnection(organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      return false;
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       return !!credentials;
@@ -304,8 +351,14 @@ export const shopifyService = {
 
   /**
    * Create draft order (acts as cart)
+   * @param {object} cartData - Cart data including product, quantity, customer email
+   * @param {string} organizationId - REQUIRED: The organization's unique ID
    */
-  async createDraftOrder(cartData, organizationId = ORGANIZATION_ID) {
+  async createDraftOrder(cartData, organizationId) {
+    if (!organizationId) {
+      console.error('❌ organizationId is required');
+      throw new Error('Organization ID is required for cart operations');
+    }
     try {
       const credentials = await this.getCredentials(organizationId);
       

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import dbService from '../services/databaseService';
 import { apiKeysService } from '../services/apiKeysService.js';
 import rbacService, { PERMISSIONS } from '../services/rbacService';
@@ -8,6 +9,7 @@ import MessengerIntegration from './integrations/MessengerIntegration.jsx';
 import KlaviyoIntegration from './integrations/KlaviyoIntegration.jsx';
 
 const FullIntegrations = () => {
+  const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [connections, setConnections] = useState({});
@@ -19,6 +21,32 @@ const FullIntegrations = () => {
   const [showMessengerConfig, setShowMessengerConfig] = useState(false);
   const [showKlaviyoConfig, setShowKlaviyoConfig] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+
+  // ✅ FIX: Get actual user's organization ID from auth hook
+  const organizationId = user?.organization_id;
+  
+  console.log('🏛️ Integrations - Using Organization ID:', organizationId);
+  
+  // Require authentication
+  if (!organizationId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md">
+          <div className="text-center">
+            <span className="text-6xl mb-4 block">🔐</span>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+            <p className="text-gray-600 mb-6">Please log in to manage your integrations.</p>
+            <a 
+              href="/login" 
+              className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
+            >
+              Go to Login
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const copyEnvTemplate = async () => {
     try {
@@ -153,27 +181,19 @@ const FullIntegrations = () => {
     return matchesCategory && matchesSearch;
   });
 
-  // Load connection status and current user
+  // ✅ FIX: Load connection status when component mounts or organization changes
   useEffect(() => {
     loadConnectionStatus();
     loadCurrentUser();
-  }, []);
+  }, [organizationId]); // Re-load when organization changes
 
   const loadCurrentUser = async () => {
-    try {
-      console.log('👤 Using demo user...');
-      // Always use demo user (auth will be implemented later)
+    if (user) {
+      console.log('👤 Loaded current user:', user.email);
       setCurrentUser({
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'demo@example.com',
-        user_metadata: { name: 'Demo User' }
-      });
-    } catch (error) {
-      console.error('❌ Failed to load current user:', error);
-      setCurrentUser({
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'demo@example.com',
-        user_metadata: { name: 'Demo User' }
+        id: user.id,
+        email: user.email,
+        organizationId: user.organization_id
       });
     }
   };
@@ -181,8 +201,9 @@ const FullIntegrations = () => {
   const loadConnectionStatus = async () => {
     setIsLoading(true);
     try {
-      // Load integrations from database
-      const integrations = await dbService.getIntegrations('00000000-0000-0000-0000-000000000001');
+      console.log('📡 Loading integrations for org:', organizationId);
+      // ✅ FIX: Use actual organization ID
+      const integrations = await dbService.getIntegrations(organizationId);
       
       const connectionMap = {
         webhooks: 'connected',
@@ -200,6 +221,7 @@ const FullIntegrations = () => {
       });
       
       setConnections(connectionMap);
+      console.log('✅ Loaded integration statuses:', connectionMap);
     } catch (error) {
       console.warn('Failed to load connection status, using defaults:', error);
       // Fallback to default disconnected state
@@ -248,545 +270,278 @@ const FullIntegrations = () => {
       return;
     }
     
-    setIsLoading(true);
-    const currentStatus = connections[integrationId] || 'disconnected';
-    const newStatus = currentStatus === 'connected' ? 'disconnected' : 'connected';
-    
-    // Clear any previous messages
-    setConnectionMessages(prev => ({ ...prev, [integrationId]: null }));
-    
-    try {
-      // If connecting, test the real API first
-      if (newStatus === 'connected') {
-        console.log(`Testing ${integrationId} API connection...`);
-        const testResult = await apiKeysService.testConnection(integrationId);
-        
-        if (!testResult.success) {
-          // Show inline message instead of alert
-          if (testResult.needsSetup) {
-            setConnectionMessages(prev => ({ 
-              ...prev, 
-              [integrationId]: {
-                type: 'info',
-                message: `📝 ${testResult.message} The integration is marked as "configured" for demo purposes.`
-              }
-            }));
-          } else {
-            setConnectionMessages(prev => ({ 
-              ...prev, 
-              [integrationId]: {
-                type: 'error',
-                message: `⚠️ Connection test failed: ${testResult.message}`
-              }
-            }));
-            setIsLoading(false);
-            return; // Don't change status if connection test actually failed
-          }
-        } else {
-          // Show success message
-          setConnectionMessages(prev => ({ 
-            ...prev, 
-            [integrationId]: {
-              type: 'success',
-              message: `✅ ${testResult.message}`
-            }
-          }));
+    // For other integrations, use standard toggle logic
+    if (!rbacService.canModifyIntegration(integrationId)) {
+      setConnectionMessages({
+        ...connectionMessages,
+        [integrationId]: {
+          type: 'error',
+          message: 'You do not have permission to modify this integration'
         }
-      } else {
-        // Disconnecting
-        setConnectionMessages(prev => ({ 
-          ...prev, 
-          [integrationId]: {
-            type: 'info',
-            message: `🔌 ${integrationId.charAt(0).toUpperCase() + integrationId.slice(1)} disconnected`
-          }
-        }));
-      }
-      
-      // Update local state immediately for better UX
-      setConnections(prev => ({
-        ...prev,
-        [integrationId]: newStatus
-      }));
-
-      // Update database
-      try {
-        await dbService.upsertIntegration({
-          organization_id: '00000000-0000-0000-0000-000000000001',
-          integration_id: integrationId,
-          integration_name: integrationId.charAt(0).toUpperCase() + integrationId.slice(1),
-          status: newStatus,
-          config: {},
-          credentials_encrypted: '',
-          connected_at: newStatus === 'connected' ? new Date().toISOString() : null
-        });
-      } catch (dbError) {
-        console.warn('Database update failed, continuing with local state:', dbError);
-        setConnectionMessages(prev => ({ 
-          ...prev, 
-          [integrationId]: {
-            type: 'warning',
-            message: `⚠️ Status updated locally. Database sync may have failed.`
-          }
-        }));
-      }
-
-      console.log(`${integrationId} ${newStatus === 'connected' ? 'connected' : 'disconnected'}`);
-      
-      // Clear message after 5 seconds
+      });
       setTimeout(() => {
-        setConnectionMessages(prev => ({ ...prev, [integrationId]: null }));
-      }, 5000);
+        setConnectionMessages(prev => {
+          const newMessages = { ...prev };
+          delete newMessages[integrationId];
+          return newMessages;
+        });
+      }, 3000);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const newStatus = connections[integrationId] === 'connected' ? 'disconnected' : 'connected';
       
+      // ✅ FIX: Pass organization ID to integration save
+      await dbService.saveIntegration({
+        organization_id: organizationId,
+        integration_id: integrationId,
+        status: newStatus,
+        config: {}
+      });
+      
+      setConnections({
+        ...connections,
+        [integrationId]: newStatus
+      });
+      
+      // Show success message
+      setConnectionMessages({
+        ...connectionMessages,
+        [integrationId]: {
+          type: 'success',
+          message: `Successfully ${newStatus === 'connected' ? 'connected' : 'disconnected'}`
+        }
+      });
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setConnectionMessages(prev => {
+          const newMessages = { ...prev };
+          delete newMessages[integrationId];
+          return newMessages;
+        });
+      }, 3000);
     } catch (error) {
       console.error('Failed to toggle integration:', error);
       
-      // Show inline error message instead of alert
-      setConnectionMessages(prev => ({ 
-        ...prev, 
+      // Show error message
+      setConnectionMessages({
+        ...connectionMessages,
         [integrationId]: {
           type: 'error',
-          message: `⚠️ Failed to ${newStatus === 'connected' ? 'connect' : 'disconnect'}: ${error.message}`
+          message: 'Failed to update integration'
         }
-      }));
+      });
       
-      // Revert on error
-      setConnections(prev => ({
-        ...prev,
-        [integrationId]: currentStatus
-      }));
-      
-      // Clear error message after 5 seconds
+      // Clear message after 3 seconds
       setTimeout(() => {
-        setConnectionMessages(prev => ({ ...prev, [integrationId]: null }));
-      }, 5000);
-      
+        setConnectionMessages(prev => {
+          const newMessages = { ...prev };
+          delete newMessages[integrationId];
+          return newMessages;
+        });
+      }, 3000);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Kustomer OAuth configuration
-  const handleKustomerOAuthConnect = (connectionData) => {
-    setShowKustomerOAuth(false);
-    if (connectionData) {
-      setConnections(prev => ({
-        ...prev,
-        kustomer: 'connected'
-      }));
-      setConnectionMessages(prev => ({
-        ...prev,
-        kustomer: {
-          type: 'success',
-          message: `✅ Connected to ${connectionData.user.name || connectionData.user.email} successfully!`
-        }
-      }));
-    } else {
-      setConnections(prev => ({
-        ...prev,
-        kustomer: 'disconnected'
-      }));
-    }
-    
-    // Clear message after 5 seconds
-    setTimeout(() => {
-      setConnectionMessages(prev => ({ ...prev, kustomer: null }));
-    }, 5000);
+  const handleShopifySuccess = () => {
+    setShowShopifyConfig(false);
+    loadConnectionStatus();
   };
 
-  // Handle Shopify configuration save
-  const handleShopifyConfigSaved = async (configData) => {
-    setShowShopifyConfig(false);
-    if (configData) {
-      setConnections(prev => ({
-        ...prev,
-        shopify: configData.status || 'connected'
-      }));
-      setConnectionMessages(prev => ({
-        ...prev,
-        shopify: {
-          type: 'success',
-          message: '✅ Shopify store connected successfully! Refreshing bot services...'
-        }
-      }));
-      
-      // Refresh bot service to detect new Shopify connection
-      try {
-        const { enhancedBotService } = await import('../services/enhancedBotService');
-        await enhancedBotService.refreshIntegrations();
-        console.log('🔄 Bot service refreshed - Shopify integration active');
-        
-        setConnectionMessages(prev => ({
-          ...prev,
-          shopify: {
-            type: 'success',
-            message: '✅ Shopify store connected! Bot will now use real products. Refresh Live Chat to see changes.'
-          }
-        }));
-      } catch (error) {
-        console.error('Failed to refresh bot service:', error);
-      }
-    } else {
-      setConnections(prev => ({
-        ...prev,
-        shopify: 'disconnected'
-      }));
-    }
-    
-    // Clear message after 10 seconds
-    setTimeout(() => {
-      setConnectionMessages(prev => ({ ...prev, shopify: null }));
-    }, 10000);
+  const handleKustomerSuccess = () => {
+    setShowKustomerOAuth(false);
+    loadConnectionStatus();
+  };
+
+  const handleMessengerSuccess = () => {
+    setShowMessengerConfig(false);
+    loadConnectionStatus();
+  };
+
+  const handleKlaviyoSuccess = () => {
+    setShowKlaviyoConfig(false);
+    loadConnectionStatus();
   };
 
   return (
-    <div className="p-6 space-y-8 min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="text-6xl animate-bounce-subtle mb-4">🔌</div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Integrations Hub
-        </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Connect your favorite tools and automate your workflows. Seamlessly integrate with popular platforms to enhance your customer support experience.
-        </p>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search integrations..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              />
-              <div className="absolute left-4 top-3.5 text-gray-400 text-xl">🔍</div>
-            </div>
-          </div>
-
-          {/* Category Filter */}
-          <div className="flex-shrink-0">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-48"
-            >
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.icon} {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Category Pills */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {categories.map(category => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                selectedCategory === category.id
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {category.icon} {category.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* API Keys Status Section - Admin/Developer Only */}
-      {rbacService.hasPermission(PERMISSIONS.VIEW_API_KEYS) && (
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-            🔑 API Keys Status
-          </h2>
-          <button
-            onClick={copyEnvTemplate}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              templateCopied 
-                ? 'bg-green-100 text-green-800 border border-green-200'
-                : 'bg-blue-100 hover:bg-blue-200 text-blue-800'
-            }`}
-          >
-            {templateCopied ? '✅ Copied!' : '📋 Copy .env Template'}
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { key: 'openai', name: 'OpenAI', required: true },
-            { key: 'shopify', name: 'Shopify', required: false },
-            { key: 'kustomer', name: 'Kustomer', required: false },
-            { key: 'klaviyo', name: 'Klaviyo', required: false },
-            { key: 'whatsapp', name: 'WhatsApp', required: false },
-            { key: 'facebook', name: 'Facebook', required: false },
-            { key: 'slack', name: 'Slack', required: false },
-            { key: 'zapier', name: 'Zapier', required: false }
-          ].map(({ key, name, required }) => {
-            const hasKey = apiKeysService.hasValidKey(key);
-            return (
-              <div key={key} className={`p-3 rounded-lg border ${hasKey ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-sm ${hasKey ? 'text-green-700' : 'text-gray-600'}`}>
-                    {hasKey ? '✅' : '⚪'} {name}
-                  </span>
-                  {required && (
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                      Required
-                    </span>
-                  )}
-                </div>
-                <p className={`text-xs ${hasKey ? 'text-green-600' : 'text-gray-500'}`}>
-                  {hasKey ? 'Configured' : 'Not configured'}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                Integrations Hub
+              </h1>
+              <p className="text-gray-600 text-lg">
+                Connect your favorite tools and streamline your workflow
+              </p>
+              {currentUser && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Organization: {currentUser.organizationId || 'Not set'}
                 </p>
-              </div>
-            );
-          })}
-        </div>
-        
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            💡 <strong>Tip:</strong> OpenAI API key is required for smart bot responses. Other integrations like Kustomer can be connected directly through the integration cards below - no environment variables needed!
-            </p>
-            </div>
-            </div>
-    )}
-
-    {/* Integration Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredIntegrations.map(integration => (
-          <div
-            key={integration.id}
-            className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 group"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 bg-gradient-to-r ${integration.color} rounded-xl flex items-center justify-center text-white text-2xl shadow-lg`}>
-                  {integration.icon}
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-gray-900">{integration.name}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    (connections[integration.id] || 'disconnected') === 'connected'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {(connections[integration.id] || 'disconnected') === 'connected' ? '✅ Connected' : '⚪ Disconnected'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Toggle Switch */}
-              <button
-                onClick={() => toggleIntegration(integration.id)}
-                disabled={isLoading}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  (connections[integration.id] || 'disconnected') === 'connected'
-                    ? 'bg-blue-600'
-                    : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    (connections[integration.id] || 'disconnected') === 'connected'
-                      ? 'translate-x-6'
-                      : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Description */}
-            <p className="text-gray-600 text-sm mb-4">
-              {integration.description}
-            </p>
-
-            {/* Features */}
-            <div className="space-y-2 mb-4">
-              <h4 className="font-semibold text-sm text-gray-900">Key Features:</h4>
-              <div className="flex flex-wrap gap-1">
-                {integration.features.map((feature, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md"
-                  >
-                    {feature}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Button */}
-            <button
-              onClick={() => toggleIntegration(integration.id)}
-              disabled={isLoading}
-              className={`w-full py-2 px-4 rounded-xl font-medium transition-all ${
-                (connections[integration.id] || 'disconnected') === 'connected'
-                  ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                  : `bg-gradient-to-r ${integration.color} text-white hover:opacity-90 shadow-md`
-              } disabled:opacity-50`}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                  <span>Processing...</span>
-                </div>
-              ) : (
-                integration.isShopify
-                  ? '⚙️ Configure Store'
-                  : integration.isKustomerOAuth
-                  ? '🔐 Connect Account'
-                  : integration.isMessenger
-                  ? '💙 Configure Messenger'
-                  : integration.isKlaviyo
-                  ? '📧 Configure Klaviyo'
-                  : (connections[integration.id] || 'disconnected') === 'connected' ? 'Disconnect' : 'Connect'
               )}
-            </button>
+            </div>
+          </div>
 
-            {/* Connection Status Message */}
-            {connectionMessages[integration.id] && (
-              <div className={`mt-3 p-3 rounded-lg border text-sm ${
-                connectionMessages[integration.id].type === 'success' ? 'border-green-200 bg-green-50 text-green-800' :
-                connectionMessages[integration.id].type === 'error' ? 'border-red-200 bg-red-50 text-red-800' :
-                connectionMessages[integration.id].type === 'warning' ? 'border-yellow-200 bg-yellow-50 text-yellow-800' :
-                'border-blue-200 bg-blue-50 text-blue-800'
-              }`}>
-                <p>{connectionMessages[integration.id].message}</p>
+          {/* Search and Filter Bar */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search integrations..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-5 py-3 pr-12 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                />
+                <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl">
+                  🔍
+                </span>
               </div>
-            )}
-            
-            {/* Setup Required Notice - Make it less prominent */}
-            {integration.setupRequired && (connections[integration.id] || 'disconnected') === 'disconnected' && (
-              <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-800 flex items-center gap-1">
-                  📝 Setup needed - API credentials required for full functionality
-                </p>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`px-4 py-3 rounded-xl whitespace-nowrap flex items-center gap-2 transition-all ${
+                    selectedCategory === category.id
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <span>{category.icon}</span>
+                  <span className="font-medium">{category.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Integrations Grid */}
+        {isLoading && !Object.keys(connections).length ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Loading integrations...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredIntegrations.map((integration) => (
+              <div
+                key={integration.id}
+                className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all border border-gray-100 overflow-hidden"
+              >
+                {/* Card Header with Gradient */}
+                <div className={`bg-gradient-to-r ${integration.color} p-6 text-white`}>
+                  <div className="flex items-start justify-between mb-3">
+                    <span className="text-5xl">{integration.icon}</span>
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      integration.status === 'connected'
+                        ? 'bg-green-500 bg-opacity-20'
+                        : 'bg-white bg-opacity-20'
+                    }`}>
+                      {integration.status === 'connected' ? '✓ Connected' : 'Not Connected'}
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold">{integration.name}</h3>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-6">
+                  <p className="text-gray-600 mb-4 min-h-[48px]">
+                    {integration.description}
+                  </p>
+
+                  {/* Features */}
+                  <div className="space-y-2 mb-4">
+                    {integration.features.slice(0, 3).map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
+                        <span className="text-green-500">✓</span>
+                        <span>{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Connection Message */}
+                  {connectionMessages[integration.id] && (
+                    <div className={`mb-4 p-3 rounded-lg text-sm ${
+                      connectionMessages[integration.id].type === 'success'
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                    }`}>
+                      {connectionMessages[integration.id].message}
+                    </div>
+                  )}
+
+                  {/* Connect Button */}
+                  <button
+                    onClick={() => toggleIntegration(integration.id)}
+                    disabled={isLoading}
+                    className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                      integration.status === 'connected'
+                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
+                    }`}
+                  >
+                    {integration.status === 'connected' ? 'Configure' : 'Connect Now'}
+                  </button>
+                </div>
               </div>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Empty State */}
-      {filteredIntegrations.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No integrations found</h3>
-          <p className="text-gray-600">
-            Try adjusting your search terms or selecting a different category.
-          </p>
-        </div>
-      )}
+        {/* No Results Message */}
+        {!isLoading && filteredIntegrations.length === 0 && (
+          <div className="text-center py-12">
+            <span className="text-6xl mb-4 block">🔍</span>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No integrations found</h3>
+            <p className="text-gray-500">Try adjusting your search or filters</p>
+          </div>
+        )}
 
-      {/* Status Footer */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-gray-900">Integration Status</h3>
-            <p className="text-sm text-gray-600">
-              {Object.values(connections).filter(status => status === 'connected').length} of {integrations.length} integrations connected
-            </p>
-          </div>
-          <div className="flex items-center space-x-4 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-600">Connected</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-              <span className="text-gray-600">Available</span>
-            </div>
-          </div>
-        </div>
+        {/* Modals */}
+        {showShopifyConfig && (
+          <ShopifyOAuthConfiguration
+            onClose={() => setShowShopifyConfig(false)}
+            onSuccess={handleShopifySuccess}
+          />
+        )}
+
+        {showKustomerOAuth && currentUser && (
+          <KustomerOAuthIntegration
+            isOpen={showKustomerOAuth}
+            onClose={() => setShowKustomerOAuth(false)}
+            onSuccess={handleKustomerSuccess}
+            currentUser={currentUser}
+          />
+        )}
+
+        {showMessengerConfig && (
+          <MessengerIntegration
+            isOpen={showMessengerConfig}
+            onClose={() => setShowMessengerConfig(false)}
+            onSuccess={handleMessengerSuccess}
+          />
+        )}
+
+        {showKlaviyoConfig && (
+          <KlaviyoIntegration
+            isOpen={showKlaviyoConfig}
+            onClose={() => setShowKlaviyoConfig(false)}
+            onSuccess={handleKlaviyoSuccess}
+          />
+        )}
       </div>
-      
-      {/* Shopify Configuration Modal */}
-      {showShopifyConfig && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Shopify Store Configuration</h2>
-              <button
-                onClick={() => setShowShopifyConfig(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-0">
-              <ShopifyOAuthConfiguration onConfigurationSaved={handleShopifyConfigSaved} />
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Kustomer OAuth Integration Modal */}
-      {showKustomerOAuth && (
-        <KustomerOAuthIntegration
-          isOpen={showKustomerOAuth}
-          onClose={() => setShowKustomerOAuth(false)}
-          onConnect={handleKustomerOAuthConnect}
-          currentUser={currentUser}
-        />
-      )}
-      
-      {/* Messenger Integration Modal */}
-      {showMessengerConfig && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Facebook Messenger Configuration</h2>
-              <button
-                onClick={() => {
-                  setShowMessengerConfig(false);
-                  loadConnectionStatus();
-                }}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-0">
-              <MessengerIntegration />
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Klaviyo Integration Modal */}
-      {showKlaviyoConfig && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Klaviyo Configuration</h2>
-              <button
-                onClick={() => {
-                  setShowKlaviyoConfig(false);
-                  loadConnectionStatus();
-                }}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-0">
-              <KlaviyoIntegration />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
