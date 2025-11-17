@@ -3,8 +3,9 @@ import KnowledgeBaseTab from './KnowledgeBaseTab.jsx';
 import CustomizationTab from './CustomizationTab.jsx';
 import ChatPreview from './ChatPreview.jsx';
 import { dbService } from '../services/databaseService.js';
+import { authService } from '../services/authService.js';
 
-const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001'; // Fallback only
 
 // Icon Components
 const Target = () => <span className="text-xl">🎯</span>;
@@ -28,6 +29,12 @@ const BotBuilder = () => {
   const [saveStatus, setSaveStatus] = useState('');
   const [trainingConversations, setTrainingConversations] = useState([]);
   const [configId, setConfigId] = useState(null); // Track config ID for updates
+  
+  // ✅ FIX: Get actual user's organization ID
+  const currentUser = authService.getCurrentUser();
+  const organizationId = currentUser?.organizationId || DEFAULT_ORG_ID;
+  
+  console.log('🏛️ Bot Builder - Using Organization ID:', organizationId);
   
   const [botConfig, setBotConfig] = useState({
     name: 'ChatBot Assistant',
@@ -81,12 +88,13 @@ const BotBuilder = () => {
   useEffect(() => {
     loadBotConfiguration();
     loadTrainingData();
-  }, []);
+  }, [loadBotConfiguration]); // Reload when loadBotConfiguration changes
 
-  const loadBotConfiguration = async () => {
+  const loadBotConfiguration = useCallback(async () => {
     try {
       console.log('📥 Loading bot configuration from database...');
-      const configs = await dbService.getBotConfigs(DEFAULT_ORG_ID);
+      console.log('🏛️ Organization ID:', organizationId);
+      const configs = await dbService.getBotConfigs(organizationId);
       const dbConfig = configs && configs.length > 0 ? configs[0] : null;
       
       if (dbConfig) {
@@ -181,7 +189,7 @@ const BotBuilder = () => {
     } catch (error) {
       console.error('❌ Error loading bot config:', error);
     }
-  };
+  }, [organizationId]); // Recreate when organizationId changes
 
   const loadTrainingData = () => {
     const saved = localStorage.getItem('training-conversations');
@@ -219,6 +227,7 @@ const BotBuilder = () => {
     setSaveStatus('saving');
     try {
       console.log('💾 Saving bot config:', {
+        organizationId, // ✅ Show which org is saving
         name: botConfig.name,
         hasInstructions: !!botConfig.systemPrompt,
         instructionsLength: botConfig.systemPrompt?.length || 0
@@ -226,7 +235,7 @@ const BotBuilder = () => {
 
       const dbConfig = {
         ...(configId && { id: configId }), // Include ID if updating existing config
-        organization_id: DEFAULT_ORG_ID,
+        organization_id: organizationId, // ✅ Use actual user's org ID
         name: botConfig.name || 'ChatBot Assistant',
         // ✅ Ensure these are ALWAYS strings, never objects
         personality: JSON.stringify({
