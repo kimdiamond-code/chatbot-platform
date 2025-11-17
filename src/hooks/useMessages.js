@@ -6,11 +6,16 @@ import { useAuth } from './useAuth'
 import analyticsService from '../services/analyticsService'
 import { analyticsTracker } from '../services/analyticsTracker'
 import { shopifyService } from '../services/integrations/shopifyService'
+import { getCurrentOrganizationId } from '../utils/organizationUtils'
 
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 export const useMessages = (conversationId) => {
   const { user } = useAuth()
+  
+  // ✅ FIX: Get organization ID from authenticated user
+  const organizationId = getCurrentOrganizationId();
+  console.log('🏛️ useMessages - Using Organization ID:', organizationId);
 
   // Fetch messages from Neon database
   const { data: messages = [], isLoading: loading, refetch } = useQuery({
@@ -65,14 +70,15 @@ export const useMessages = (conversationId) => {
         if (messageData.sender_type === 'user' || 
             enhancedBotService.shouldProcessMessage(messageData.sender_type, messageData.content)) {
           
-          console.log('🤖 Generating bot response...');
+          console.log('🤖 Generating bot response for org:', organizationId);
           
           try {
-            // Generate smart bot response
+            // ✅ FIX: Pass organization ID to bot service
             const botResult = await enhancedBotService.processMessage(
               messageData.content,
               messageData.conversation_id,
-              messageData.customer_email
+              messageData.customer_email,
+              organizationId  // ✅ Pass organization ID
             );
 
             console.log('🤖 Bot response generated:', botResult.source);

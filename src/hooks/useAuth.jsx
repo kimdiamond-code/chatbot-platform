@@ -7,16 +7,73 @@ export function AuthProvider({ children }) {
 	const [user, setUser] = useState(null)
 	const [loading, setLoading] = useState(true)
 
+	// Fetch full user data including organization_id from Neon database
+	const loadFullUserData = async (supabaseUser) => {
+		if (!supabaseUser) {
+			setUser(null)
+			return
+		}
+
+		try {
+			console.log('🔍 Loading full user data for:', supabaseUser.email)
+			
+			// Fetch from Neon database (not Supabase) via API
+			const response = await fetch('/api/consolidated', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					endpoint: 'auth',
+					action: 'get_user_by_email',
+					email: supabaseUser.email
+				})
+			})
+
+			if (!response.ok) {
+				console.error('❌ API request failed:', response.status)
+				setUser(supabaseUser)
+				return
+			}
+
+			const { success, agent } = await response.json()
+
+			if (!success || !agent) {
+				console.error('❌ No agent data found for:', supabaseUser.email)
+				setUser(supabaseUser)
+				return
+			}
+
+			// Merge Supabase user with agent data from Neon
+			const fullUser = {
+				...supabaseUser,
+				id: agent.id,
+				organization_id: agent.organization_id,
+				role: agent.role,
+				name: agent.name
+			}
+
+			console.log('✅ Loaded full user:', {
+				email: fullUser.email,
+				organization_id: fullUser.organization_id,
+				role: fullUser.role
+			})
+
+			setUser(fullUser)
+		} catch (error) {
+			console.error('❌ Error in loadFullUserData:', error)
+			setUser(supabaseUser) // Fallback
+		}
+	}
+
 	useEffect(() => {
 		const getSession = async () => {
 			const { data, error } = await supabase.auth.getUser()
-			setUser(data?.user || null)
+			await loadFullUserData(data?.user)
 			setLoading(false)
 		}
 		getSession()
 
-		const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-			setUser(session?.user || null)
+		const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+			await loadFullUserData(session?.user)
 			setLoading(false)
 		})
 		return () => {
@@ -38,6 +95,12 @@ export function AuthProvider({ children }) {
 	const signIn = async (email, password) => {
 		setLoading(true)
 		const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+		
+		if (!error && data?.user) {
+			// Load full user data including organization_id
+			await loadFullUserData(data.user)
+		}
+		
 		setLoading(false)
 		return { data, error }
 	}

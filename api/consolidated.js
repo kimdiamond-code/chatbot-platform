@@ -1482,6 +1482,29 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       
+      // ==================== GET USER BY EMAIL ====================
+      if (action === 'get_user_by_email') {
+        const { email } = body;
+        
+        try {
+          const agents = await sql`
+            SELECT id, email, name, role, organization_id, is_active
+            FROM agents
+            WHERE email = ${email}
+            LIMIT 1
+          `;
+          
+          if (agents.length === 0) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+          }
+          
+          return res.status(200).json({ success: true, agent: agents[0] });
+        } catch (error) {
+          console.error('Error getting user by email:', error);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+      
       // ==================== TOGGLE USER ACTIVE ====================
       if (action === 'toggle_user_active') {
         const { token, userId, isActive } = body;

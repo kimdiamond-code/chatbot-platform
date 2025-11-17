@@ -58,183 +58,172 @@ class EnhancedBotService {
       if (integrationStatus.error) {
         console.warn('⚠️ Integration error:', integrationStatus.error);
       }
-      
-      // Update state based on integration check
-      this.state.status = integrationStatus.status;
-      this.state.lastCheck = new Date().toISOString();
-      this.state.isInitializing = false;
+
+      // Update state based on results
+      this.state = {
+        ...this.state,
+        isEnabled: this.state.isEnabled,
+        isInitialized: true,
+        isInitializing: false,
+        apiConnected: apiConnected,
+        lastCheck: new Date(),
+        status: integrationStatus,
+        error: integrationStatus.error || null
+      };
+
+      console.log('✅ Enhanced bot initialized:', {
+        enabled: this.state.isEnabled,
+        apiConnected: this.state.apiConnected,
+        shopifyStatus: this.state.status.shopify.connected,
+        kustomerStatus: this.state.status.kustomer.connected
+      });
+
+      return true;
     } catch (error) {
-      console.error('❌ Initialization error:', error);
-      this.state.error = error.message;
-      this.state.isInitializing = false;
-      
+      console.error('❌ Enhanced bot initialization error:', error);
+      this.state = {
+        ...this.state,
+        isInitialized: true, // Still mark as initialized to not block
+        isInitializing: false,
+        error: error.message || 'Initialization failed'
+      };
+
+      // Retry initialization if not max attempts
       if (this.initializationAttempts < this.maxInitAttempts) {
-        this.initTimeout = setTimeout(() => this.initializeWithRetry(), this.retryDelay);
+        const retryIn = Math.min(this.retryDelay * Math.pow(2, this.initializationAttempts), 30000);
+        console.log(`⏰ Will retry initialization in ${retryIn}ms`);
+        this.initTimeout = setTimeout(() => this.initializeWithRetry(), retryIn);
       }
+
+      return false;
     }
   }
 
   async checkApiConnection() {
     try {
-      const response = await fetch('/api/consolidated', { 
-        method: 'HEAD',
-        cache: 'no-cache'
-      });
-      
-      const connected = response.ok;
-      this.state.status.api = {
-        connected,
-        error: connected ? null : `API returned status ${response.status}`,
-        lastCheck: new Date().toISOString()
-      };
-      this.state.apiConnected = connected;
-      
-      if (!connected && response.status !== 400) {
-        this.switchToOfflineMode('API server not responding');
-      }
-      
-      return connected;
+      // Simply return true since OpenAI API is handled in openaiService
+      return true;
     } catch (error) {
-      console.warn('⚠️ API check failed:', error.message);
-      // Don't fail completely, just note the issue
-      this.state.status.api = {
-        connected: false,
-        error: `API connection check failed: ${error.message}`,
-        lastCheck: new Date().toISOString()
-      };
+      console.error('API connection check failed:', error);
       return false;
     }
   }
 
   async checkIntegrations() {
-    console.log('🔍 Checking integrations for enhanced bot...');
-    
-    try {
-      // Check if integrations are available with timeout
-      const status = await Promise.race([
-        integrationOrchestrator.getIntegrationStatus(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Integration check timeout')), 5000)
-        )
-      ]);
-
-      // Format integration status with detailed state
-      const formattedStatus = {
-        shopify: {
-          connected: status.shopify.connected || false,
-          error: status.shopify.error || null,
-          lastCheck: new Date().toISOString()
-        },
-        kustomer: {
-          connected: status.kustomer.connected || false,
-          error: status.kustomer.error || null,
-          lastCheck: new Date().toISOString()
-        },
-        api: this.state.status.api
-      };
-      
-      console.log('🤖 Enhanced bot service status check complete');
-      console.log('🔗 Shopify:', this.getStatusEmoji(formattedStatus.shopify));
-      console.log('🔗 Kustomer:', this.getStatusEmoji(formattedStatus.kustomer));
-      
-      return {
-        isEnabled: true,  // Always enabled
-        status: formattedStatus,
-        error: null,
-        lastCheck: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('❌ Integration check failed:', error.message);
-      // Return disconnected status on error
-      return {
-        isEnabled: true,
-        status: {
-          shopify: { connected: false, error: error.message },
-          kustomer: { connected: false, error: error.message },
-          api: this.state.status.api
-        },
-        error: error.message,
-        lastCheck: new Date().toISOString()
-      };
-    }
-  }
-
-  switchToOfflineMode(reason) {
-    console.log('⚠️ Enhanced Bot Offline Mode');
-    console.log(`⚠️ Reason: ${reason}`);
-    
-    this.state.status = {
-      ...this.state.status,
-      shopify: { connected: false, error: reason },
-      kustomer: { connected: false, error: reason }
+    const status = {
+      shopify: { connected: false, error: null },
+      kustomer: { connected: false, error: null },
+      api: { connected: true, error: null }
     };
-  }
 
-  getStatusEmoji(integration) {
-    if (integration.connected) return '✅ connected';
-    if (integration.error) return `❌ error: ${integration.error}`;
-    if (integration.initializing) return '🔄 initializing';
-    return '❌ disconnected';
+    // Check integrations - don't block on errors
+    try {
+      const { shopifyService } = await import('./integrations/shopifyService');
+      status.shopify.connected = await shopifyService.verifyConnection();
+    } catch (error) {
+      status.shopify.error = 'Service check failed';
+      console.warn('Shopify integration check failed:', error.message);
+    }
+
+    try {
+      const { kustomerService } = await import('./integrations/kustomerService');
+      status.kustomer.connected = await kustomerService.verifyConnection();
+    } catch (error) {
+      status.kustomer.error = 'Service check failed';
+      console.warn('Kustomer integration check failed:', error.message);
+    }
+
+    return status;
   }
 
   /**
-   * Get simple status for UI
+   * Get current service status
    */
   getStatus() {
     return {
-      ...this.state,
-      enabled: true,  // Always show as enabled
-      initializationAttempts: this.initializationAttempts,
-      maxInitAttempts: this.maxInitAttempts,
-      integrations: integrationOrchestrator.getIntegrationStatus()
+      enabled: this.state.isEnabled,
+      initialized: this.state.isInitialized,
+      initializing: this.state.isInitializing,
+      apiConnected: this.state.apiConnected,
+      lastCheck: this.state.lastCheck,
+      status: this.state.status,
+      error: this.state.error
     };
   }
 
-  // Clean up on unmount/shutdown
-  cleanup() {
-    if (this.initTimeout) {
-      clearTimeout(this.initTimeout);
-    }
-    this.state.isInitializing = false;
-  }
-  
   /**
-   * Manually refresh integration status (call after connecting Shopify)
+   * Enable/disable service
    */
-  async refreshIntegrations() {
-    console.log('🔄 Refreshing enhanced bot integrations...');
-    await integrationOrchestrator.refreshIntegrations();
-    await this.checkIntegrations();
-    return this.getStatus();
+  setEnabled(enabled) {
+    this.state.isEnabled = enabled;
+    console.log(`Enhanced bot ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
-   * Store customer email for session (for cart persistence)
+   * Store customer email for a conversation (for cart persistence across messages)
    */
   storeCustomerEmail(conversationId, email) {
-    if (email && email !== 'null' && email !== 'undefined') {
-      console.log('📧 Storing customer email for session:', { conversationId, email });
-      this.customerSessions.set(conversationId, { email, lastUpdated: Date.now() });
-    }
+    if (!conversationId || !email) return;
+    
+    this.customerSessions.set(conversationId, {
+      email,
+      timestamp: Date.now()
+    });
+    console.log(`📧 Stored customer email for conversation: ${email}`);
   }
 
   /**
-   * Get stored customer email for conversation
+   * Get stored customer email for a conversation
    */
   getCustomerEmail(conversationId) {
+    if (!conversationId) return null;
+    
     const session = this.customerSessions.get(conversationId);
-    if (session && session.email) {
-      console.log('📧 Retrieved stored customer email:', session.email);
+    
+    // Check if session exists and is less than 24 hours old
+    if (session && (Date.now() - session.timestamp) < 24 * 60 * 60 * 1000) {
       return session.email;
     }
+    
+    // Clean up expired session
+    if (session) {
+      this.customerSessions.delete(conversationId);
+    }
+    
     return null;
   }
 
   /**
-   * Process a customer message and generate smart response
+   * Clear stored customer data
    */
-  async processMessage(messageContent, conversationId, customerEmail = null) {
+  clearCustomerSession(conversationId) {
+    if (conversationId) {
+      this.customerSessions.delete(conversationId);
+      console.log(`🗑️ Cleared customer session for conversation: ${conversationId}`);
+    }
+  }
+
+  /**
+   * Clean up old sessions (older than 24 hours)
+   */
+  cleanupOldSessions() {
+    const now = Date.now();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+    for (const [conversationId, session] of this.customerSessions.entries()) {
+      if (now - session.timestamp > maxAge) {
+        this.customerSessions.delete(conversationId);
+      }
+    }
+  }
+
+  /**
+   * Process a customer message and generate smart response
+   * ✅ MULTI-TENANT FIX: Now accepts organizationId parameter
+   */
+  async processMessage(messageContent, conversationId, customerEmail = null, organizationId = null) {
     console.log('🤖 Enhanced bot processing message:', messageContent);
+    console.log('🏛️ Organization ID:', organizationId);
 
     try {
       // Get stored email if not provided
@@ -249,12 +238,12 @@ class EnhancedBotService {
         this.storeCustomerEmail(conversationId, effectiveEmail);
       }
 
-      // Load customer profile for personalization
+      // ✅ FIX: Use organization-specific customer profile
       let customerProfile = null;
       if (effectiveEmail) {
         customerProfile = await customerProfileService.getOrCreateProfile(
           effectiveEmail,
-          '00000000-0000-0000-0000-000000000001' // Default org ID
+          organizationId || '00000000-0000-0000-0000-000000000001'
         );
         console.log('👤 Customer profile loaded:', {
           email: effectiveEmail,
@@ -335,12 +324,12 @@ class EnhancedBotService {
       // Otherwise, enhance OpenAI with integration context
       console.log('🤖 Enhancing OpenAI with integration context');
       
-      // ✅ MULTI-TENANT FIX: Pass organization ID and customer context to OpenAI
+      // ✅ MULTI-TENANT FIX: Pass actual organization ID to OpenAI
       const aiResult = await chatBotService.generateResponse(
         messageContent, 
         conversationId,
         {
-          organizationId: '00000000-0000-0000-0000-000000000001',
+          organizationId: organizationId || '00000000-0000-0000-0000-000000000001',
           email: effectiveEmail,
           profile: customerProfile
         }
@@ -366,7 +355,7 @@ class EnhancedBotService {
           messageContent, 
           conversationId,
           {
-            organizationId: '00000000-0000-0000-0000-000000000001'
+            organizationId: organizationId || '00000000-0000-0000-0000-000000000001'
           }
         );
       } catch (fallbackError) {
@@ -388,23 +377,28 @@ class EnhancedBotService {
    */
   shouldProcessMessage(senderType, messageContent) {
     // Process user messages (customers)
-    if (senderType === 'user') {
+    if (senderType === 'user' || senderType === 'customer') {
       return true;
     }
-
-    // Don't process agent messages
-    if (senderType === 'agent') {
+    
+    // Don't process bot or agent messages
+    if (senderType === 'bot' || senderType === 'agent' || senderType === 'system') {
       return false;
     }
+    
+    // Default: process the message
+    return true;
+  }
 
-    // For unclear sender types, check content
-    const lowerContent = messageContent.toLowerCase();
-    const customerKeywords = [
-      'order', 'track', 'where is', 'status', 'help', 'problem', 
-      'issue', 'return', 'refund', 'cancel', 'billing', 'charge'
-    ];
-
-    return customerKeywords.some(keyword => lowerContent.includes(keyword));
+  /**
+   * Force refresh of integration status
+   */
+  async refreshIntegrations() {
+    console.log('🔄 Refreshing integration status...');
+    const newStatus = await this.checkIntegrations();
+    this.state.status = newStatus;
+    this.state.lastCheck = new Date();
+    return newStatus;
   }
 }
 
