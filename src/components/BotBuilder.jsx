@@ -93,8 +93,44 @@ const BotBuilder = () => {
         console.log('✅ Bot config loaded from database');
         console.log('📋 Config ID:', dbConfig.id);
         setConfigId(dbConfig.id); // Save config ID for updates
-        const settings = JSON.parse(dbConfig.settings || '{}');
-        const personality = JSON.parse(dbConfig.personality || '{}');
+        
+        // ✅ FIX: Defensive parsing for personality and settings
+        let settings = {};
+        let personality = {};
+        
+        try {
+          // Handle personality - could be string, object, or already parsed
+          if (typeof dbConfig.personality === 'string') {
+            // If it's "[object Object]", skip parsing
+            if (dbConfig.personality === '[object Object]') {
+              console.warn('⚠️ Personality corrupted, using defaults');
+              personality = { avatar: '🤖', tone: 'friendly', traits: ['professional', 'empathetic'] };
+            } else {
+              personality = JSON.parse(dbConfig.personality);
+            }
+          } else if (typeof dbConfig.personality === 'object' && dbConfig.personality !== null) {
+            personality = dbConfig.personality;
+          }
+          
+          // Handle settings - same defensive approach
+          if (typeof dbConfig.settings === 'string') {
+            if (dbConfig.settings === '[object Object]') {
+              console.warn('⚠️ Settings corrupted, using defaults');
+              settings = {};
+            } else {
+              settings = JSON.parse(dbConfig.settings);
+            }
+          } else if (typeof dbConfig.settings === 'object' && dbConfig.settings !== null) {
+            settings = dbConfig.settings;
+          }
+        } catch (parseError) {
+          console.error('❌ JSON parse error:', parseError.message);
+          console.log('🛠️ Raw personality:', dbConfig.personality);
+          console.log('🛠️ Raw settings:', dbConfig.settings);
+          // Use defaults on parse error
+          personality = { avatar: '🤖', tone: 'friendly', traits: ['professional', 'empathetic'] };
+          settings = {};
+        }
         
         const appConfig = {
           name: dbConfig.name || 'ChatBot Assistant',
@@ -192,6 +228,7 @@ const BotBuilder = () => {
         ...(configId && { id: configId }), // Include ID if updating existing config
         organization_id: DEFAULT_ORG_ID,
         name: botConfig.name || 'ChatBot Assistant',
+        // ✅ Ensure these are ALWAYS strings, never objects
         personality: JSON.stringify({
           avatar: botConfig.avatar,
           tone: botConfig.tone,
