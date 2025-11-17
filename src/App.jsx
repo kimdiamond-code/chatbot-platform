@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { AuthProvider } from './contexts/AuthContext.jsx';
-import { authService } from './services/authService';
+import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import rbacService, { PERMISSIONS } from './services/rbacService';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
@@ -90,13 +89,12 @@ const EnhancedSettings = () => (
   </div>
 );
 
-// MAIN APP COMPONENT
-const App = () => {
+// MAIN APP COMPONENT - Wrapped to use new auth hook
+const AppContent = () => {
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
-  const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
   const [showSignup, setShowSignup] = useState(false);
   const [realTimeMetrics, setRealTimeMetrics] = useState({
     activeChats: 3,
@@ -105,22 +103,19 @@ const App = () => {
     satisfaction: 4.8
   });
 
+  const isAuthenticated = !!user;
+  const currentUser = user;
+
   useEffect(() => {
     // Initialize RBAC with current user role
     if (currentUser) {
       rbacService.setUserRole(currentUser.role || 'user');
+      console.log('👤 User loaded:', {
+        email: currentUser.email,
+        organization_id: currentUser.organization_id,
+        role: currentUser.role
+      });
     }
-
-    // Subscribe to auth changes
-    const unsubscribe = authService.subscribe((user) => {
-      setIsAuthenticated(!!user);
-      setCurrentUser(user);
-      if (user) {
-        rbacService.setUserRole(user.role || 'user');
-      }
-    });
-
-    return unsubscribe;
   }, [currentUser]);
 
   useEffect(() => {
@@ -150,14 +145,24 @@ const App = () => {
     };
   }, []);
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Authentication check - ENABLED
   if (!isAuthenticated) {
     if (showSignup) {
       return <Signup
         onSignupSuccess={() => {
-          setIsAuthenticated(true);
-          setCurrentUser(authService.getCurrentUser());
-          setShowSignup(false);
+          window.location.reload(); // Reload to trigger auth hook
         }}
         onSwitchToLogin={() => setShowSignup(false)}
       />;
@@ -165,8 +170,7 @@ const App = () => {
 
     return <Login
       onLoginSuccess={() => {
-        setIsAuthenticated(true);
-        setCurrentUser(authService.getCurrentUser());
+        window.location.reload(); // Reload to trigger auth hook
       }}
       onSwitchToSignup={() => setShowSignup(true)}
     />;
@@ -252,40 +256,47 @@ const App = () => {
   );
 
   return (
-    <AuthProvider>
-      <TooltipProvider>
-        <div className="min-h-screen gradient-background flex overflow-hidden">
-          <CleanModernNavigation
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
+    <TooltipProvider>
+      <div className="min-h-screen gradient-background flex overflow-hidden">
+        <CleanModernNavigation
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          isMobile={isMobile}
+          realTimeMetrics={realTimeMetrics}
+          navigation={navigation}
+        />
+
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <CleanHeader
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
-            isMobile={isMobile}
             realTimeMetrics={realTimeMetrics}
-            navigation={navigation}
           />
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <CleanHeader
-              sidebarOpen={sidebarOpen}
-              setSidebarOpen={setSidebarOpen}
-              realTimeMetrics={realTimeMetrics}
-            />
-
-            <main className="flex-1 overflow-y-auto glass-background">
-              <div className="min-h-full">
-                <ActiveComponent onNavigate={setActiveTab} />
-              </div>
-            </main>
-          </div>
-
-          {/* Onboarding System */}
-          <OnboardingManager onNavigate={setActiveTab} />
-
-          {/* Dev Role Indicator - Remove in production */}
-          {roleIndicator}
+          <main className="flex-1 overflow-y-auto glass-background">
+            <div className="min-h-full">
+              <ActiveComponent onNavigate={setActiveTab} />
+            </div>
+          </main>
         </div>
-      </TooltipProvider>
+
+        {/* Onboarding System */}
+        <OnboardingManager onNavigate={setActiveTab} />
+
+        {/* Dev Role Indicator - Remove in production */}
+        {roleIndicator}
+      </div>
+    </TooltipProvider>
+  );
+};
+
+// Wrap AppContent with AuthProvider
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 };
