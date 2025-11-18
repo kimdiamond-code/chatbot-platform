@@ -1,10 +1,47 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// ✅ Safe Supabase client with null check
+let supabaseClient = null;
+try {
+  if (supabaseUrl && supabaseKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseKey);
+  }
+} catch (error) {
+  console.warn('Supabase client creation failed:', error);
+}
+
+// ✅ Safe proxy that prevents null reference errors
+export const supabase = new Proxy({}, {
+  get(target, prop) {
+    if (!supabaseClient) {
+      console.warn(`Supabase not available - ${prop} call skipped`);
+      // Return safe mock for common operations
+      if (prop === 'auth') {
+        return {
+          signUp: async () => ({ data: null, error: { message: 'Auth not available' } }),
+          signIn: async () => ({ data: null, error: { message: 'Auth not available' } }),
+          signInWithPassword: async () => ({ data: null, error: { message: 'Auth not available' } }),
+          signOut: async () => ({ error: null }),
+          getUser: async () => ({ data: { user: null }, error: null }),
+          updateUser: async () => ({ data: null, error: { message: 'Auth not available' } }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+        };
+      }
+      if (prop === 'from') {
+        return () => ({
+          select: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }) }) }),
+          insert: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }),
+          update: () => ({ eq: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }) })
+        });
+      }
+      return () => {};
+    }
+    return supabaseClient[prop];
+  }
+});
 
 // Authentication Service
 export const authService = {
@@ -169,7 +206,7 @@ export const conversationService = {
 
     if (data) {
       // Sort messages by created_at
-      data.messages = data.messages.sort((a, b) => 
+      data.messages = data.messages.sort((a, b) =>
         new Date(a.created_at) - new Date(b.created_at)
       );
     }
@@ -218,6 +255,7 @@ export const conversationService = {
 
   // Subscribe to conversation updates
   subscribeToConversations(orgId, callback) {
+    if (!supabaseClient) return { unsubscribe: () => {} };
     return supabase
       .channel('conversations')
       .on('postgres_changes', {
@@ -258,7 +296,7 @@ export const messageService = {
   // Get messages for conversation
   async getMessages(conversationId, page = 1, limit = 50) {
     const offset = (page - 1) * limit;
-    
+
     const { data, error } = await supabase
       .from('messages')
       .select(`
@@ -274,6 +312,7 @@ export const messageService = {
 
   // Subscribe to new messages
   subscribeToMessages(conversationId, callback) {
+    if (!supabaseClient) return { unsubscribe: () => {} };
     return supabase
       .channel('messages')
       .on('postgres_changes', {
@@ -293,7 +332,7 @@ export const messageService = {
       .eq('conversation_id', conversationId)
       .neq('sender_id', userId)
       .is('read_at', null);
-    
+
     return { error };
   }
 };
@@ -447,7 +486,7 @@ export const analyticsService = {
       }
 
       agentStats[agentId].totalConversations++;
-      
+
       if (conv.status === 'closed' && conv.resolved_at) {
         agentStats[agentId].resolvedConversations++;
         const resolutionTime = new Date(conv.resolved_at) - new Date(conv.created_at);
@@ -516,10 +555,10 @@ export const botService = {
 
       // Simple keyword matching for demo
       const messageText = message.toLowerCase();
-      
+
       for (const flow of flows) {
         const triggers = flow.triggers || [];
-        const matchedTrigger = triggers.find(trigger => 
+        const matchedTrigger = triggers.find(trigger =>
           messageText.includes(trigger.toLowerCase())
         );
 
@@ -550,6 +589,10 @@ export const botService = {
 export const fileService = {
   // Upload file to Supabase Storage
   async uploadFile(file, path) {
+    if (!supabaseClient) {
+      return { data: null, error: { message: 'Storage not available' } };
+    }
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `${path}/${fileName}`;
@@ -565,20 +608,24 @@ export const fileService = {
       .from('chat-attachments')
       .getPublicUrl(filePath);
 
-    return { 
-      data: { 
-        path: filePath, 
+    return {
+      data: {
+        path: filePath,
         url: urlData.publicUrl,
         name: file.name,
         size: file.size,
         type: file.type
-      }, 
-      error: null 
+      },
+      error: null
     };
   },
 
   // Delete file
   async deleteFile(path) {
+    if (!supabaseClient) {
+      return { error: { message: 'Storage not available' } };
+    }
+    
     const { error } = await supabase.storage
       .from('chat-attachments')
       .remove([path]);
@@ -642,7 +689,7 @@ export const integrationService = {
         'X-Shopify-Access-Token': config.accessToken
       }
     });
-    
+
     if (response.ok) {
       return { success: true };
     } else {
@@ -657,7 +704,7 @@ export const integrationService = {
         'Authorization': `Bearer ${config.botToken}`
       }
     });
-    
+
     const data = await response.json();
     if (data.ok) {
       return { success: true };
@@ -671,6 +718,10 @@ export const integrationService = {
 export const notificationService = {
   // Send email notification
   async sendEmail(to, subject, content, orgId) {
+    if (!supabaseClient) {
+      return { data: null, error: { message: 'Functions not available' } };
+    }
+    
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         to,
@@ -684,6 +735,10 @@ export const notificationService = {
 
   // Send SMS notification
   async sendSMS(to, message, orgId) {
+    if (!supabaseClient) {
+      return { data: null, error: { message: 'Functions not available' } };
+    }
+    
     const { data, error } = await supabase.functions.invoke('send-sms', {
       body: {
         to,

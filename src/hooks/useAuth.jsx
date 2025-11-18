@@ -1,5 +1,4 @@
 import { useState, useEffect, useContext, createContext } from 'react'
-import { supabase } from '../services/supabase'
 
 const AuthContext = createContext()
 
@@ -7,131 +6,194 @@ export function AuthProvider({ children }) {
 	const [user, setUser] = useState(null)
 	const [loading, setLoading] = useState(true)
 
-	// Fetch full user data including organization_id from Neon database
-	const loadFullUserData = async (supabaseUser) => {
-		if (!supabaseUser) {
-			setUser(null)
-			return
+	// Load user from localStorage on mount
+	useEffect(() => {
+		const loadUser = async () => {
+			try {
+				const storedToken = localStorage.getItem('auth_token')
+				const storedUser = localStorage.getItem('auth_user')
+
+				if (storedToken && storedUser) {
+					const userData = JSON.parse(storedUser)
+					console.log('🔍 Loading stored user:', userData.email)
+					
+					// Fetch fresh organization data from Neon
+					const response = await fetch('/api/consolidated', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							endpoint: 'auth',
+							action: 'get_user_by_email',
+							email: userData.email
+						})
+					})
+
+					if (response.ok) {
+						const { success, agent } = await response.json()
+						
+						if (success && agent) {
+							const fullUser = {
+								...userData,
+								id: agent.id,
+								organization_id: agent.organization_id,
+								role: agent.role,
+								name: agent.name
+							}
+							
+							console.log('✅ Loaded full user:', {
+								email: fullUser.email,
+								organization_id: fullUser.organization_id,
+								role: fullUser.role
+							})
+							
+							setUser(fullUser)
+						} else {
+							console.warn('⚠️ No agent record found for stored user')
+							// Keep basic user data but flag as incomplete
+							setUser({
+								...userData,
+								_incomplete: true,
+								_error: 'No agent record in Neon database'
+							})
+						}
+					} else {
+						console.warn('⚠️ Failed to fetch user data from API')
+						setUser(userData) // Use cached data
+					}
+				} else {
+					console.log('👤 No stored auth found')
+				}
+			} catch (error) {
+				console.error('❌ Error loading user:', error)
+			} finally {
+				setLoading(false)
+			}
 		}
 
+		loadUser()
+	}, [])
+
+	const signIn = async (email, password) => {
+		setLoading(true)
 		try {
-			console.log('🔍 Loading full user data for:', supabaseUser.email)
-			
-			// Fetch from Neon database (not Supabase) via API
 			const response = await fetch('/api/consolidated', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					endpoint: 'auth',
-					action: 'get_user_by_email',
-					email: supabaseUser.email
+					action: 'login',
+					email,
+					password
 				})
 			})
 
-			if (!response.ok) {
-				console.error('❌ API request failed:', response.status)
-				console.log('⚠️ Using Supabase user only (no organization data)')
-				setUser(supabaseUser)
-				return
+			const data = await response.json()
+
+			if (!response.ok || !data.success) {
+				throw new Error(data.error || 'Login failed')
 			}
 
-			const { success, agent } = await response.json()
+			// Store auth data
+			localStorage.setItem('auth_token', data.token)
+			localStorage.setItem('auth_user', JSON.stringify(data.user))
 
-			if (!success || !agent) {
-				console.warn('⚠️ No agent record found in Neon database for:', supabaseUser.email)
-				console.log('🛠️ This user needs an agent record created in the database')
-				console.log('📝 Run this SQL in Neon:')
-				console.log(`INSERT INTO agents (organization_id, email, name, role, is_active) VALUES (gen_random_uuid(), '${supabaseUser.email}', '${supabaseUser.email.split('@')[0]}', 'admin', true);`)
-				
-				// Use Supabase user as fallback but mark as incomplete
-				const fallbackUser = {
-					...supabaseUser,
-					organization_id: null,
-					role: 'user',
-					name: supabaseUser.email,
-					_incomplete: true,
-					_error: 'No agent record in Neon database'
-				}
-				setUser(fallbackUser)
-				return
-			}
-
-			// Merge Supabase user with agent data from Neon
-			const fullUser = {
-				...supabaseUser,
-				id: agent.id,
-				organization_id: agent.organization_id,
-				role: agent.role,
-				name: agent.name
-			}
-
-			console.log('✅ Loaded full user:', {
-				email: fullUser.email,
-				organization_id: fullUser.organization_id,
-				role: fullUser.role
+			console.log('✅ Login successful:', {
+				email: data.user.email,
+				organization_id: data.user.organization_id,
+				role: data.user.role
 			})
 
-			setUser(fullUser)
+			setUser(data.user)
+			setLoading(false)
+			
+			return { data: data.user, error: null }
 		} catch (error) {
-			console.error('❌ Error in loadFullUserData:', error)
-			console.log('⚠️ Using Supabase user only (error occurred)')
-			setUser(supabaseUser) // Fallback
+			console.error('❌ Login error:', error)
+			setLoading(false)
+			return { data: null, error }
 		}
 	}
-
-	useEffect(() => {
-		const getSession = async () => {
-			const { data, error } = await supabase.auth.getUser()
-			await loadFullUserData(data?.user)
-			setLoading(false)
-		}
-		getSession()
-
-		const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-			await loadFullUserData(session?.user)
-			setLoading(false)
-		})
-		return () => {
-			subscription?.unsubscribe()
-		}
-	}, [])
 
 	const signUp = async (email, password, userData) => {
 		setLoading(true)
-		const { data, error } = await supabase.auth.signUp({
-			email,
-			password,
-			options: { data: userData }
-		})
-		setLoading(false)
-		return { data, error }
-	}
+		try {
+			const response = await fetch('/api/consolidated', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					endpoint: 'auth',
+					action: 'signup',
+					email,
+					password,
+					name: userData?.name || email.split('@')[0]
+				})
+			})
 
-	const signIn = async (email, password) => {
-		setLoading(true)
-		const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-		
-		if (!error && data?.user) {
-			// Load full user data including organization_id
-			await loadFullUserData(data.user)
+			const data = await response.json()
+
+			if (!response.ok || !data.success) {
+				throw new Error(data.error || 'Signup failed')
+			}
+
+			// Store auth data
+			localStorage.setItem('auth_token', data.token)
+			localStorage.setItem('auth_user', JSON.stringify(data.user))
+
+			console.log('✅ Signup successful:', data.user.email)
+
+			setUser(data.user)
+			setLoading(false)
+			
+			return { data: data.user, error: null }
+		} catch (error) {
+			console.error('❌ Signup error:', error)
+			setLoading(false)
+			return { data: null, error }
 		}
-		
-		setLoading(false)
-		return { data, error }
 	}
 
 	const signOut = async () => {
 		setLoading(true)
-		const { error } = await supabase.auth.signOut()
+		
+		// Clear local storage
+		localStorage.removeItem('auth_token')
+		localStorage.removeItem('auth_user')
+		
+		// Optionally call API to invalidate token
+		try {
+			const token = localStorage.getItem('auth_token')
+			if (token) {
+				await fetch('/api/consolidated', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						endpoint: 'auth',
+						action: 'logout',
+						token
+					})
+				})
+			}
+		} catch (error) {
+			console.error('Logout API error:', error)
+		}
+		
 		setUser(null)
 		setLoading(false)
-		return { error }
+		
+		return { error: null }
 	}
 
 	const updateProfile = async (updates) => {
-		const { data, error } = await supabase.auth.updateUser({ data: updates })
-		if (data?.user) setUser(data.user)
-		return { data, error }
+		try {
+			// Update local user state
+			const updatedUser = { ...user, ...updates }
+			setUser(updatedUser)
+			localStorage.setItem('auth_user', JSON.stringify(updatedUser))
+			
+			return { data: { user: updatedUser }, error: null }
+		} catch (error) {
+			return { data: null, error }
+		}
 	}
 
 	return (

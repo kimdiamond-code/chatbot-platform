@@ -1,13 +1,27 @@
-// ⚠️ SUPABASE HAS BEEN REMOVED - MIGRATED TO NEON DATABASE
-// This file exists only for backwards compatibility during migration
-// All database operations now use /services/databaseService.js with Neon PostgreSQL
+// Supabase client for AUTHENTICATION ONLY
+// Data operations use Neon database via /services/databaseService.js
 
-// Stub export to prevent build errors from old imports
-export const getSupabaseClient = () => {
-  console.warn('⚠️ getSupabaseClient() called but Supabase has been removed. Use dbService instead.');
-  return null;
-};
+import { createClient } from '@supabase/supabase-js'
 
-export const supabase = null;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export default null;
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Missing Supabase credentials in environment variables');
+  console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+}
+
+// Create Supabase client for auth only
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+if (supabase) {
+  console.log('✅ Supabase Auth initialized');
+} else {
+  console.error('❌ Supabase Auth failed to initialize');
+}
+
+export const getSupabaseClient = () => supabase;
+
+export default supabase;

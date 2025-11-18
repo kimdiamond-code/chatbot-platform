@@ -1,11 +1,10 @@
 import { dbService } from './databaseService';
+import { getCurrentOrganizationId } from '../utils/organizationUtils';
 
 /**
  * Analytics Service - Now using Neon Database
  * Tracks events and updates analytics data
  */
-
-const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 // In-memory storage for fallback
 let demoAnalytics = {
@@ -21,8 +20,9 @@ class AnalyticsService {
     console.log('📊 ANALYTICS: Tracking event', { conversationId, eventType, eventData });
     
     try {
+      const organizationId = getCurrentOrganizationId();
       const event = await dbService.createAnalyticsEvent({
-        organization_id: DEFAULT_ORG_ID,
+        organization_id: organizationId,
         conversation_id: conversationId,
         event_type: eventType,
         event_data: eventData
@@ -210,8 +210,9 @@ class AnalyticsService {
         };
       }
 
+      const organizationId = getCurrentOrganizationId();
       const analytics = await dbService.getAnalytics(
-        DEFAULT_ORG_ID,
+        organizationId,
         startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         endDate || new Date().toISOString()
       );
@@ -251,7 +252,8 @@ class AnalyticsService {
       startDate.setDate(startDate.getDate() - 7);
 
       // Fetch conversations from Neon
-      const conversations = await dbService.getConversations(DEFAULT_ORG_ID, 100);
+      const organizationId = getCurrentOrganizationId();
+      const conversations = await dbService.getConversations(organizationId, 100);
       
       console.log('✅ Loaded conversations from Neon:', conversations.length);
 

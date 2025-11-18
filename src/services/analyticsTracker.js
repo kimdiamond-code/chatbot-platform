@@ -4,11 +4,16 @@
 // ===================================================================
 
 import { dbService } from './databaseService';
+import { getCurrentOrganizationId } from '../utils/organizationUtils';
 
 class AnalyticsTracker {
   constructor() {
-    this.orgId = '00000000-0000-0000-0000-000000000001';
     this.sessionData = new Map(); // Track per-conversation session data
+  }
+
+  // Get organization ID dynamically from authenticated user
+  getOrganizationId() {
+    return getCurrentOrganizationId();
   }
 
   // ===================================================================

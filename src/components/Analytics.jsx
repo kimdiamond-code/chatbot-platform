@@ -3,8 +3,12 @@ import { dbService } from '../services/databaseService';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { exportCompleteReport, generatePrintableReport } from '../utils/exportAnalytics';
 import { Play, Pause, Calendar, Target, TrendingUp, TrendingDown } from 'lucide-react';
+import { getCurrentOrganizationId } from '../utils/organizationUtils';
 
 export default function Analytics() {
+  // ✅ FIX: Get organization ID from authenticated user
+  const organizationId = getCurrentOrganizationId();
+  console.log('📊 Analytics - Using Organization ID:', organizationId);
   const [timeRange, setTimeRange] = useState('7d');
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -114,8 +118,8 @@ export default function Analytics() {
         }
       }
 
-      // Fetch conversations from Neon database
-      const conversations = await dbService.getConversations('00000000-0000-0000-0000-000000000001');
+      // Fetch conversations from Neon database - using user's organization
+      const conversations = await dbService.getConversations(organizationId);
       
       // Filter by date range
       const filteredConversations = conversations.filter(conv => {
@@ -150,7 +154,7 @@ export default function Analytics() {
 
   const fetchPreviousPeriodData = async (prevStartDate, prevEndDate) => {
     try {
-      const conversations = await dbService.getConversations('00000000-0000-0000-0000-000000000001');
+      const conversations = await dbService.getConversations(organizationId);
       const filteredConversations = conversations.filter(conv => {
         const convDate = new Date(conv.created_at);
         return convDate >= prevStartDate && convDate <= prevEndDate;
