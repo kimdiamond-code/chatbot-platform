@@ -10,11 +10,18 @@ export function AuthProvider({ children }) {
 	useEffect(() => {
 		const loadUser = async () => {
 			try {
-				const storedToken = localStorage.getItem('auth_token')
-				const storedUser = localStorage.getItem('auth_user')
+				// ✅ FIX: Read from 'chatbot_auth' to match authService
+				const storedAuth = localStorage.getItem('chatbot_auth')
 
-				if (storedToken && storedUser) {
-					const userData = JSON.parse(storedUser)
+				if (storedAuth) {
+					const authData = JSON.parse(storedAuth)
+					const userData = {
+						id: authData.id,
+						email: authData.email,
+						name: authData.name,
+						role: authData.role,
+						organization_id: authData.organizationId
+					}
 					console.log('🔍 Loading stored user:', userData.email)
 					
 					// Fetch fresh organization data from Neon
@@ -93,9 +100,17 @@ export function AuthProvider({ children }) {
 				throw new Error(data.error || 'Login failed')
 			}
 
-			// Store auth data
-			localStorage.setItem('auth_token', data.token)
-			localStorage.setItem('auth_user', JSON.stringify(data.user))
+			// Store auth data - match authService format
+			const authData = {
+				id: data.user.id,
+				email: data.user.email,
+				name: data.user.name,
+				role: data.user.role,
+				organizationId: data.user.organization_id,
+				token: data.token,
+				expiresAt: data.expiresAt
+			}
+			localStorage.setItem('chatbot_auth', JSON.stringify(authData))
 
 			console.log('✅ Login successful:', {
 				email: data.user.email,
@@ -135,9 +150,17 @@ export function AuthProvider({ children }) {
 				throw new Error(data.error || 'Signup failed')
 			}
 
-			// Store auth data
-			localStorage.setItem('auth_token', data.token)
-			localStorage.setItem('auth_user', JSON.stringify(data.user))
+			// Store auth data - match authService format
+			const authData = {
+				id: data.user.id,
+				email: data.user.email,
+				name: data.user.name,
+				role: data.user.role,
+				organizationId: data.user.organization_id,
+				token: data.token,
+				expiresAt: data.expiresAt
+			}
+			localStorage.setItem('chatbot_auth', JSON.stringify(authData))
 
 			console.log('✅ Signup successful:', data.user.email)
 
@@ -155,13 +178,15 @@ export function AuthProvider({ children }) {
 	const signOut = async () => {
 		setLoading(true)
 		
+		// Get token before clearing
+		const storedAuth = localStorage.getItem('chatbot_auth')
+		const token = storedAuth ? JSON.parse(storedAuth).token : null
+		
 		// Clear local storage
-		localStorage.removeItem('auth_token')
-		localStorage.removeItem('auth_user')
+		localStorage.removeItem('chatbot_auth')
 		
 		// Optionally call API to invalidate token
 		try {
-			const token = localStorage.getItem('auth_token')
 			if (token) {
 				await fetch('/api/consolidated', {
 					method: 'POST',
@@ -188,7 +213,15 @@ export function AuthProvider({ children }) {
 			// Update local user state
 			const updatedUser = { ...user, ...updates }
 			setUser(updatedUser)
-			localStorage.setItem('auth_user', JSON.stringify(updatedUser))
+			
+			// Update stored auth with new user data
+			const storedAuth = localStorage.getItem('chatbot_auth')
+			if (storedAuth) {
+				const authData = JSON.parse(storedAuth)
+				authData.name = updatedUser.name
+				authData.email = updatedUser.email
+				localStorage.setItem('chatbot_auth', JSON.stringify(authData))
+			}
 			
 			return { data: { user: updatedUser }, error: null }
 		} catch (error) {
