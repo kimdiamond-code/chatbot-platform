@@ -27,8 +27,9 @@ const FullIntegrations = () => {
   
   console.log('🏛️ Integrations - Using Organization ID:', organizationId);
   console.log('👤 Full user object:', user);
+  console.log('👮 User role:', user?.role);
   
-  // Require authentication AND valid organization
+  // Require authentication only
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
@@ -36,7 +37,7 @@ const FullIntegrations = () => {
           <div className="text-center">
             <span className="text-6xl mb-4 block">🔐</span>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
-            <p className="text-gray-600 mb-6">Please log in to manage your integrations.</p>
+            <p className="text-gray-600 mb-6">Please log in to connect your integrations.</p>
             <a 
               href="/login" 
               className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
@@ -49,6 +50,7 @@ const FullIntegrations = () => {
     );
   }
   
+  // ✅ Handle missing organization_id more gracefully
   if (!organizationId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
@@ -56,29 +58,38 @@ const FullIntegrations = () => {
           <div className="text-center">
             <span className="text-6xl mb-4 block">⚠️</span>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Setup Required</h2>
-            <p className="text-gray-600 mb-4">Your user account is not properly configured in the database.</p>
+            <p className="text-gray-600 mb-4">Your account is not fully configured.</p>
             
             {user?._incomplete && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
-                <h3 className="font-semibold text-yellow-900 mb-2">Missing Agent Record</h3>
+                <h3 className="font-semibold text-yellow-900 mb-2">Missing Organization</h3>
                 <p className="text-sm text-yellow-800 mb-3">
                   Logged in as: <strong>{user.email}</strong><br/>
-                  Error: {user._error}
+                  Issue: {user._error || 'No organization assigned'}
                 </p>
-                <p className="text-sm text-yellow-800 mb-2 font-semibold">Run this SQL in Neon Database:</p>
-                <div className="bg-yellow-100 p-3 rounded font-mono text-xs overflow-x-auto">
-                  INSERT INTO agents (organization_id, email, name, role, is_active)<br/>
-                  VALUES (gen_random_uuid(), '{user.email}', '{user.email.split('@')[0]}', 'admin', true);
-                </div>
+                <p className="text-sm text-yellow-800 mb-2 font-semibold">Contact your administrator to:</p>
+                <ul className="text-sm text-yellow-800 list-disc list-inside space-y-1">
+                  <li>Assign you to an organization</li>
+                  <li>Verify your agent record exists</li>
+                  <li>Check your role permissions</li>
+                </ul>
               </div>
             )}
             
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-            >
-              Retry After Database Update
-            </button>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              >
+                Retry
+              </button>
+              <a
+                href="/dashboard"
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+              >
+                Go to Dashboard
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -423,6 +434,24 @@ const FullIntegrations = () => {
                   Organization: {currentUser.organizationId || 'Not set'}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Info Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">ℹ️</span>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 mb-1">How Integrations Work</h3>
+                <p className="text-sm text-blue-800 mb-2">
+                  Connect your personal accounts to use integrations. Admin sets up API keys once for the entire organization.
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>✓ <strong>You:</strong> Connect your Shopify, Kustomer, or Messenger accounts</li>
+                  <li>✓ <strong>Admin:</strong> Configures API keys (OpenAI, Twilio, etc.) for everyone</li>
+                  <li>✓ <strong>Result:</strong> Your connected accounts work with organization's AI capabilities</li>
+                </ul>
+              </div>
             </div>
           </div>
 

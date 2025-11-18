@@ -120,9 +120,11 @@ const rolePermissions = {
   ],
   
   [ROLES.USER]: [
-    // Minimal access - view only
+    // Minimal access - can view and connect integrations
     PERMISSIONS.VIEW_BOT_CONFIG,
     PERMISSIONS.VIEW_OWN_CONVERSATIONS,
+    PERMISSIONS.VIEW_INTEGRATIONS,
+    PERMISSIONS.MANAGE_INTEGRATIONS, // Can connect their own OAuth accounts
   ]
 };
 
@@ -143,7 +145,7 @@ export const FEATURE_ACCESS = {
   widget: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT, ROLES.USER],
   webhooks: [ROLES.ADMIN, ROLES.DEVELOPER], // ADMIN/DEV ONLY - Hidden from AGENT
   analytics: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT],
-  integrations: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT], // Added AGENT - can connect integrations, no API keys
+  integrations: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT, ROLES.USER], // All users can connect their own integrations
   security: [ROLES.ADMIN, ROLES.DEVELOPER], // ADMIN/DEV ONLY - Hidden from AGENT
   users: [ROLES.ADMIN], // ADMIN ONLY - Hidden from AGENT
   billing: [ROLES.ADMIN, ROLES.DEVELOPER, ROLES.MANAGER, ROLES.AGENT], // Added AGENT
