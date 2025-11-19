@@ -25,227 +25,17 @@ const FullIntegrations = () => {
   // ✅ FIX: Get actual user's organization ID from auth hook
   const organizationId = user?.organization_id;
   
-  console.log('🏛️ Integrations - Using Organization ID:', organizationId);
-  console.log('👤 Full user object:', user);
-  console.log('👮 User role:', user?.role);
-  console.log('⏳ Auth loading:', loading);
-  
-  // Show loading state while auth is initializing
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Require authentication only
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md">
-          <div className="text-center">
-            <span className="text-6xl mb-4 block">🔐</span>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
-            <p className="text-gray-600 mb-6">Please log in to connect your integrations.</p>
-            <a 
-              href="/login" 
-              className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-            >
-              Go to Login
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // ✅ Handle missing organization_id more gracefully
-  if (!organizationId) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-2xl">
-          <div className="text-center">
-            <span className="text-6xl mb-4 block">⚠️</span>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Setup Required</h2>
-            <p className="text-gray-600 mb-4">Your account is not fully configured.</p>
-            
-            {user?._incomplete && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
-                <h3 className="font-semibold text-yellow-900 mb-2">Missing Organization</h3>
-                <p className="text-sm text-yellow-800 mb-3">
-                  Logged in as: <strong>{user.email}</strong><br/>
-                  Issue: {user._error || 'No organization assigned'}
-                </p>
-                <p className="text-sm text-yellow-800 mb-2 font-semibold">Contact your administrator to:</p>
-                <ul className="text-sm text-yellow-800 list-disc list-inside space-y-1">
-                  <li>Assign you to an organization</li>
-                  <li>Verify your agent record exists</li>
-                  <li>Check your role permissions</li>
-                </ul>
-              </div>
-            )}
-            
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-              >
-                Retry
-              </button>
-              <a
-                href="/dashboard"
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
-              >
-                Go to Dashboard
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const copyEnvTemplate = async () => {
-    try {
-      await navigator.clipboard.writeText(apiKeysService.generateEnvTemplate());
-      setTemplateCopied(true);
-      setTimeout(() => setTemplateCopied(false), 3000);
-    } catch (error) {
-      console.error('Failed to copy template:', error);
-      // Fallback for browsers that don't support clipboard API
-      const textArea = document.createElement('textarea');
-      textArea.value = apiKeysService.generateEnvTemplate();
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setTemplateCopied(true);
-      setTimeout(() => setTemplateCopied(false), 3000);
-    }
-  };
-
-  // Integration data with modern styling
-  const integrations = [
-    {
-      id: 'shopify',
-      name: 'Shopify',
-      description: 'Connect your Shopify store for product search, order tracking, and customer support',
-      category: 'ecommerce',
-      icon: '🛍️',
-      color: 'from-green-500 to-emerald-600',
-      features: ['Product Search', 'Order Tracking', 'Customer Data', 'Inventory Status'],
-      status: connections.shopify || 'disconnected',
-      setupRequired: true,
-      isShopify: true
-    },
-    {
-      id: 'kustomer',
-      name: 'Kustomer CRM',
-      description: 'Connect with your personal Kustomer account for customer support integration',
-      category: 'crm',
-      icon: '👥',
-      color: 'from-blue-500 to-cyan-600',
-      features: ['Customer Profiles', 'OAuth Authentication', 'Chat History', 'Agent Assignment'],
-      status: connections.kustomer || 'disconnected',
-      setupRequired: true,
-      isKustomerOAuth: true
-    },
-    {
-      id: 'klaviyo',
-      name: 'Klaviyo',
-      description: 'Email marketing automation and customer segmentation',
-      category: 'marketing',
-      icon: '📧',
-      color: 'from-purple-500 to-violet-600',
-      features: ['Email Campaigns', 'Customer Segmentation', 'Analytics', 'Automation'],
-      status: connections.klaviyo || 'disconnected',
-      setupRequired: true,
-      isKlaviyo: true
-    },
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp Business',
-      description: 'WhatsApp messaging integration via Twilio',
-      category: 'messaging',
-      icon: '💬',
-      color: 'from-green-500 to-green-600',
-      features: ['Message Templates', 'Media Support', 'Group Messaging', 'Status Updates'],
-      status: connections.whatsapp || 'disconnected',
-      setupRequired: true
-    },
-    {
-      id: 'facebook',
-      name: 'Facebook Messenger',
-      description: 'Facebook Messenger integration for social customer support',
-      category: 'messaging',
-      icon: '💙',
-      color: 'from-blue-600 to-blue-700',
-      features: ['Instant Messaging', 'Rich Media', 'Quick Replies', 'Persistent Menu'],
-      status: connections.facebook || 'disconnected',
-      setupRequired: true,
-      isMessenger: true
-    },
-    {
-      id: 'zapier',
-      name: 'Zapier',
-      description: 'Connect with 3000+ apps through automated workflows',
-      category: 'automation',
-      icon: '⚡',
-      color: 'from-orange-500 to-red-600',
-      features: ['Workflow Automation', '3000+ Apps', 'Trigger Events', 'Data Sync'],
-      status: connections.zapier || 'disconnected',
-      setupRequired: false
-    },
-    {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Team collaboration and internal notifications',
-      category: 'communication',
-      icon: '🔔',
-      color: 'from-purple-600 to-pink-600',
-      features: ['Channel Notifications', 'Direct Messages', 'Bot Commands', 'File Sharing'],
-      status: connections.slack || 'disconnected',
-      setupRequired: false
-    },
-    {
-      id: 'webhooks',
-      name: 'Custom Webhooks',
-      description: 'Send data to your custom endpoints and APIs',
-      category: 'automation',
-      icon: '🔗',
-      color: 'from-gray-500 to-gray-600',
-      features: ['Real-time Data', 'Custom Headers', 'Retry Logic', 'Authentication'],
-      status: connections.webhooks || 'connected',
-      setupRequired: false
-    }
-  ];
-
-  const categories = [
-    { id: 'all', name: 'All Integrations', icon: '🌟' },
-    { id: 'ecommerce', name: 'E-commerce', icon: '🛍️' },
-    { id: 'crm', name: 'CRM & Support', icon: '👥' },
-    { id: 'marketing', name: 'Marketing', icon: '📧' },
-    { id: 'messaging', name: 'Messaging', icon: '💬' },
-    { id: 'automation', name: 'Automation', icon: '⚡' },
-    { id: 'communication', name: 'Communication', icon: '🔔' }
-  ];
-
-  // Filter integrations
-  const filteredIntegrations = integrations.filter(integration => {
-    const matchesCategory = selectedCategory === 'all' || integration.category === selectedCategory;
-    const matchesSearch = integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         integration.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
   // ✅ FIX: Load connection status when component mounts or organization changes
   useEffect(() => {
-    loadConnectionStatus();
-    loadCurrentUser();
+    console.log('🏛️ Integrations - Using Organization ID:', organizationId);
+    console.log('👤 Full user object:', user);
+    console.log('👮 User role:', user?.role);
+    console.log('⏳ Auth loading:', loading);
+    
+    if (organizationId) {
+      loadConnectionStatus();
+      loadCurrentUser();
+    }
   }, [organizationId]); // Re-load when organization changes
 
   const loadCurrentUser = async () => {
@@ -260,6 +50,8 @@ const FullIntegrations = () => {
   };
 
   const loadConnectionStatus = async () => {
+    if (!organizationId) return;
+    
     setIsLoading(true);
     try {
       console.log('📡 Loading integrations for org:', organizationId);
