@@ -12,10 +12,10 @@ const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 export const useMessages = (conversationId) => {
   const { user } = useAuth()
-  
+
   // ✅ FIX: Get organization ID from authenticated user
-  const organizationId = getCurrentOrganizationId();
-  console.log('🏛️ useMessages - Using Organization ID:', organizationId);
+  const organizationId = getCurrentOrganizationId(user);
+  console.log('🏛️ useMessages - Using Organization ID:', organizationId, 'for user:', user?.email);
 
   // Fetch messages from Neon database
   const { data: messages = [], isLoading: loading, refetch } = useQuery({

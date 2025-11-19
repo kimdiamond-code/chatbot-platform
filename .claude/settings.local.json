@@ -15,7 +15,10 @@
       "Bash(./ACTIVATE_SECURITY.bat)",
       "Bash(./DEPLOY_WITH_SECURITY.bat)",
       "Bash(./ACTIVATE_ADMIN_PANEL.bat)",
-      "Bash(./DEPLOY_ADMIN_PANEL.bat)"
+      "Bash(./DEPLOY_ADMIN_PANEL.bat)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

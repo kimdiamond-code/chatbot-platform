@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../hooks/useAuth.jsx';
 import { dbService } from '../services/databaseService';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { exportCompleteReport, generatePrintableReport } from '../utils/exportAnalytics';
@@ -6,9 +7,10 @@ import { Play, Pause, Calendar, Target, TrendingUp, TrendingDown } from 'lucide-
 import { getCurrentOrganizationId } from '../utils/organizationUtils';
 
 export default function Analytics() {
-  // ✅ FIX: Get organization ID from authenticated user
-  const organizationId = getCurrentOrganizationId();
-  console.log('📊 Analytics - Using Organization ID:', organizationId);
+  // ✅ FIX: Use new useAuth hook to get authenticated user
+  const { user } = useAuth();
+  const organizationId = getCurrentOrganizationId(user);
+  console.log('📊 Analytics - Using Organization ID:', organizationId, 'for user:', user?.email);
   const [timeRange, setTimeRange] = useState('7d');
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);

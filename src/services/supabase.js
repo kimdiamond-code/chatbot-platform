@@ -1,26 +1,27 @@
-// Supabase client for AUTHENTICATION ONLY
-// Data operations use Neon database via /services/databaseService.js
+// DEPRECATED: Supabase is no longer used
+// This file is kept for backward compatibility only
+// Authentication now uses: src/hooks/useAuth.jsx
+// Data operations use: src/services/databaseService.js (Neon)
 
-import { createClient } from '@supabase/supabase-js'
+console.warn('⚠️ supabase.js is deprecated. Use useAuth hook for authentication.');
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase credentials in environment variables');
-  console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-}
-
-// Create Supabase client for auth only
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
-
-if (supabase) {
-  console.log('✅ Supabase Auth initialized');
-} else {
-  console.error('❌ Supabase Auth failed to initialize');
-}
+// Stub client for backward compatibility
+export const supabase = {
+  auth: {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    getUser: async () => ({ data: { user: null }, error: null }),
+    signInWithPassword: async () => ({ data: null, error: new Error('Use useAuth hook') }),
+    signUp: async () => ({ data: null, error: new Error('Use useAuth hook') }),
+    signOut: async () => ({ error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } })
+  },
+  from: () => ({
+    select: () => ({ data: [], error: null }),
+    insert: () => ({ data: null, error: new Error('Use databaseService') }),
+    update: () => ({ data: null, error: new Error('Use databaseService') }),
+    delete: () => ({ data: null, error: new Error('Use databaseService') })
+  })
+};
 
 export const getSupabaseClient = () => supabase;
 
