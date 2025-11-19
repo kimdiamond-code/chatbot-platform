@@ -302,8 +302,3 @@ const App = () => {
 };
 
 export default App;
-/ /   F o r c e   r e d e p l o y 
- 
- 
-
-// Version 2.0.1
