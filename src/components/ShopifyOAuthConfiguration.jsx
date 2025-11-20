@@ -97,7 +97,7 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
 
 const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
   const { user } = useAuth();
-  const organizationId = user?.organization_id;
+  const organizationId = user?.organizationId;
   
   // Require authentication
   if (!organizationId) {

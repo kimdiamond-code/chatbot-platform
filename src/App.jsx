@@ -112,7 +112,7 @@ const AppContent = () => {
       rbacService.setUserRole(currentUser.role || 'user');
       console.log('👤 User loaded:', {
         email: currentUser.email,
-        organization_id: currentUser.organization_id,
+        organizationId: currentUser.organizationId,
         role: currentUser.role
       });
     }
