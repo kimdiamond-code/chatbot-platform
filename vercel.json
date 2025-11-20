@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": "vite",
+  "framework": "vite", "cleanUrls": true,
   "functions": {
     "api/consolidated.js": {
       "memory": 1024,
