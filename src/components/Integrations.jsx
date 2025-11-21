@@ -152,12 +152,13 @@ const FullIntegrations = () => {
     return matchesCategory && matchesSearch;
   });
 
-  // Load connection status when organizationId changes
+  // Load connection status when BOTH organizationId AND user are ready
   useEffect(() => {
-    if (organizationId) {
+    if (organizationId && user) {
+      console.log('📥 Loading integrations for org:', organizationId, 'user:', user.email);
       loadConnectionStatus();
     }
-  }, [organizationId]);
+  }, [organizationId, user]);
   
   // Set currentUser directly from auth hook
   useEffect(() => {
@@ -170,10 +171,15 @@ const FullIntegrations = () => {
   }, [user]);
 
   const loadConnectionStatus = async () => {
+    if (!organizationId) {
+      console.warn('⚠️ Cannot load integrations without organizationId');
+      return;
+    }
+    
     setIsLoading(true);
     try {
       // Load integrations from database
-      console.log('📥 Loading integrations for org:', organizationId);
+      console.log('📥 Fetching integrations from database for org:', organizationId);
       const integrations = await dbService.getIntegrations(organizationId);
       
       const connectionMap = {
