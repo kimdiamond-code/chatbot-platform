@@ -152,37 +152,22 @@ const FullIntegrations = () => {
     return matchesCategory && matchesSearch;
   });
 
-  // Load connection status and current user
+  // Load connection status when organizationId changes
   useEffect(() => {
     if (organizationId) {
       loadConnectionStatus();
-      loadCurrentUser();
     }
   }, [organizationId]);
-
-  const loadCurrentUser = async () => {
-    try {
-      // ✅ Use actual logged-in user instead of demo
-      if (user) {
-        console.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
-        setCurrentUser(user);
-      } else {
-        console.log('⚠️ No user logged in, using demo');
-        setCurrentUser({
-          id: '00000000-0000-0000-0000-000000000001',
-          email: 'demo@example.com',
-          user_metadata: { name: 'Demo User' }
-        });
-      }
-    } catch (error) {
-      console.error('❌ Failed to load current user:', error);
-      setCurrentUser({
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'demo@example.com',
-        user_metadata: { name: 'Demo User' }
-      });
+  
+  // Set currentUser directly from auth hook
+  useEffect(() => {
+    if (user) {
+      console.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
+      setCurrentUser(user);
+    } else {
+      console.log('⚠️ No user logged in');
     }
-  };
+  }, [user]);
 
   const loadConnectionStatus = async () => {
     setIsLoading(true);
