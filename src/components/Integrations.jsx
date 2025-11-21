@@ -162,13 +162,18 @@ const FullIntegrations = () => {
 
   const loadCurrentUser = async () => {
     try {
-      console.log('👤 Using demo user...');
-      // Always use demo user (auth will be implemented later)
-      setCurrentUser({
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'demo@example.com',
-        user_metadata: { name: 'Demo User' }
-      });
+      // ✅ Use actual logged-in user instead of demo
+      if (user) {
+        console.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
+        setCurrentUser(user);
+      } else {
+        console.log('⚠️ No user logged in, using demo');
+        setCurrentUser({
+          id: '00000000-0000-0000-0000-000000000001',
+          email: 'demo@example.com',
+          user_metadata: { name: 'Demo User' }
+        });
+      }
     } catch (error) {
       console.error('❌ Failed to load current user:', error);
       setCurrentUser({

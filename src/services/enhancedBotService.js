@@ -119,7 +119,9 @@ class EnhancedBotService {
     // Check integrations - don't block on errors
     try {
       const { shopifyService } = await import('./integrations/shopifyService');
-      status.shopify.connected = await shopifyService.verifyConnection();
+      // ✅ Use organizationId if available
+      const orgId = this.organizationId || '00000000-0000-0000-0000-000000000001';
+      status.shopify.connected = await shopifyService.verifyConnection(orgId);
     } catch (error) {
       status.shopify.error = 'Service check failed';
       console.warn('Shopify integration check failed:', error.message);
@@ -260,6 +262,9 @@ class EnhancedBotService {
       };
 
       console.log('👤 Customer context:', customerContext);
+
+      // ✅ Set organization ID for orchestrator
+      integrationOrchestrator.setOrganizationId(organizationId || '00000000-0000-0000-0000-000000000001');
 
       // Process through integration orchestrator
       const smartResult = await integrationOrchestrator.processMessage(

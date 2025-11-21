@@ -9,24 +9,40 @@ class IntegrationOrchestrator {
       shopify: false,
       kustomer: false
     };
+    this.organizationId = null; // Will be set when needed
     
-    this.initializeIntegrations();
+    // Don't initialize on construction - wait for organizationId
+  }
+  
+  setOrganizationId(orgId) {
+    this.organizationId = orgId;
+    console.log('🏛️ IntegrationOrchestrator - Organization ID set:', orgId);
   }
 
-  async initializeIntegrations() {
+  async initializeIntegrations(organizationId = null) {
+    // Use provided organizationId or stored one
+    const orgId = organizationId || this.organizationId;
+    
+    if (!orgId) {
+      console.error('❌ Cannot initialize integrations without organizationId');
+      return;
+    }
+    
+    this.organizationId = orgId;
+    
     // Check which integrations are available
     try {
       console.log('🔍 Checking Shopify integration...');
-      console.log('📍 Organization ID:', '00000000-0000-0000-0000-000000000001');
+      console.log('📍 Organization ID:', orgId);
       
       // Check if Shopify is connected via OAuth
-      this.activeIntegrations.shopify = await shopifyService.verifyConnection();
+      this.activeIntegrations.shopify = await shopifyService.verifyConnection(orgId);
       
       if (this.activeIntegrations.shopify) {
         console.log('✅ Shopify integration active (OAuth connected)');
         
         // Log credentials details for debugging (without exposing sensitive data)
-        const credentials = await shopifyService.getCredentials();
+        const credentials = await shopifyService.getCredentials(orgId);
         if (credentials) {
           console.log('🏪 Shopify store:', credentials.shopDomain);
           console.log('🔑 Has access token:', !!credentials.accessToken);
@@ -39,7 +55,7 @@ class IntegrationOrchestrator {
         console.log('🎭 Shopify integration inactive - using demo mode');
         
         // Debug: Try to get credentials manually to see what's wrong
-        const debugCreds = await shopifyService.getCredentials();
+        const debugCreds = await shopifyService.getCredentials(orgId);
         console.log('🔍 Debug credentials check:', {
           hasCredentials: !!debugCreds,
           shopDomain: debugCreds?.shopDomain,
