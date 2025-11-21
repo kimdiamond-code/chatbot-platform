@@ -6,7 +6,7 @@ import ShopifyOAuthConfiguration from './ShopifyOAuthConfiguration.jsx';
 import KustomerOAuthIntegration from './integrations/KustomerOAuthIntegration.jsx';
 
 const FullIntegrations = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const organizationId = user?.organizationId || '00000000-0000-0000-0000-000000000001';
   
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -20,6 +20,19 @@ const FullIntegrations = () => {
   const [currentUser, setCurrentUser] = useState(null);
   
   console.log('🏛️ Integrations - Using Organization ID:', organizationId);
+  console.log('🔄 Auth loading:', loading, 'User:', user?.email);
+  
+  // Show loading screen while auth is initializing
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading integrations...</p>
+        </div>
+      </div>
+    );
+  }
 
   const copyEnvTemplate = async () => {
     try {
