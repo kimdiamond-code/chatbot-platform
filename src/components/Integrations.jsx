@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth.jsx';
 import { useOrganizationId } from '../hooks/useOrganizationId';
 import dbService from '../services/databaseService';
 import { apiKeysService } from '../services/apiKeysService.js';
