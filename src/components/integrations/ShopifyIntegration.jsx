@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.jsx';
+import { useOrganizationId } from '../../hooks/useOrganizationId';
 
 const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
   const { user } = useAuth();
+  const { organizationId, loading: orgLoading, error: orgError } = useOrganizationId();
   const [config, setConfig] = useState({
     storeName: '',
     accessToken: '',
@@ -24,6 +26,11 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
     setErrorMessage('');
 
     try {
+      // ✅ CRITICAL FIX: Validate organization ID before proceeding
+      if (!organizationId) {
+        throw new Error(orgError || 'Authentication required. Please log out and log back in.');
+      }
+
       // Validate inputs
       if (!config.storeName.trim()) {
         throw new Error('Store name is required');
@@ -39,6 +46,7 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
       }
 
       console.log(`🔌 Connecting to Shopify store: ${config.storeName}`);
+      console.log(`🏛️ Using organization ID: ${organizationId}`);
 
       // Clean store name (remove .myshopify.com if user included it)
       const cleanStoreName = config.storeName.trim().replace('.myshopify.com', '');
@@ -63,7 +71,7 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
 
       console.log('✅ Shopify credentials verified:', verifyData.shop);
 
-      // Save credentials to integrations table
+      // ✅ CRITICAL FIX: Save credentials with validated organization ID (no fallback)
       const saveResponse = await fetch('/api/consolidated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,7 +79,7 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
           endpoint: 'database',
           action: 'saveIntegrationCredentials',
           integration: 'shopify',
-          organizationId: user?.organization_id || '00000000-0000-0000-0000-000000000001',
+          organizationId: organizationId, // No fallback - validated above
           credentials: {
             shopDomain: cleanStoreName,
             accessToken: config.accessToken.trim(),
@@ -110,6 +118,41 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
   };
 
   if (!isOpen) return null;
+
+  // Show loading state while organization context is loading
+  if (orgLoading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading organization context...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if organization context failed to load
+  if (orgError || !organizationId) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-red-600 mb-2">Authentication Required</h3>
+            <p className="text-gray-600 mb-6">
+              {orgError || 'Unable to load organization context. Please log out and log back in.'}
+            </p>
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

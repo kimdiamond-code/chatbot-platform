@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useOrganizationId } from '../hooks/useOrganizationId';
 import dbService from '../services/databaseService';
 import { apiKeysService } from '../services/apiKeysService.js';
 import ShopifyOAuthConfiguration from './ShopifyOAuthConfiguration.jsx';
 import KustomerOAuthIntegration from './integrations/KustomerOAuthIntegration.jsx';
 
 const FullIntegrations = () => {
-  const { user, loading } = useAuth();
-  const organizationId = user?.organizationId || '00000000-0000-0000-0000-000000000001';
+  const { user, loading: authLoading } = useAuth();
+  const { organizationId, loading: orgLoading, error: orgError } = useOrganizationId();
   
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,7 +24,7 @@ const FullIntegrations = () => {
   console.log('🔄 Auth loading:', loading, 'User:', user?.email);
   
   // Show loading screen while auth is initializing
-  if (loading) {
+  if (authLoading || orgLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
