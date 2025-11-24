@@ -21,7 +21,17 @@ const FullIntegrations = () => {
   const [currentUser, setCurrentUser] = useState(null);
   
   console.log('🏛️ Integrations - Using Organization ID:', organizationId);
-  console.log('🔄 Auth loading:', loading, 'User:', user?.email);
+  console.log('🔄 Auth loading:', authLoading, 'User:', user?.email);
+  
+  // Set currentUser directly from auth hook
+  useEffect(() => {
+    if (user) {
+      console.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
+      setCurrentUser(user);
+    } else {
+      console.log('⚠️ No user logged in');
+    }
+  }, [user]);
   
   // Show loading screen while auth is initializing
   if (authLoading || orgLoading) {
@@ -41,7 +51,7 @@ const FullIntegrations = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
-          <div className="text-5xl mb-4">??</div>
+          <div className="text-5xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-red-600 mb-2">Authentication Required</h2>
           <p className="text-gray-600 mb-6">
             {orgError || 'Unable to load organization context. Please log out and log back in.'}
@@ -195,16 +205,6 @@ const FullIntegrations = () => {
       loadConnectionStatus();
     }
   }, [organizationId, user]);
-  
-  // Set currentUser directly from auth hook
-  useEffect(() => {
-    if (user) {
-      console.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
-      setCurrentUser(user);
-    } else {
-      console.log('⚠️ No user logged in');
-    }
-  }, [user]);
 
   const loadConnectionStatus = async () => {
     if (!organizationId) {
@@ -262,10 +262,6 @@ const FullIntegrations = () => {
     
     // Special handling for Kustomer OAuth - open OAuth modal
     if (integrationId === 'kustomer') {
-      // Make sure currentUser is loaded before opening modal
-      if (!currentUser) {
-        await loadCurrentUser();
-      }
       setShowKustomerOAuth(true);
       return;
     }

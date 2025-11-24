@@ -96,8 +96,20 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
 };
 
 const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const organizationId = user?.organizationId;
+  
+  // Show loading while auth context initializes
+  if (authLoading) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
   
   // Require authentication
   if (!organizationId) {
@@ -121,8 +133,10 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
   const [testingConnection, setTestingConnection] = useState(false);
 
   useEffect(() => {
-    loadExistingConfiguration();
-  }, []);
+    if (organizationId) {
+      loadExistingConfiguration();
+    }
+  }, [organizationId]);
 
   const loadExistingConfiguration = async () => {
     if (!organizationId) return;
