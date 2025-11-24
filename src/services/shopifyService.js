@@ -1,16 +1,22 @@
 /**
  * Shopify Service - Product & Cart Operations  
  * Uses consolidated API with OAuth credentials from database
+ * MULTI-TENANT: All methods require organizationId parameter
  */
-
-const ORGANIZATION_ID = '00000000-0000-0000-0000-000000000001';
 
 export const shopifyService = {
   /**
    * Get Shopify integration credentials from database
    */
-  async getCredentials(organizationId = ORGANIZATION_ID) {
+  async getCredentials(organizationId) {
+    if (!organizationId) {
+      throw new Error('organizationId is required for getCredentials');
+    }
     try {
+      // Add timeout to prevent 504 errors
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
       const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -18,8 +24,11 @@ export const shopifyService = {
           endpoint: 'database',
           action: 'getIntegrations',
           orgId: organizationId
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -41,12 +50,17 @@ export const shopifyService = {
       }
       
       if (!data.success) {
+        // If it's just "not connected", that's normal - don't throw
+        if (data.error && data.error.toLowerCase().includes('not connected')) {
+          return null;
+        }
         throw new Error(data.error || 'Failed to get integrations');
       }
 
       const shopifyIntegration = data.data?.find(i => i.integration_id === 'shopify');
       
       if (!shopifyIntegration || shopifyIntegration.status !== 'connected') {
+        // Normal state - Shopify not connected yet, no error needed
         return null;
       }
 
@@ -60,6 +74,10 @@ export const shopifyService = {
         connected: true
       };
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.warn('Shopify credentials request timed out - using offline mode');
+        return null;
+      }
       console.error('Error getting Shopify credentials:', error);
       return null;
     }
@@ -69,7 +87,11 @@ export const shopifyService = {
    * Get products list
    */
   async getProducts(options = {}) {
-    const { limit = 50, organizationId = ORGANIZATION_ID } = options;
+    const { limit = 50, organizationId } = options;
+    
+    if (!organizationId) {
+      throw new Error('organizationId is required for getProducts');
+    }
 
     try {
       const credentials = await this.getCredentials(organizationId);
@@ -125,7 +147,10 @@ export const shopifyService = {
   /**
    * Search products by query
    */
-  async searchProducts(query, organizationId = ORGANIZATION_ID) {
+  async searchProducts(query, organizationId) {
+    if (!organizationId) {
+      throw new Error('organizationId is required for searchProducts');
+    }
     try {
       const products = await this.getProducts({ organizationId });
       
