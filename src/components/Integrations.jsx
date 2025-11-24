@@ -35,6 +35,28 @@ const FullIntegrations = () => {
     );
   }
 
+ 
+  // Show error if organization context failed
+  if (orgError || !organizationId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
+          <div className="text-5xl mb-4">??</div>
+          <h2 className="text-xl font-bold text-red-600 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-6">
+            {orgError || 'Unable to load organization context. Please log out and log back in.'}
+          </p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const copyEnvTemplate = async () => {
     try {
       await navigator.clipboard.writeText(apiKeysService.generateEnvTemplate());
