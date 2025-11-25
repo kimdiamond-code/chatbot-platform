@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Key, Code, Webhook, Settings, Users, Lock, AlertTriangle } from 'lucide-react';
+import { Shield, Key, Code, Webhook, Settings, Users, Lock, AlertTriangle, Plug } from 'lucide-react';
 import rbacService, { PERMISSIONS } from '../services/rbacService';
 
 /**
@@ -36,6 +36,14 @@ const AdminPanel = () => {
       icon: Shield,
       color: 'blue',
       description: 'Admin panel dashboard'
+    },
+    {
+      id: 'integrations',
+      name: 'Integrations',
+      icon: Plug,
+      color: 'emerald',
+      description: 'Configure organization-level integrations',
+      adminOnly: rbacService.isAdmin()
     },
     {
       id: 'crm',
@@ -106,6 +114,7 @@ const AdminPanel = () => {
   const getColorClasses = (color) => {
     const colors = {
       blue: 'bg-blue-500 hover:bg-blue-600',
+      emerald: 'bg-emerald-500 hover:bg-emerald-600',
       purple: 'bg-purple-500 hover:bg-purple-600',
       green: 'bg-green-500 hover:bg-green-600',
       orange: 'bg-orange-500 hover:bg-orange-600',
@@ -208,6 +217,7 @@ const AdminPanel = () => {
 
             {/* Section Content */}
             <div className="bg-white rounded-xl shadow-lg p-8">
+              {activeSection === 'integrations' && <IntegrationsAdminSection />}
               {activeSection === 'crm' && <CRMSection />}
               {activeSection === 'ecommerce' && <ECommerceSection />}
               {activeSection === 'multichannel' && <MultiChannelSection />}
@@ -600,6 +610,175 @@ const UsersSection = () => {
           Import full UserManagement component for complete functionality
         </p>
       </div>
+    </div>
+  );
+};
+
+// Integrations Admin Section
+const IntegrationsAdminSection = () => {
+  const [showShopifyConfig, setShowShopifyConfig] = useState(false);
+  const [showKlaviyoConfig, setShowKlaviyoConfig] = useState(false);
+  const [showKustomerConfig, setShowKustomerConfig] = useState(false);
+
+  return (
+    <div>
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+          <Plug className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Organization Integrations</h2>
+          <p className="text-sm text-gray-600">Configure third-party services for your entire organization</p>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border-l-4 border-blue-500 rounded-r-lg p-4 mb-6">
+        <p className="text-sm text-blue-800">
+          <strong>Admin Only:</strong> Configure integrations here. Agents will use these connections via OAuth when needed.
+        </p>
+      </div>
+
+      {/* Integration Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Shopify */}
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="text-3xl">🛒</div>
+              <div>
+                <h3 className="font-bold text-gray-900">Shopify</h3>
+                <p className="text-sm text-gray-600">E-commerce platform</p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Disconnected</span>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Connect your organization's Shopify store for product management and order tracking.
+          </p>
+          <button
+            onClick={() => setShowShopifyConfig(true)}
+            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            ⚙️ Configure Shopify
+          </button>
+        </div>
+
+        {/* Klaviyo */}
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="text-3xl">📧</div>
+              <div>
+                <h3 className="font-bold text-gray-900">Klaviyo</h3>
+                <p className="text-sm text-gray-600">Email marketing</p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Disconnected</span>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Connect your organization's Klaviyo account for email automation and customer segmentation.
+          </p>
+          <button
+            onClick={() => setShowKlaviyoConfig(true)}
+            className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            ⚙️ Configure Klaviyo
+          </button>
+        </div>
+
+        {/* Kustomer */}
+        <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="text-3xl">👥</div>
+              <div>
+                <h3 className="font-bold text-gray-900">Kustomer</h3>
+                <p className="text-sm text-gray-600">CRM platform</p>
+              </div>
+            </div>
+            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Disconnected</span>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Connect your organization's Kustomer account for customer support and ticket management.
+          </p>
+          <button
+            onClick={() => setShowKustomerConfig(true)}
+            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            ⚙️ Configure Kustomer
+          </button>
+        </div>
+
+        {/* More integrations placeholder */}
+        <div className="border border-dashed border-gray-300 rounded-lg p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-4xl mb-2">➕</div>
+            <p className="text-sm text-gray-600">More integrations coming soon</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Important Note */}
+      <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-500 rounded-r-lg p-4">
+        <div className="flex items-start space-x-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="font-medium text-yellow-900 mb-1">How This Works</h4>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>• <strong>Admins</strong> configure organization-level integrations here (OAuth setup)</li>
+              <li>• <strong>Agents</strong> simply use the integrations - no configuration needed</li>
+              <li>• All integration data is stored securely in the database, tied to your organization</li>
+              <li>• Agents authenticate via OAuth when they need to access integrated services</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Modals would go here */}
+      {showShopifyConfig && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <h3 className="text-xl font-bold mb-4">Configure Shopify (Admin)</h3>
+            <p className="text-gray-600 mb-4">Shopify OAuth configuration component will be loaded here.</p>
+            <button
+              onClick={() => setShowShopifyConfig(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showKlaviyoConfig && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <h3 className="text-xl font-bold mb-4">Configure Klaviyo (Admin)</h3>
+            <p className="text-gray-600 mb-4">Klaviyo OAuth configuration component will be loaded here.</p>
+            <button
+              onClick={() => setShowKlaviyoConfig(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showKustomerConfig && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <h3 className="text-xl font-bold mb-4">Configure Kustomer (Admin)</h3>
+            <p className="text-gray-600 mb-4">Kustomer OAuth configuration component will be loaded here.</p>
+            <button
+              onClick={() => setShowKustomerConfig(false)}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
