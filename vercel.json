@@ -3,13 +3,22 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": "vite", "cleanUrls": true,
+  "framework": "vite",
+  "cleanUrls": true,
   "functions": {
     "api/consolidated.js": {
       "memory": 1024,
       "maxDuration": 10
     },
     "api/messenger-webhook.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/shopify-oauth.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/messenger-oauth.js": {
       "memory": 1024,
       "maxDuration": 10
     }
@@ -22,6 +31,22 @@
     {
       "source": "/api/webhooks/messenger",
       "destination": "/api/messenger-webhook.js"
+    },
+    {
+      "source": "/api/oauth/shopify/redirect",
+      "destination": "/api/shopify-oauth.js"
+    },
+    {
+      "source": "/api/oauth/shopify/callback",
+      "destination": "/api/shopify-oauth.js"
+    },
+    {
+      "source": "/api/oauth/messenger/redirect",
+      "destination": "/api/messenger-oauth.js"
+    },
+    {
+      "source": "/api/oauth/messenger/callback",
+      "destination": "/api/messenger-oauth.js"
     },
     {
       "source": "/((?!api).*)",
