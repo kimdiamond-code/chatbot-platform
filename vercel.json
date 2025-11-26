@@ -8,12 +8,20 @@
     "api/consolidated.js": {
       "memory": 1024,
       "maxDuration": 10
+    },
+    "api/messenger-webhook.js": {
+      "memory": 1024,
+      "maxDuration": 10
     }
   },
   "rewrites": [
     {
       "source": "/api/consolidated",
       "destination": "/api/consolidated.js"
+    },
+    {
+      "source": "/api/webhooks/messenger",
+      "destination": "/api/messenger-webhook.js"
     },
     {
       "source": "/((?!api).*)",
