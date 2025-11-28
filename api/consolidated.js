@@ -4,6 +4,7 @@
 // ===================================================================
 
 import { getDatabase } from './database-config.js';
+import crypto from 'crypto';
 import promptSecurity from './promptSecurityBackend.js';
 
 let sql;
@@ -484,10 +485,23 @@ export default async function handler(req, res) {
             redirectUri = `${baseUrl}/shopify/callback`;
           }
           
-          const nonce = Math.random().toString(36).substring(7);
-          
+          // Use a cryptographically-secure random state and persist mapping to organization
+          const nonce = crypto.randomBytes(16).toString('hex');
+
+          // Persist the state -> organization mapping so the callback can
+          // securely determine which organization initiated the flow.
+          try {
+            await sql`
+              INSERT INTO oauth_states (state_token, organization_id, expires_at, created_at)
+              VALUES (${nonce}, ${organizationId}, NOW() + INTERVAL '1 hour', NOW())
+            `;
+          } catch (dbErr) {
+            console.warn('Could not persist oauth state:', dbErr?.message || dbErr);
+            // Continue anyway — callback will fail verification if missing
+          }
+
           const authUrl = `https://${shop}.myshopify.com/admin/oauth/authorize?client_id=${process.env.SHOPIFY_CLIENT_ID}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${nonce}`;
-          
+
           return res.status(200).json({ success: true, authUrl });
         } catch (error) {
           return res.status(500).json({ success: false, error: error.message });
@@ -495,8 +509,36 @@ export default async function handler(req, res) {
       }
 
       if (action === 'shopify_oauth_callback') {
-        const { code, shop, state, organizationId } = body;
+        const { code, shop, state } = body;
         try {
+          // Verify state -> organization mapping first
+          let orgId = null;
+          try {
+            const rows = await sql`
+              SELECT * FROM oauth_states
+              WHERE state_token = ${state}
+              AND used_at IS NULL
+              AND expires_at > NOW()
+              LIMIT 1
+            `;
+
+            if (!rows || rows.length === 0) {
+              return res.status(400).json({ success: false, error: 'Invalid or expired OAuth state' });
+            }
+
+            orgId = rows[0].organization_id;
+
+            // Mark state used
+            await sql`
+              UPDATE oauth_states
+              SET used_at = NOW()
+              WHERE id = ${rows[0].id}
+            `;
+          } catch (stateErr) {
+            console.warn('State verification error:', stateErr?.message || stateErr);
+            return res.status(400).json({ success: false, error: 'OAuth state verification failed' });
+          }
+
           // Exchange code for access token
           const tokenUrl = `https://${shop}/admin/oauth/access_token`;
           const tokenResponse = await fetch(tokenUrl, {
@@ -508,13 +550,13 @@ export default async function handler(req, res) {
               code: code
             })
           });
-          
+
           const tokenData = await tokenResponse.json();
-          
+
           if (!tokenResponse.ok) {
             throw new Error(tokenData.error || 'Failed to get access token');
           }
-          
+
           // Get shop info
           const shopInfoResponse = await fetch(`https://${shop}/admin/api/2024-01/shop.json`, {
             headers: {
@@ -524,11 +566,11 @@ export default async function handler(req, res) {
           });
           const shopInfoData = await shopInfoResponse.json();
           const shopInfo = shopInfoData.shop || {};
-          
-          // Save to database
+
+          // Save to database with the verified organization id
           await sql`
             INSERT INTO integrations (organization_id, integration_id, integration_name, status, config, credentials_encrypted)
-            VALUES (${organizationId}, 'shopify', 'Shopify', 'connected', ${JSON.stringify({ shop, shopInfo })}, ${JSON.stringify({ access_token: tokenData.access_token, shop })})
+            VALUES (${orgId}, 'shopify', 'Shopify', 'connected', ${JSON.stringify({ shop, shopInfo })}, ${JSON.stringify({ access_token: tokenData.access_token, shop })})
             ON CONFLICT (organization_id, integration_id)
             DO UPDATE SET
               status = EXCLUDED.status,
@@ -536,12 +578,13 @@ export default async function handler(req, res) {
               credentials_encrypted = EXCLUDED.credentials_encrypted,
               updated_at = NOW()
           `;
-          
+
           return res.status(200).json({ 
             success: true, 
             accessToken: tokenData.access_token,
             shopDomain: shop,
             scope: tokenData.scope,
+            organizationId: orgId,
             shopInfo: {
               name: shopInfo.name,
               email: shopInfo.email,
@@ -1255,7 +1298,8 @@ export default async function handler(req, res) {
               email: user.email,
               name: user.name,
               role: user.role,
-              organization_id: user.organization_id
+              organization_id: user.organization_id,
+              is_super_admin: !!user.is_super_admin
             },
             token,
             expiresAt: expiresAt.toISOString()
@@ -1278,98 +1322,105 @@ export default async function handler(req, res) {
       }
       
       // ==================== SIGNUP ====================
-      if (action === 'signup') {
-        const { email, password, name } = body;
-        
-        try {
-          // Ensure auth columns exist first
-          try {
-            await sql`SELECT password_hash FROM agents LIMIT 1`;
-          } catch (error) {
-            console.log('Adding authentication columns for signup...');
-            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS password_hash TEXT`;
-            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS reset_token TEXT`;
-            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP WITH TIME ZONE`;
-            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE`;
-            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0`;
-            await sql`ALTER TABLE agents ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE`;
-          }
-          
-          // Ensure sessions table exists
-          try {
-            await sql`SELECT 1 FROM sessions LIMIT 1`;
-          } catch (error) {
-            console.log('Creating sessions table for signup...');
-            await sql`
-              CREATE TABLE IF NOT EXISTS sessions (
-                id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-                agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
-                token TEXT UNIQUE NOT NULL,
-                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                ip_address VARCHAR(45),
-                user_agent TEXT,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-              )
-            `;
-            await sql`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)`;
-            await sql`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id)`;
-          }
-          
-          // Validate input
-          if (!email || !password || !name) {
-            return res.status(400).json({ success: false, error: 'Email, password, and name are required' });
-          }
-          
-          if (password.length < 6) {
-            return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
-          }
-          
-          // Check if user already exists
-          const existing = await sql`
-            SELECT * FROM agents WHERE email = ${email}
-          `;
-          
-          if (existing.length > 0) {
-            return res.status(400).json({ success: false, error: 'Email already registered. Please login.' });
-          }
-          
-          // Create new user with 'agent' role by default
-          const result = await sql`
-            INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
-            VALUES ('00000000-0000-0000-0000-000000000001', ${email}, ${name}, 'agent', ${password}, true)
-            RETURNING id, email, name, role, organization_id
-          `;
-          
-          const newUser = result[0];
-          
-          // Auto-login after signup
-          const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-          
-          await sql`
-            INSERT INTO sessions (agent_id, token, expires_at, ip_address, user_agent)
-            VALUES (${newUser.id}, ${token}, ${expiresAt}, ${req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'}, ${req.headers['user-agent'] || 'unknown'})
-          `;
-          
-          return res.status(201).json({
-            success: true,
-            user: {
-              id: newUser.id,
-              email: newUser.email,
-              name: newUser.name,
-              role: newUser.role,
-              organization_id: newUser.organization_id
-            },
-            token,
-            expiresAt: expiresAt.toISOString(),
-            message: 'Account created successfully'
-          });
-        } catch (error) {
-          console.error('Signup error:', error);
-          return res.status(500).json({ success: false, error: 'Signup failed: ' + error.message });
-        }
-      }
-      
+      // ==================== SIGNUP ====================
+if (action === 'signup') {
+  const { email, password, name, companyName } = body;
+  
+  try {
+    // Check if users table exists
+    try {
+      await sql`SELECT 1 FROM users LIMIT 1`;
+    } catch (error) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Database migration required. Contact admin.' 
+      });
+    }
+    
+    // Validate
+    if (!email || !password || !name) {
+      return res.status(400).json({ success: false, error: 'Email, password, and name required' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be 6+ characters' });
+    }
+    
+    // Check existing
+    const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
+    if (existingUser.length > 0) {
+      return res.status(400).json({ success: false, error: 'Email already registered' });
+    }
+    
+    // Create user
+    const userResult = await sql`
+      INSERT INTO users (email, name, password_hash)
+      VALUES (${email}, ${name}, ${password})
+      RETURNING id, email, name
+    `;
+    const newUser = userResult[0];
+    
+    // Create org
+    const orgName = companyName || `${name}'s Organization`;
+    const subdomain = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase() + '-' + Math.random().toString(36).substring(2, 6);
+    
+    const orgResult = await sql`
+      INSERT INTO organizations (name, subdomain, owner_user_id)
+      VALUES (${orgName}, ${subdomain}, ${newUser.id})
+      RETURNING id, name
+    `;
+    const newOrg = orgResult[0];
+    
+    // Link user to org
+    await sql`
+      INSERT INTO organization_users (organization_id, user_id, role)
+      VALUES (${newOrg.id}, ${newUser.id}, 'owner')
+    `;
+    
+    // Create bot config
+    await sql`
+      INSERT INTO bot_configs (organization_id, name, instructions, greeting_message)
+      VALUES (${newOrg.id}, 'Support Bot', 'You are helpful.', 'Hi there!')
+    `;
+    
+    // Create agent for the new organization - use non-admin role by default
+    const agentResult = await sql`
+      INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
+      VALUES (${newOrg.id}, ${email}, ${name}, 'agent', ${password}, true)
+      RETURNING id
+    `;
+    
+    // Create session
+    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    
+    await sql`
+      INSERT INTO sessions (agent_id, token, expires_at)
+      VALUES (${agentResult[0].id}, ${token}, ${expiresAt})
+    `;
+    
+    console.log('✅ Created org:', newOrg.id);
+    
+    return res.status(201).json({
+      success: true,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: 'owner',
+        organization_id: newOrg.id,
+        is_super_admin: false,
+        organization_name: newOrg.name
+      },
+      token,
+      expiresAt: expiresAt.toISOString(),
+      message: 'Account created!'
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    return res.status(500).json({ success: false, error: 'Signup failed: ' + error.message });
+  }
+}
       // ==================== LIST USERS ====================
       if (action === 'list_users') {
         const { token, organizationId } = body;
@@ -1381,7 +1432,7 @@ export default async function handler(req, res) {
           WHERE s.token = ${token} AND s.expires_at > NOW()
         `;
         
-        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+        if (sessions.length === 0 || (sessions[0].role !== 'admin' && !sessions[0].is_super_admin)) {
           return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
         
@@ -1406,7 +1457,7 @@ export default async function handler(req, res) {
           WHERE s.token = ${token} AND s.expires_at > NOW()
         `;
         
-        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+        if (sessions.length === 0 || (sessions[0].role !== 'admin' && !sessions[0].is_super_admin)) {
           return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
         
@@ -1438,7 +1489,7 @@ export default async function handler(req, res) {
           WHERE s.token = ${token} AND s.expires_at > NOW()
         `;
         
-        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+        if (sessions.length === 0 || (sessions[0].role !== 'admin' && !sessions[0].is_super_admin)) {
           return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
         
@@ -1474,7 +1525,7 @@ export default async function handler(req, res) {
           WHERE s.token = ${token} AND s.expires_at > NOW()
         `;
         
-        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+        if (sessions.length === 0 || (sessions[0].role !== 'admin' && !sessions[0].is_super_admin)) {
           return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
         
@@ -1516,7 +1567,7 @@ export default async function handler(req, res) {
           WHERE s.token = ${token} AND s.expires_at > NOW()
         `;
         
-        if (sessions.length === 0 || sessions[0].role !== 'admin') {
+        if (sessions.length === 0 || (sessions[0].role !== 'admin' && !sessions[0].is_super_admin)) {
           return res.status(403).json({ success: false, error: 'Unauthorized' });
         }
         
@@ -1912,6 +1963,209 @@ export default async function handler(req, res) {
       }
       
       return res.status(400).json({ error: 'Invalid privacy action' });
+    }
+
+    // ============================================================
+    // INTEGRATIONS - Centralized Integration Management
+    // ============================================================
+    if (endpoint === 'integrations') {
+      
+      // Get all integrations for an organization
+      if (action === 'getIntegrations' || method === 'GET') {
+        const { organization_id } = body || query;
+        if (!organization_id) {
+          return res.status(400).json({ success: false, error: 'organization_id required' });
+        }
+
+        const integrations = await sql`
+          SELECT * FROM integrations 
+          WHERE organization_id = ${organization_id}
+          ORDER BY provider ASC
+        `;
+        return res.status(200).json({ success: true, integrations });
+      }
+
+      // Get single integration
+      if (action === 'getIntegration') {
+        const { organization_id, provider } = body;
+        if (!organization_id || !provider) {
+          return res.status(400).json({ success: false, error: 'organization_id and provider required' });
+        }
+
+        const integrations = await sql`
+          SELECT * FROM integrations 
+          WHERE organization_id = ${organization_id} AND provider = ${provider}
+          LIMIT 1
+        `;
+        
+        if (integrations.length === 0) {
+          return res.status(404).json({ success: false, error: 'Integration not found' });
+        }
+
+        return res.status(200).json({ success: true, integration: integrations[0] });
+      }
+
+      // Connect/Save integration
+      if (action === 'saveIntegration') {
+        const { organization_id, provider, account_identifier, status } = body;
+        
+        if (!organization_id || !provider || !account_identifier) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'organization_id, provider, and account_identifier required' 
+          });
+        }
+
+        // Check if integration already exists
+        const existing = await sql`
+          SELECT id FROM integrations 
+          WHERE organization_id = ${organization_id} AND provider = ${provider}
+          LIMIT 1
+        `;
+
+        let result;
+        if (existing.length > 0) {
+          // Update existing
+          result = await sql`
+            UPDATE integrations 
+            SET 
+              account_identifier = ${JSON.stringify(account_identifier)},
+              status = ${status || 'connected'},
+              connected_at = ${status === 'connected' ? sql`NOW()` : sql`connected_at`},
+              updated_at = NOW()
+            WHERE organization_id = ${organization_id} AND provider = ${provider}
+            RETURNING *
+          `;
+        } else {
+          // Insert new
+          result = await sql`
+            INSERT INTO integrations 
+              (organization_id, provider, account_identifier, status, connected_at)
+            VALUES 
+              (${organization_id}, ${provider}, ${JSON.stringify(account_identifier)}, ${status || 'connected'}, NOW())
+            RETURNING *
+          `;
+        }
+
+        return res.status(200).json({ 
+          success: true, 
+          integration: result[0],
+          message: `${provider} integration ${existing.length > 0 ? 'updated' : 'connected'} successfully`
+        });
+      }
+
+      // Disconnect integration
+      if (action === 'disconnectIntegration') {
+        const { organization_id, provider } = body;
+        
+        if (!organization_id || !provider) {
+          return res.status(400).json({ success: false, error: 'organization_id and provider required' });
+        }
+
+        const result = await sql`
+          UPDATE integrations 
+          SET status = 'disconnected', updated_at = NOW()
+          WHERE organization_id = ${organization_id} AND provider = ${provider}
+          RETURNING *
+        `;
+
+        if (result.length === 0) {
+          return res.status(404).json({ success: false, error: 'Integration not found' });
+        }
+
+        return res.status(200).json({ 
+          success: true, 
+          integration: result[0],
+          message: `${provider} integration disconnected`
+        });
+      }
+
+      // Delete integration
+      if (action === 'deleteIntegration') {
+        const { organization_id, provider } = body;
+        
+        if (!organization_id || !provider) {
+          return res.status(400).json({ success: false, error: 'organization_id and provider required' });
+        }
+
+        await sql`
+          DELETE FROM integrations 
+          WHERE organization_id = ${organization_id} AND provider = ${provider}
+        `;
+
+        return res.status(200).json({ 
+          success: true,
+          message: `${provider} integration deleted`
+        });
+      }
+
+      // Test integration connection
+      if (action === 'testIntegration') {
+        const { organization_id, provider } = body;
+        
+        if (!organization_id || !provider) {
+          return res.status(400).json({ success: false, error: 'organization_id and provider required' });
+        }
+
+        const integrations = await sql`
+          SELECT * FROM integrations 
+          WHERE organization_id = ${organization_id} AND provider = ${provider}
+          LIMIT 1
+        `;
+
+        if (integrations.length === 0) {
+          return res.status(404).json({ success: false, error: 'Integration not configured' });
+        }
+
+        // Update last_synced_at
+        await sql`
+          UPDATE integrations 
+          SET last_synced_at = NOW(), sync_status = 'testing'
+          WHERE organization_id = ${organization_id} AND provider = ${provider}
+        `;
+
+        return res.status(200).json({ 
+          success: true,
+          integration: integrations[0],
+          message: `${provider} connection test initiated. Check status from frontend.`
+        });
+      }
+
+      return res.status(400).json({ error: 'Invalid integration action' });
+    }
+
+    // ============================================================
+    // MESSENGER WEBHOOK
+    // ============================================================
+    if (endpoint === 'messenger-webhook') {
+      // Webhook verification (GET request from Facebook)
+      if (method === 'GET') {
+        const mode = query['hub.mode'];
+        const token = query['hub.verify_token'];
+        const challenge = query['hub.challenge'];
+
+        const VERIFY_TOKEN = process.env.VITE_MESSENGER_VERIFY_TOKEN || 'agenstack_verify_2025';
+
+        console.log('📱 Messenger webhook verification');
+        console.log('Mode:', mode, 'Token:', token);
+
+        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+          console.log('✅ Webhook verified!');
+          return res.status(200).send(challenge);
+        } else {
+          console.log('❌ Verification failed');
+          return res.status(403).send('Forbidden');
+        }
+      }
+
+      // Webhook events (POST request from Facebook)
+      if (method === 'POST') {
+        console.log('📨 Messenger webhook event:', body);
+        // TODO: Process messenger events
+        return res.status(200).send('EVENT_RECEIVED');
+      }
+
+      return res.status(405).send('Method Not Allowed');
     }
 
     return res.status(404).json({ error: 'Endpoint not found' });
