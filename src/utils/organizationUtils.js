@@ -5,17 +5,17 @@ const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
 // Get organization ID from user object (passed from useAuth hook)
 export const getCurrentOrganizationId = (user = null) => {
-  // If user is passed, use it
+  // If user is passed, use it (always use camelCase organizationId)
   if (user) {
-    return user.organization_id || user.organizationId || DEFAULT_ORG_ID;
+    return user.organizationId || DEFAULT_ORG_ID;
   }
 
-  // Fallback: Try to get from localStorage (new auth system)
+  // Fallback: Try to get from localStorage (correct key: chatbot_auth)
   try {
-    const storedUser = localStorage.getItem('auth_user');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      return userData.organization_id || userData.organizationId || DEFAULT_ORG_ID;
+    const storedAuth = localStorage.getItem('chatbot_auth');
+    if (storedAuth) {
+      const authData = JSON.parse(storedAuth);
+      return authData.organizationId || DEFAULT_ORG_ID;
     }
   } catch (error) {
     console.warn('Failed to get organization from localStorage:', error);

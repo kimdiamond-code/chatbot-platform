@@ -34,7 +34,9 @@ const ShopifyCallback = () => {
 
       setMessage('Exchanging authorization code for access token...');
 
-      // Exchange code for access token
+      // Exchange code for access token. Do NOT rely on a client-supplied
+      // organizationId — the server will verify the state and map it to the
+      // correct organization. Send only the provider params and state.
       const response = await fetch('/api/consolidated', {
         method: 'POST',
         headers: {
@@ -45,8 +47,7 @@ const ShopifyCallback = () => {
           action: 'shopify_oauth_callback',
           shop: shop,
           code: code,
-          state: state,
-          organizationId: '00000000-0000-0000-0000-000000000001'
+          state: state
         })
       });
 
@@ -56,35 +57,13 @@ const ShopifyCallback = () => {
         throw new Error(data.error || 'Failed to complete OAuth flow');
       }
 
-      // Store credentials in database
-      const storeResponse = await fetch('/api/consolidated', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          endpoint: 'database',
-          action: 'saveIntegrationCredentials',
-          integration: 'shopify',
-          credentials: {
-            shopDomain: data.shopDomain,
-            accessToken: data.accessToken,
-            scope: data.scope,
-            shopInfo: data.shopInfo,
-            connectedAt: new Date().toISOString(),
-            connectionType: 'oauth'
-          },
-          organizationId: '00000000-0000-0000-0000-000000000001'
-        })
-      });
-
-      const storeResult = await storeResponse.json();
-      if (!storeResult.success) {
-        throw new Error('Failed to store integration credentials');
+      // Server already saved the integration based on the verified state.
+      if (data && data.success) {
+        setStatus('success');
+        setMessage('Successfully connected your Shopify store!');
+      } else {
+        throw new Error(data?.error || 'Failed to complete OAuth flow');
       }
-      
-      setStatus('success');
-      setMessage('Successfully connected your Shopify store!');
       
       // Redirect back to integrations page
       setTimeout(() => {

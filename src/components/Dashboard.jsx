@@ -9,9 +9,9 @@ export default function Dashboard() {
 
   // ✅ Fetch stats
   const { data: statsResp, isLoading: statsLoading } = useQuery({
-    queryKey: ['stats', user?.organization_id],
-    queryFn: () => analyticsService.getConversationStats(user?.organization_id, '7'),
-    enabled: !!user?.organization_id || true, // still run in demo mode
+    queryKey: ['stats', user?.organizationId],
+    queryFn: () => analyticsService.getConversationStats(user?.organizationId, '7'),
+    enabled: !!user?.organizationId || true, // still run in demo mode
     refetchInterval: 60000
   })
 

@@ -306,6 +306,13 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
   const [showUserMenu, setShowUserMenu] = useState(false);
   const currentUser = authService.getCurrentUser();
 
+  // Helper: treat legacy admin role and explicit super-admin flags as admin for UI
+  const isSuper = !!currentUser && (
+    currentUser.role === 'admin' ||
+    !!currentUser.is_super_admin ||
+    !!currentUser.isSuperAdmin
+  );
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -390,7 +397,7 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
                   <p className="text-xs text-gray-600">{currentUser?.role || 'Agent'}</p>
                 </div>
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                  <span className="text-xl">{currentUser?.role === 'admin' ? '👑' : '👤'}</span>
+                  <span className="text-xl">{isSuper ? '👑' : '👤'}</span>
                 </div>
               </button>
               
@@ -401,7 +408,7 @@ export const CleanHeader = ({ sidebarOpen, setSidebarOpen, realTimeMetrics = {} 
                     <p className="font-semibold text-gray-900">{currentUser?.name}</p>
                     <p className="text-sm text-gray-600">{currentUser?.email}</p>
                     <span className={`inline-block mt-2 px-2 py-1 text-xs rounded-full ${
-                      currentUser?.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                      isSuper ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {currentUser?.role}
                     </span>

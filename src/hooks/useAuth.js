@@ -1,10 +1,2 @@
-export const useAuth = () => {
-  return {
-    user: null,
-    loading: false,
-    signIn: async () => ({ data: null, error: null }),
-    signUp: async () => ({ data: null, error: null }),
-    signOut: async () => {}
-  }
-}
-
+// Re-export useAuth from AuthContext
+export { useAuth } from '../contexts/AuthContext';

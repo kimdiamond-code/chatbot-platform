@@ -12,7 +12,7 @@
 
 ## Changes Made
 
-### Backend API (`api/consolidated.js`)
+### Backend API (`api/consolidated.jsx`)
 Added two new database actions:
 
 #### `delete_conversation`
@@ -28,12 +28,12 @@ Added two new database actions:
 
 ### Frontend Services
 
-#### `src/services/databaseService.js`
+#### `src/services/databaseService.jsx`
 Added methods:
 - `deleteConversation(conversationId)` - Delete single conversation
 - `clearAllConversations(orgId)` - Clear all conversations for org
 
-#### `src/hooks/useConversations.js`
+#### `src/hooks/useConversations.jsx`
 Added hooks:
 - `deleteConversation` - Delete mutation with auto-refetch
 - `clearAllConversations` - Clear all mutation with auto-refetch

@@ -21,6 +21,14 @@
       "destination": "/api/messenger-oauth.js"
     },
     {
+      "source": "/api/oauth/klaviyo/:path*",
+      "destination": "/api/klaviyo-oauth.js"
+    },
+    {
+      "source": "/api/oauth/kustomer/:path*",
+      "destination": "/api/kustomer-oauth.js"
+    },
+    {
       "source": "/api/consolidated",
       "destination": "/api/consolidated.js"
     },

@@ -154,32 +154,45 @@ export const FEATURE_ACCESS = {
 
 class RBACService {
   constructor() {
-    this.currentUserRole = null;
+    // currentUser holds { role, isSuperAdmin }
+    this.currentUser = { role: null, isSuperAdmin: false };
   }
 
   /**
-   * Set current user's role
+   * Set the current user object (preferred)
+   */
+  setUser(user) {
+    if (!user) {
+      this.currentUser = { role: null, isSuperAdmin: false };
+      return;
+    }
+    this.currentUser = {
+      role: user.role || user.user_role || null,
+      isSuperAdmin: !!user.is_super_admin || !!user.isSuperAdmin
+    };
+  }
+
+  /**
+   * Backwards-compatible: set role only
    */
   setUserRole(role) {
-    this.currentUserRole = role;
+    this.currentUser.role = role;
   }
 
   /**
    * Get current user's role
    */
   getUserRole() {
-    return this.currentUserRole;
+    return this.currentUser.role;
   }
 
   /**
    * Check if user has a specific permission
    */
   hasPermission(permission) {
-    if (!this.currentUserRole) {
-      return false;
-    }
-
-    const permissions = rolePermissions[this.currentUserRole] || [];
+    const role = this.getUserRole();
+    if (!role) return false;
+    const permissions = rolePermissions[role] || [];
     return permissions.includes(permission);
   }
 
@@ -201,22 +214,18 @@ class RBACService {
    * Check if user can access a feature
    */
   canAccessFeature(featureId) {
-    if (!this.currentUserRole) {
-      return false;
-    }
-
+    const role = this.getUserRole();
+    if (!role) return false;
     const allowedRoles = FEATURE_ACCESS[featureId] || [];
-    return allowedRoles.includes(this.currentUserRole);
+    // Super-admin bypass
+    if (this.isSuperAdmin()) return true;
+    return allowedRoles.includes(role);
   }
 
   /**
    * Get all features the user can access
    */
   getAccessibleFeatures() {
-    if (!this.currentUserRole) {
-      return [];
-    }
-
     return Object.keys(FEATURE_ACCESS).filter(featureId => 
       this.canAccessFeature(featureId)
     );
@@ -226,14 +235,20 @@ class RBACService {
    * Check if user is admin or developer (full access roles)
    */
   isAdminOrDeveloper() {
-    return this.currentUserRole === ROLES.ADMIN || this.currentUserRole === ROLES.DEVELOPER;
+    const role = this.getUserRole();
+    return this.isSuperAdmin() || role === ROLES.ADMIN || role === ROLES.DEVELOPER;
   }
 
   /**
    * Check if user is admin
    */
   isAdmin() {
-    return this.currentUserRole === ROLES.ADMIN;
+    const role = this.getUserRole();
+    return this.isSuperAdmin() || role === ROLES.ADMIN;
+  }
+
+  isSuperAdmin() {
+    return !!this.currentUser.isSuperAdmin;
   }
 
   /**

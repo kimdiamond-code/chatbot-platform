@@ -305,13 +305,25 @@ export default function UserManagement() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                      user.role === 'agent' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {user.role}
-                    </span>
+                    {/* Highlight super-admins regardless of stored role string */}
+                    {(() => {
+                      const isSuper = !!user && (
+                        user.role === 'admin' ||
+                        !!user.is_super_admin ||
+                        !!user.isSuperAdmin
+                      );
+                      const badgeClass = isSuper
+                        ? 'bg-purple-100 text-purple-800'
+                        : user.role === 'agent'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-800';
+
+                      return (
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${badgeClass}`}>
+                          {isSuper ? `${user.role} (super-admin)` : user.role}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4">
                     <button

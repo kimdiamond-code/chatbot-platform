@@ -38,9 +38,8 @@ const CentralizedIntegrations = () => {
       description: 'Email marketing automation and customer engagement',
       icon: Mail,
       color: 'from-purple-500 to-pink-600',
-      fields: [
-        { name: 'companyId', label: 'Company ID', placeholder: 'Found in Klaviyo account settings', required: true }
-      ],
+      fields: [], // OAuth - no manual fields
+      usesOAuth: true,
       configured: integrationService.isProviderConfigured('klaviyo'),
       features: ['Email Lists', 'Subscriber Management', 'Event Tracking', 'Campaign Triggers']
     },
@@ -50,9 +49,9 @@ const CentralizedIntegrations = () => {
       description: 'Customer service CRM for support tickets and conversations',
       icon: Headphones,
       color: 'from-blue-500 to-cyan-600',
-      fields: [
-        { name: 'subdomain', label: 'Organization Subdomain', placeholder: 'mycompany (from mycompany.kustomerapp.com)', required: true }
-      ],
+      fields: [], // OAuth - no manual fields
+      usesOAuth: true,
+      requiresSubdomain: true, // Still need to ask for subdomain before OAuth
       configured: integrationService.isProviderConfigured('kustomer'),
       features: ['Ticket Creation', 'Conversation History', 'Customer Notes', 'Tags']
     },
@@ -91,13 +90,20 @@ const CentralizedIntegrations = () => {
       
       if (params.get('shopify') === 'connected') {
         setMessage({ type: 'success', text: 'Shopify connected successfully!' });
-        // Clean URL
         window.history.replaceState({}, '', '/dashboard/integrations');
       } else if (params.get('messenger') === 'connected') {
         const pageName = params.get('page');
         setMessage({ type: 'success', text: `Facebook Page "${pageName}" connected successfully!` });
         window.history.replaceState({}, '', '/dashboard/integrations');
-      } else if (params.get('shopify') === 'error' || params.get('messenger') === 'error') {
+      } else if (params.get('klaviyo') === 'connected') {
+        const accountName = params.get('account');
+        setMessage({ type: 'success', text: `Klaviyo account "${accountName}" connected successfully!` });
+        window.history.replaceState({}, '', '/dashboard/integrations');
+      } else if (params.get('kustomer') === 'connected') {
+        const orgName = params.get('org');
+        setMessage({ type: 'success', text: `Kustomer org "${orgName}" connected successfully!` });
+        window.history.replaceState({}, '', '/dashboard/integrations');
+      } else if (params.get('shopify') === 'error' || params.get('messenger') === 'error' || params.get('klaviyo') === 'error' || params.get('kustomer') === 'error') {
         const errorMsg = params.get('message') || 'Connection failed';
         setMessage({ type: 'error', text: `Error: ${errorMsg}` });
         window.history.replaceState({}, '', '/dashboard/integrations');
@@ -142,13 +148,26 @@ const CentralizedIntegrations = () => {
     if (provider === 'shopify') {
       const shopName = prompt("Enter your Shopify store name (e.g., mystore):");
       if (shopName) {
-        window.location.href = `/api/consolidated?endpoint=shopify-oauth-redirect&organization_id=${organizationId}&shop=${shopName}`;
+        window.location.href = `/api/oauth/shopify/redirect?organization_id=${organizationId}&shop=${shopName}`;
       }
       return;
     }
     
     if (provider === 'messenger') {
-      window.location.href = `/api/consolidated?endpoint=messenger-oauth-redirect&organization_id=${organizationId}`;
+      window.location.href = `/api/oauth/messenger/redirect?organization_id=${organizationId}`;
+      return;
+    }
+    
+    if (provider === 'klaviyo') {
+      window.location.href = `/api/oauth/klaviyo/redirect?organization_id=${organizationId}`;
+      return;
+    }
+    
+    if (provider === 'kustomer') {
+      const subdomain = prompt("Enter your Kustomer subdomain (e.g., mycompany from mycompany.kustomerapp.com):");
+      if (subdomain) {
+        window.location.href = `/api/oauth/kustomer/redirect?organization_id=${organizationId}&subdomain=${subdomain}`;
+      }
       return;
     }
     

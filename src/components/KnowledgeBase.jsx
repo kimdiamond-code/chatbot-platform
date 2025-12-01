@@ -1,19 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Book, Search, Plus, Edit, Trash2, Eye, FileText, Folder, Tag, Clock, TrendingUp, HelpCircle, Upload, Link2, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
-import { authService } from '../services/authService';
-import { dbService } from '../services/dbService';
+import React, { useState } from 'react';
+import { Book, Search, Plus, Edit, Trash2, Eye, FileText, Folder, Tag, Clock, TrendingUp, HelpCircle, Upload, Link2 } from 'lucide-react';
 
 const KnowledgeBase = () => {
   const [activeTab, setActiveTab] = useState('articles');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const isAdmin = authService.isAdmin();
-  
-  // Conversations for AI Training
-  const [conversations, setConversations] = useState([]);
-  const [conversationsLoading, setConversationsLoading] = useState(false);
-  const [selectedConversations, setSelectedConversations] = useState([]);
-  const [conversationSearch, setConversationSearch] = useState('');
   
   const [articles, setArticles] = useState([
     {
@@ -63,60 +54,11 @@ const KnowledgeBase = () => {
       lastUpdated: '2024-03-20',
       tags: ['troubleshooting', 'support', 'FAQ'],
       status: 'published'
-    },
-    {
-      id: 5,
-      title: 'How to Set Up Your First Chatbot',
-      category: 'How-to Guides',
-      content: 'Step-by-step guide to creating and deploying your first chatbot in under 10 minutes...',
-      author: 'Admin',
-      views: 1823,
-      helpful: 91,
-      lastUpdated: '2024-03-19',
-      tags: ['how-to', 'setup', 'beginner'],
-      status: 'published'
-    },
-    {
-      id: 6,
-      title: 'How to Connect Shopify to Your Bot',
-      category: 'How-to Guides',
-      content: 'Complete walkthrough for integrating your Shopify store with the chatbot platform...',
-      author: 'Integration Team',
-      views: 1456,
-      helpful: 88,
-      lastUpdated: '2024-03-21',
-      tags: ['how-to', 'shopify', 'integration'],
-      status: 'published'
-    },
-    {
-      id: 7,
-      title: 'How to Train Your Bot with Custom Data',
-      category: 'How-to Guides',
-      content: 'Learn how to upload documents and train your bot with your own business knowledge...',
-      author: 'Tech Team',
-      views: 1289,
-      helpful: 85,
-      lastUpdated: '2024-03-18',
-      tags: ['how-to', 'training', 'AI'],
-      status: 'published'
-    },
-    {
-      id: 8,
-      title: 'How to Add Proactive Engagement Triggers',
-      category: 'How-to Guides',
-      content: 'Guide to setting up automated messages based on user behavior and site activity...',
-      author: 'Marketing Team',
-      views: 967,
-      helpful: 83,
-      lastUpdated: '2024-03-17',
-      tags: ['how-to', 'proactive', 'engagement'],
-      status: 'published'
     }
   ]);
 
   const [categories] = useState([
     { name: 'Getting Started', count: 12, icon: '🚀' },
-    { name: 'How-to Guides', count: 18, icon: '📖' },
     { name: 'Advanced Features', count: 8, icon: '⚡' },
     { name: 'Integrations', count: 15, icon: '🔌' },
     { name: 'Troubleshooting', count: 6, icon: '🔧' },
@@ -150,9 +92,6 @@ const KnowledgeBase = () => {
       autoSync: false
     }
   ]);
-
-  const [newUrls, setNewUrls] = useState('');
-  const [isScrapingAll, setIsScrapingAll] = useState(false);
 
   const [documents] = useState([
     {
@@ -190,63 +129,6 @@ const KnowledgeBase = () => {
     maxResults: 5
   });
 
-  // Fetch conversations when AI Training tab is active
-  useEffect(() => {
-    if (activeTab === 'ai_training') {
-      fetchConversations();
-    }
-  }, [activeTab]);
-
-  const fetchConversations = async () => {
-    setConversationsLoading(true);
-    try {
-      const data = await dbService.getConversations();
-      console.log('✅ Fetched conversations for training:', data.length);
-      setConversations(data);
-    } catch (error) {
-      console.error('❌ Failed to fetch conversations:', error);
-      setConversations([]);
-    } finally {
-      setConversationsLoading(false);
-    }
-  };
-
-  const toggleConversationSelection = (convId) => {
-    setSelectedConversations(prev =>
-      prev.includes(convId)
-        ? prev.filter(id => id !== convId)
-        : [...prev, convId]
-    );
-  };
-
-  const selectAllConversations = () => {
-    if (selectedConversations.length === filteredConversations.length) {
-      setSelectedConversations([]);
-    } else {
-      setSelectedConversations(filteredConversations.map(c => c.id));
-    }
-  };
-
-  const handleTrainWithSelected = () => {
-    if (selectedConversations.length === 0) {
-      alert('Please select at least one conversation');
-      return;
-    }
-    alert(`Training AI with ${selectedConversations.length} selected conversations. This feature will be fully implemented soon.`);
-    console.log('Training with conversations:', selectedConversations);
-  };
-
-  // Filter conversations based on search
-  const filteredConversations = conversations.filter(conv => {
-    if (!conversationSearch) return true;
-    const query = conversationSearch.toLowerCase();
-    return (
-      (conv.customer_name || '').toLowerCase().includes(query) ||
-      (conv.customer_email || '').toLowerCase().includes(query) ||
-      (conv.channel || '').toLowerCase().includes(query)
-    );
-  });
-
   const filteredArticles = articles.filter(article => {
     const matchesSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          article.content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -263,104 +145,16 @@ const KnowledgeBase = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-700';
       case 'processed': return 'bg-green-100 text-green-700';
       case 'processing': return 'bg-blue-100 text-blue-700';
-      case 'active': return 'bg-green-100 text-green-700';
-      case 'waiting': return 'bg-yellow-100 text-yellow-700';
-      case 'closed': return 'bg-gray-100 text-gray-700';
       default: return 'bg-gray-100 text-gray-700';
     }
-  };
-
-  const handleAddUrls = () => {
-    if (!newUrls.trim()) {
-      alert('Please enter at least one URL');
-      return;
-    }
-
-    const urlList = newUrls
-      .split('\n')
-      .map(url => url.trim())
-      .filter(url => url && url.startsWith('http'));
-
-    if (urlList.length === 0) {
-      alert('Please enter valid URLs starting with http:// or https://');
-      return;
-    }
-
-    const newSources = urlList.map((url, index) => ({
-      id: Date.now() + index,
-      url,
-      status: 'pending',
-      pages: 0,
-      lastCrawled: null,
-      autoSync: false
-    }));
-
-    setWebSources(prev => [...prev, ...newSources]);
-    setNewUrls('');
-    alert(`Added ${urlList.length} URL(s) to scraping queue`);
-  };
-
-  const handleScrapeAll = () => {
-    const pendingSources = webSources.filter(s => s.status === 'pending');
-    
-    if (pendingSources.length === 0) {
-      alert('No pending URLs to scrape');
-      return;
-    }
-
-    setIsScrapingAll(true);
-
-    // Simulate scraping process
-    setWebSources(prev => prev.map(source => 
-      source.status === 'pending'
-        ? { ...source, status: 'crawling' }
-        : source
-    ));
-
-    // Simulate completion after 3 seconds
-    setTimeout(() => {
-      setWebSources(prev => prev.map(source => 
-        source.status === 'crawling'
-          ? { 
-              ...source, 
-              status: 'indexed',
-              pages: Math.floor(Math.random() * 100) + 10,
-              lastCrawled: new Date().toISOString().split('T')[0]
-            }
-          : source
-      ));
-      setIsScrapingAll(false);
-      alert('All URLs scraped successfully!');
-    }, 3000);
-  };
-
-  const handleCrawlSingle = (sourceId) => {
-    setWebSources(prev => prev.map(source =>
-      source.id === sourceId
-        ? { ...source, status: 'crawling' }
-        : source
-    ));
-
-    setTimeout(() => {
-      setWebSources(prev => prev.map(source =>
-        source.id === sourceId
-          ? {
-              ...source,
-              status: 'indexed',
-              pages: Math.floor(Math.random() * 100) + 10,
-              lastCrawled: new Date().toISOString().split('T')[0]
-            }
-          : source
-      ));
-    }, 2000);
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Help Center / FAQs</h1>
-        <p className="text-gray-600">Manage help articles, documentation, and resources for customer support</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Knowledge Base</h1>
+        <p className="text-gray-600">Manage help articles, documentation, and web scraping for intelligent bot responses</p>
       </div>
 
       {/* Stats */}
@@ -476,14 +270,12 @@ const KnowledgeBase = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    </div>
-                    {isAdmin && (
-                    <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
-                        New Article
+                  />
+                </div>
+                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  New Article
                 </button>
-              )}
               </div>
 
               {/* Articles Grid */}
@@ -523,19 +315,15 @@ const KnowledgeBase = () => {
                     </div>
                     
                     <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                      {isAdmin && (
-                        <button className="flex-1 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors">
-                          Edit
-                        </button>
-                      )}
+                      <button className="flex-1 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm transition-colors">
+                        Edit
+                      </button>
                       <button className="flex-1 py-1 text-gray-600 hover:bg-gray-50 rounded text-sm transition-colors">
                         Preview
                       </button>
-                      {isAdmin && (
-                        <button className="flex-1 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors">
-                          Delete
-                        </button>
-                      )}
+                      <button className="flex-1 py-1 text-red-600 hover:bg-red-50 rounded text-sm transition-colors">
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -551,38 +339,15 @@ const KnowledgeBase = () => {
           <div className="glass-premium p-6 rounded-xl mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Web Scraping Sources</h2>
             
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Add URLs to Scrape (one per line)
-                </label>
-                <textarea
-                  value={newUrls}
-                  onChange={(e) => setNewUrls(e.target.value)}
-                  placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
-                  rows={5}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Enter multiple URLs (one per line) to scrape multiple pages at once
-                </p>
-              </div>
-              
-              <div className="flex gap-2">
-                <button 
-                  onClick={handleAddUrls}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  Add URLs
-                </button>
-                <button 
-                  onClick={handleScrapeAll}
-                  disabled={isScrapingAll}
-                  className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isScrapingAll ? 'Scraping...' : 'Scrape All Now'}
-                </button>
-              </div>
+            <div className="flex gap-2 mb-6">
+              <input
+                type="url"
+                placeholder="Enter website URL to scrape..."
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+              <button className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Add Source
+              </button>
             </div>
 
             {/* Sources List */}
@@ -613,12 +378,8 @@ const KnowledgeBase = () => {
                           <div className="font-medium">{source.autoSync ? 'Enabled' : 'Disabled'}</div>
                         </div>
                         <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleCrawlSingle(source.id)}
-                            disabled={source.status === 'crawling'}
-                            className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {source.status === 'crawling' ? 'Crawling...' : 'Crawl Now'}
+                          <button className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                            {source.status === 'crawling' ? 'Stop' : 'Crawl Now'}
                           </button>
                           <button className="px-3 py-1 border border-gray-300 text-gray-700 rounded text-sm hover:bg-gray-50">
                             Settings
@@ -743,249 +504,117 @@ const KnowledgeBase = () => {
       )}
 
       {activeTab === 'ai_training' && (
-        <div className="space-y-6">
-          {/* Conversations for Training */}
-          <div className="glass-premium p-6 rounded-xl">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                  <MessageSquare className="w-6 h-6 text-blue-600" />
-                  Training Conversations
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Select conversations to train your AI bot. Selected conversations will help improve bot responses.
-                </p>
-              </div>
-              <button
-                onClick={fetchConversations}
-                disabled={conversationsLoading}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {conversationsLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    Refresh
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Search and Actions */}
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search conversations by name, email, or channel..."
-                  value={conversationSearch}
-                  onChange={(e) => setConversationSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <button
-                onClick={selectAllConversations}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm whitespace-nowrap"
-              >
-                {selectedConversations.length === filteredConversations.length && filteredConversations.length > 0 ? 'Deselect All' : 'Select All'}
-              </button>
-              <button
-                onClick={handleTrainWithSelected}
-                disabled={selectedConversations.length === 0}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap flex items-center gap-2"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Train Bot ({selectedConversations.length})
-              </button>
-            </div>
-
-            {/* Conversations List */}
-            {conversationsLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading conversations...</p>
-              </div>
-            ) : filteredConversations.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2">
-                  {conversationSearch ? 'No conversations match your search' : 'No conversations found'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {conversationSearch ? 'Try a different search term' : 'Create conversations in the Conversations tab to use them for training'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredConversations.map(conv => (
-                  <div
-                    key={conv.id}
-                    onClick={() => toggleConversationSelection(conv.id)}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      selectedConversations.includes(conv.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/30'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center h-6">
-                        {selectedConversations.includes(conv.id) ? (
-                          <CheckCircle className="w-5 h-5 text-blue-600" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-gray-300" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-medium text-gray-900">
-                            {conv.customer_name || 'Anonymous'}
-                          </h4>
-                          <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(conv.status)}`}>
-                            {conv.status}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div className="flex items-center gap-4">
-                            <span>📧 {conv.customer_email || 'No email'}</span>
-                            <span>📱 {conv.customer_phone || 'No phone'}</span>
-                            <span>📢 {conv.channel || 'web'}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Created: {new Date(conv.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {filteredConversations.length > 0 && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                <strong>ℹ️ Tip:</strong> Select conversations that contain good examples of customer interactions. 
-                The AI will learn from these conversations to provide better responses.
-              </div>
-            )}
-          </div>
-
-          {/* AI Settings */}
-          <div className="glass-premium p-6 rounded-xl">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Training Settings</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-medium text-gray-900 mb-3">Search Configuration</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Auto-suggest answers</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={aiSettings.autoSuggest}
-                        onChange={(e) => setAiSettings({...aiSettings, autoSuggest: e.target.checked})}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </label>
-                  
-                  <label className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Smart search</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={aiSettings.smartSearch}
-                        onChange={(e) => setAiSettings({...aiSettings, smartSearch: e.target.checked})}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </label>
-                  
-                  <label className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Contextual answers</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={aiSettings.contextualAnswers}
-                        onChange={(e) => setAiSettings({...aiSettings, contextualAnswers: e.target.checked})}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </label>
-                  
-                  <label className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Multilingual support</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={aiSettings.multilingualSupport}
-                        onChange={(e) => setAiSettings({...aiSettings, multilingualSupport: e.target.checked})}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </label>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-medium text-gray-900 mb-3">Response Settings</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Confidence Threshold
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={aiSettings.confidenceThreshold}
-                        onChange={(e) => setAiSettings({...aiSettings, confidenceThreshold: parseFloat(e.target.value)})}
-                        className="flex-1"
-                      />
-                      <span className="text-sm font-medium text-gray-900 w-12">{aiSettings.confidenceThreshold}</span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Max Search Results
-                    </label>
-                    <input
-                      type="number"
-                      value={aiSettings.maxResults}
-                      onChange={(e) => setAiSettings({...aiSettings, maxResults: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+        <div className="glass-premium p-6 rounded-xl">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">AI Training Settings</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-medium text-gray-900 mb-3">Search Configuration</h3>
+              <div className="space-y-3">
+                <label className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Auto-suggest answers</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={aiSettings.autoSuggest}
+                      onChange={(e) => setAiSettings({...aiSettings, autoSuggest: e.target.checked})}
+                      className="sr-only peer"
                     />
-                  </div>
-                  
-                  <button className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                    Save AI Settings
-                  </button>
-                </div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+                
+                <label className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Smart search</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={aiSettings.smartSearch}
+                      onChange={(e) => setAiSettings({...aiSettings, smartSearch: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+                
+                <label className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Contextual answers</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={aiSettings.contextualAnswers}
+                      onChange={(e) => setAiSettings({...aiSettings, contextualAnswers: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
+                
+                <label className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Multilingual support</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={aiSettings.multilingualSupport}
+                      onChange={(e) => setAiSettings({...aiSettings, multilingualSupport: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </label>
               </div>
             </div>
-
-            {/* Training Status */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
+            
+            <div>
+              <h3 className="font-medium text-gray-900 mb-3">Response Settings</h3>
+              <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-blue-900">AI Model Status</h4>
-                  <p className="text-sm text-blue-700 mt-1">Last trained: March 20, 2024 • Next training: Scheduled for March 27</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confidence Threshold
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={aiSettings.confidenceThreshold}
+                      onChange={(e) => setAiSettings({...aiSettings, confidenceThreshold: parseFloat(e.target.value)})}
+                      className="flex-1"
+                    />
+                    <span className="text-sm font-medium text-gray-900 w-12">{aiSettings.confidenceThreshold}</span>
+                  </div>
                 </div>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Train Now
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Search Results
+                  </label>
+                  <input
+                    type="number"
+                    value={aiSettings.maxResults}
+                    onChange={(e) => setAiSettings({...aiSettings, maxResults: parseInt(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                  />
+                </div>
+                
+                <button className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  Save AI Settings
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Training Status */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-blue-900">AI Model Status</h4>
+                <p className="text-sm text-blue-700 mt-1">Last trained: March 20, 2024 • Next training: Scheduled for March 27</p>
+              </div>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Train Now
+              </button>
             </div>
           </div>
         </div>
@@ -993,7 +622,7 @@ const KnowledgeBase = () => {
 
       {activeTab === 'analytics' && (
         <div className="glass-premium p-6 rounded-xl">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Help Center Analytics</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Knowledge Base Analytics</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-4 bg-white border border-gray-200 rounded-lg">

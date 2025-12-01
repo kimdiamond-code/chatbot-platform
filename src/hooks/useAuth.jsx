@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, createContext } from 'react'
+import rbacService from '../services/rbacService';
 
 const AuthContext = createContext()
 
@@ -20,7 +21,7 @@ export function AuthProvider({ children }) {
 						email: authData.email,
 						name: authData.name,
 						role: authData.role,
-						organization_id: authData.organizationId
+						organizationId: authData.organizationId
 					}
 					console.log('🔍 Loading stored user:', userData.email)
 					
@@ -40,20 +41,25 @@ export function AuthProvider({ children }) {
 						
 						if (success && agent) {
 							const fullUser = {
-								...userData,
-								id: agent.id,
-								organization_id: agent.organization_id,
-								role: agent.role,
-								name: agent.name
+							...userData,
+							id: agent.id,
+							organizationId: agent.organization_id,
+							role: agent.role,
+							name: agent.name
 							}
 							
 							console.log('✅ Loaded full user:', {
-								email: fullUser.email,
-								organization_id: fullUser.organization_id,
-								role: fullUser.role
+							email: fullUser.email,
+							organizationId: fullUser.organizationId,
+							role: fullUser.role
 							})
 							
 							setUser(fullUser)
+							// Inform RBAC about the loaded user including super-admin flag
+							rbacService.setUser({
+								role: fullUser.role,
+								is_super_admin: agent.is_super_admin
+							})
 						} else {
 							console.warn('⚠️ No agent record found for stored user')
 							// Keep basic user data but flag as incomplete
@@ -113,12 +119,23 @@ export function AuthProvider({ children }) {
 			localStorage.setItem('chatbot_auth', JSON.stringify(authData))
 
 			console.log('✅ Login successful:', {
-				email: data.user.email,
-				organization_id: data.user.organization_id,
-				role: data.user.role
+			email: data.user.email,
+			organizationId: data.user.organization_id,
+			role: data.user.role
 			})
 
-			setUser(data.user)
+			// Normalize user object so frontend components can read `organizationId`
+			const loggedUser = {
+				id: data.user.id,
+				email: data.user.email,
+				name: data.user.name,
+				role: data.user.role,
+				organizationId: data.user.organization_id,
+				is_super_admin: data.user.is_super_admin
+			}
+			setUser(loggedUser)
+			// Update RBAC
+			rbacService.setUser(loggedUser)
 			setLoading(false)
 			
 			return { data: data.user, error: null }
@@ -164,7 +181,18 @@ export function AuthProvider({ children }) {
 
 			console.log('✅ Signup successful:', data.user.email)
 
-			setUser(data.user)
+			// Normalize user object so frontend components can read `organizationId`
+			const signedUpUser = {
+				id: data.user.id,
+				email: data.user.email,
+				name: data.user.name,
+				role: data.user.role,
+				organizationId: data.user.organization_id,
+				is_super_admin: data.user.is_super_admin
+			}
+			setUser(signedUpUser)
+			// Update RBAC
+			rbacService.setUser(signedUpUser)
 			setLoading(false)
 			
 			return { data: data.user, error: null }

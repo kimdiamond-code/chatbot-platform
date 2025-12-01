@@ -109,11 +109,13 @@ const AppContent = () => {
   useEffect(() => {
     // Initialize RBAC with current user role
     if (currentUser) {
-      rbacService.setUserRole(currentUser.role || 'user');
+      // Provide the full user to RBAC so it can detect super-admins
+      rbacService.setUser(currentUser);
       console.log('👤 User loaded:', {
         email: currentUser.email,
         organizationId: currentUser.organizationId,
-        role: currentUser.role
+        role: currentUser.role,
+        is_super_admin: currentUser.is_super_admin
       });
     }
   }, [currentUser]);

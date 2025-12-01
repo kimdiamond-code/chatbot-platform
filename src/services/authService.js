@@ -186,7 +186,12 @@ class AuthService {
   }
 
   isAdmin() {
-    return this.currentUser?.role === 'admin';
+    // Consider legacy role and explicit super-admin flags (is_super_admin / isSuperAdmin)
+    return !!this.currentUser && (
+      this.currentUser.role === 'admin' ||
+      !!this.currentUser.is_super_admin ||
+      !!this.currentUser.isSuperAdmin
+    );
   }
 
   getToken() {
