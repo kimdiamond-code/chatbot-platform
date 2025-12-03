@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import rbacService, { PERMISSIONS } from './services/rbacService';
 import Login from './pages/Login.jsx';
@@ -23,7 +24,6 @@ import AdminPanel from './components/AdminPanel.jsx';
 import Integrations from './components/Integrations.jsx';
 import { OnboardingManager } from './components/onboarding';
 import { TooltipProvider } from './components/onboarding';
-import BotBuilderSaveTest from './components/BotBuilderSaveTest.jsx';
 
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
 import { debugEnvVars } from './utils/debugEnv.js';
@@ -303,4 +303,10 @@ const App = () => {
   );
 };
 
-export default App;
+const WrappedApp = () => (
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
+
+export default WrappedApp;

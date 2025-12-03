@@ -1,4 +1,4 @@
-import { supabase, testSupabaseConnection } from './supabase.js';
+import { supabase } from './supabase.js';
 
 // Default organization ID for demo (matches schema.sql)
 const DEMO_ORG_ID = '00000000-0000-0000-0000-000000000001';
