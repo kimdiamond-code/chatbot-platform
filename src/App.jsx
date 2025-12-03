@@ -215,9 +215,7 @@ const AppContent = () => {
     // TEMPORARY: Save Test Component
     {
       id: 'savetest',
-      name: '🧪 Save Test',
-      component: BotBuilderSaveTest,
-      feature: 'admin',
+      name: '🧪 Save Test',      feature: 'admin',
       adminOnly: true,
       description: 'Test bot instructions save functionality'
     }
