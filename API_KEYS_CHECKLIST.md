@@ -46,7 +46,7 @@ Copy this checklist and fill in your credentials as you obtain them.
 **Where to get:** https://www.klaviyo.com/ → Account → Settings → API Keys
 
 **What you need:**
-- [ ] KLAVIYO_PRIVATE_API_KEY: `pk_____________________________`
+- [ ] KLAVIYO_PRIVATE_API_KEY: `pk_0e451f3e95d467f112cb00bcd1b2048653___________________________`
 
 **Instructions:**
 1. Log in to Klaviyo account
@@ -94,11 +94,8 @@ Copy this checklist and fill in your credentials as you obtain them.
 **Where to get:** https://developers.facebook.com/
 
 **What you need:**
-- [ ] MESSENGER_APP_ID: `___________________________`
-- [ ] MESSENGER_APP_SECRET: `___________________________`
-- [ ] MESSENGER_PAGE_ACCESS_TOKEN: `___________________________`
-- [ ] MESSENGER_VERIFY_TOKEN: `your_custom_secret_string` (you create this)
-
+- [ ] MESSENGER_PAGE_ACCESS_TOKEN:EAAKQZCH8BTuMBQEKhcZAm2sQxp3lg80ER7NY7SOo9AewNboHv6gkcFCvAvZBQ5gQXxXPa7nZBW5ZC2ZA8UjIZB3yDe8YyoaFovLEZCcyr4fZBjbo8RmF8UpBZBIQZBVArSZAD5ROZByhzmLxr4yJfFBPZCZBHCvekRZB3dEiUbJCqIh3NuGcfZAxS8BQ2JRyh34tgtI4oMwUDseYZD
+- [ ] MESSENGER_VERIFY_TOKEN:agenstack_verify_2025
 **Instructions:**
 1. Go to Facebook Developers
 2. Create a new App (type: Business)
@@ -139,7 +136,9 @@ Copy this checklist and fill in your credentials as you obtain them.
 **Notes:**
 - Sandbox is free for testing
 - Production requires WhatsApp Business verification
-- Can take 1-2 weeks for approval
+- Can take 1-2 weekMESSENGER_APP_ID:722364090371811
+- [ ] MESSENGER_APP_SECRET:f3547df34db0eae406ddc80b4f0dfb41
+- [ ] s for approval
 
 ---
 

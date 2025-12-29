@@ -15,28 +15,36 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
     setIsLoading(true);
 
     try {
-      // Initiate OAuth flow with user's organization ID
-      const response = await fetch('/api/consolidated', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          endpoint: 'database',
-          action: 'shopify_oauth_initiate',
-          shop: shopDomain,
-          organizationId: organizationId
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to initiate OAuth');
-      }
-
-      // Redirect to Shopify OAuth page
-      window.location.href = data.authUrl;
+      // Sanitize shop domain (remove .myshopify.com if user added it)
+      const cleanShop = shopDomain.replace('.myshopify.com', '').trim();
+      
+      // Build Shopify OAuth URL directly
+      const SHOPIFY_CLIENT_ID = import.meta.env.VITE_SHOPIFY_API_KEY;
+      const REDIRECT_URI = 'https://chatbot-platform-v2.vercel.app/api/consolidated';
+      const SCOPES = 'read_products,read_orders,read_customers,read_inventory,read_locations,read_draft_orders';
+      
+      // Encode state with organization_id
+      const stateObject = {
+        organization_id: organizationId,
+        timestamp: Date.now(),
+        random: Math.random().toString(36).substring(2)
+      };
+      const stateData = btoa(JSON.stringify(stateObject));
+      
+      // Build Shopify authorization URL - MUST use store.myshopify.com format
+      const shopifyDomain = `${cleanShop}.myshopify.com`;
+      const authUrl = `https://${shopifyDomain}/admin/oauth/authorize?` +
+        `client_id=${SHOPIFY_CLIENT_ID}&` +
+        `scope=${SCOPES}&` +
+        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `state=${stateData}`;
+      
+      console.log('🚀 Store domain:', cleanShop);
+      console.log('🚀 Full Shopify domain:', shopifyDomain);
+      console.log('🚀 Redirecting to:', authUrl);
+      
+      // Redirect directly to Shopify
+      window.location.href = authUrl;
 
     } catch (error) {
       console.error('OAuth error:', error);
@@ -144,9 +152,9 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
     try {
       console.log('🔍 Loading Shopify config for organization:', organizationId);
       const integrations = await dbService.getIntegrations(organizationId);
-      const shopifyIntegration = integrations?.find(i => i.integration_id === 'shopify');
+      const shopifyIntegration = integrations?.find(i => i.integration_id === 'shopify' || i.provider === 'shopify');
 
-      if (shopifyIntegration && shopifyIntegration.credentials && shopifyIntegration.status === 'connected') {
+      if (shopifyIntegration && shopifyIntegration.status === 'connected') {
         setExistingConfig(shopifyIntegration);
         setStep('connected');
       }
@@ -326,8 +334,6 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
     setIsLoading(true);
     
     try {
-      console.log('💾 Saving API connection for organization:', organizationId);
-      
       console.log('🔌 Disconnecting Shopify for organization:', organizationId);
       
       await dbService.upsertIntegration({
@@ -357,6 +363,15 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
   };
 
   if (step === 'connected' && existingConfig) {
+    const credentials = typeof existingConfig.credentials === 'string' 
+      ? JSON.parse(existingConfig.credentials) 
+      : existingConfig.credentials;
+    const accountInfo = existingConfig.account_identifier 
+      ? (typeof existingConfig.account_identifier === 'string' 
+        ? JSON.parse(existingConfig.account_identifier) 
+        : existingConfig.account_identifier)
+      : null;
+
     return (
       <div className="max-w-2xl mx-auto p-6">
         <div className="text-center mb-6">
@@ -372,11 +387,11 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
           <h3 className="font-semibold text-green-900 mb-2">🏪 Store Information</h3>
           <div className="text-sm text-green-800 space-y-1">
-            <p><strong>Domain:</strong> {existingConfig.credentials?.shopDomain}.myshopify.com</p>
-            <p><strong>Connection Type:</strong> {existingConfig.credentials?.connectionType === 'api' ? '🔑 Full API' : '⚡ Quick Start'}</p>
-            <p><strong>Status:</strong> <span className={existingConfig.status === 'connected' ? 'text-green-700 font-semibold' : ''}>{existingConfig.status === 'limited' ? 'Limited (Quick Start)' : 'Fully Connected'}</span></p>
-            {existingConfig.credentials?.shopInfo && (
-              <p><strong>Store Name:</strong> {existingConfig.credentials.shopInfo.name}</p>
+            <p><strong>Domain:</strong> {accountInfo?.shop || accountInfo?.storeName || credentials?.shopDomain || 'Connected'}</p>
+            <p><strong>Connection Type:</strong> {credentials?.connectionType === 'api' ? '🔑 Full API' : credentials?.connectionType === 'oauth' ? '🚀 OAuth' : '⚡ Quick Start'}</p>
+            <p><strong>Status:</strong> <span className="text-green-700 font-semibold capitalize">{existingConfig.status}</span></p>
+            {accountInfo?.storeName && (
+              <p><strong>Store Name:</strong> {accountInfo.storeName}</p>
             )}
             <p><strong>Connected:</strong> {new Date(existingConfig.connected_at).toLocaleDateString()}</p>
           </div>
@@ -387,7 +402,13 @@ const ShopifyOAuthConfiguration = ({ onConfigurationSaved }) => {
           <ul className="text-sm text-blue-800 space-y-1">
             {existingConfig.config?.features?.map((feature, index) => (
               <li key={index}>• {feature}</li>
-            ))}
+            )) || (
+              <>
+                <li>• Product search and recommendations</li>
+                <li>• Order tracking</li>
+                <li>• Customer support</li>
+              </>
+            )}
           </ul>
         </div>
         

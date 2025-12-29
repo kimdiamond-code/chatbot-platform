@@ -214,7 +214,7 @@ class IntegrationOrchestrator {
       });
       
       let orders = [];
-      const credentials = await shopifyService.getCredentials();
+      const credentials = await shopifyService.getCredentials(this.organizationId);
       
       if (!credentials) {
         console.log('⚠️ No Shopify credentials for order lookup');
@@ -317,9 +317,9 @@ class IntegrationOrchestrator {
 
       // Always use real Shopify - no demo mode
       if (action.query && action.query !== 'general') {
-        products = await shopifyService.searchProducts(action.query);
+        products = await shopifyService.searchProducts(action.query, this.organizationId);
       } else {
-        products = await shopifyService.getProducts(6);
+        products = await shopifyService.getProducts(6, this.organizationId);
       }
 
       return {
@@ -349,7 +349,7 @@ class IntegrationOrchestrator {
       
       // In Shopify, carts are essentially draft orders
       // We'll fetch recent draft orders for this customer
-      const credentials = await shopifyService.getCredentials();
+      const credentials = await shopifyService.getCredentials(this.organizationId);
       
       if (!credentials) {
         console.log('⚠️ No Shopify credentials - cart is empty');
@@ -402,7 +402,7 @@ class IntegrationOrchestrator {
       let products = [];
       
       if (this.activeIntegrations.shopify) {
-        products = await shopifyService.searchProducts(productQuery);
+        products = await shopifyService.searchProducts(productQuery, this.organizationId);
       } else {
         products = demoShopifyService.searchDemoProducts(productQuery);
       }
@@ -681,3 +681,5 @@ class IntegrationOrchestrator {
 
 // Export singleton instance
 export const integrationOrchestrator = new IntegrationOrchestrator();
+
+

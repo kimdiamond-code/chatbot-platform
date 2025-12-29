@@ -1,3 +1,7 @@
+$projectRoot = "C:\Users\kdiamond\OneDrive - True Citrus\Directory\Chatbot\Chatbot set up\Chatbot-platform_files\chatbot-platform"
+$targetFile = "$projectRoot\src\services\botConfigService.js"
+
+$content = @'
 // Bot Configuration Service - Uses Neon Database via Backend API
 // NO Supabase, NO Demo Mode, NO True Citrus
 
@@ -100,3 +104,7 @@ class BotConfigService {
 
 export const botConfigService = new BotConfigService();
 export default botConfigService;
+'@
+
+$content | Set-Content $targetFile -Force
+Write-Host "✅ Created clean botConfigService.js" -ForegroundColor Green

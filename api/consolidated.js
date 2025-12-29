@@ -7,6 +7,27 @@ import { getDatabase } from './database-config.js';
 import crypto from 'crypto';
 import promptSecurity from './promptSecurityBackend.js';
 
+// Helper function to verify Shopify HMAC
+function verifyShopifyHmac(query, secret) {
+  const { hmac, ...params } = query;
+  
+  if (!hmac) return false;
+
+  // Build message from query params
+  const messageString = Object.keys(params)
+    .sort()
+    .map(key => `${key}=${params[key]}`)
+    .join('&');
+
+  // Generate HMAC
+  const hash = crypto
+    .createHmac('sha256', secret)
+    .update(messageString)
+    .digest('hex');
+
+  return hash === hmac;
+}
+
 let sql;
 try {
   sql = getDatabase();
@@ -34,6 +55,103 @@ export default async function handler(req, res) {
   const { method, query, body } = req;
   const endpoint = query.endpoint || body?.endpoint;
   const action = body?.action;
+
+  // ============================================================
+  // SHOPIFY OAUTH CALLBACK - Check this FIRST before other logic
+  // ============================================================
+  if (method === 'GET' && query.code && query.shop && query.state) {
+    console.log('🔑 Detected Shopify OAuth callback');
+    const { code, shop, state, hmac } = query;
+
+    if (!code || !shop || !state) {
+      return res.status(400).json({ error: 'Missing OAuth parameters' });
+    }
+
+    try {
+      // Decode state to get organization_id
+      const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+      const { organization_id } = stateData;
+
+      console.log('✅ OAuth callback received for org:', organization_id, 'shop:', shop);
+
+      // Verify HMAC (Shopify security)
+      const SHOPIFY_CLIENT_SECRET = process.env.VITE_SHOPIFY_API_SECRET;
+      const isValid = verifyShopifyHmac(query, SHOPIFY_CLIENT_SECRET);
+      if (!isValid) {
+        console.error('❌ Invalid HMAC');
+        return res.status(403).json({ error: 'Invalid request signature' });
+      }
+
+      // Exchange code for access token
+      const SHOPIFY_CLIENT_ID = process.env.VITE_SHOPIFY_API_KEY;
+      const tokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: SHOPIFY_CLIENT_ID,
+          client_secret: SHOPIFY_CLIENT_SECRET,
+          code: code
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+      }
+
+      const tokenData = await tokenResponse.json();
+      const { access_token, scope } = tokenData;
+
+      console.log('🔑 Access token received for shop:', shop);
+
+      // Encrypt the token using simple encryption
+      const encryptedToken = Buffer.from(access_token).toString('base64');
+
+      // Extract store name from shop domain
+      const storeName = shop.replace('.myshopify.com', '');
+
+      // Store in database
+      const existing = await sql`
+        SELECT id FROM integrations 
+        WHERE organization_id = ${organization_id} AND provider = 'shopify'
+      `;
+
+      if (existing.length > 0) {
+        // Update existing
+        await sql`
+          UPDATE integrations 
+          SET 
+            access_token = ${encryptedToken},
+            account_identifier = ${JSON.stringify({ storeName, shop })},
+            token_scope = ${scope},
+            status = 'connected',
+            connected_at = NOW(),
+            updated_at = NOW()
+          WHERE organization_id = ${organization_id} AND provider = 'shopify'
+        `;
+      } else {
+        // Insert new
+        await sql`
+          INSERT INTO integrations 
+            (organization_id, provider, access_token, account_identifier, token_scope, status, connected_at)
+          VALUES 
+            (${organization_id}, 'shopify', ${encryptedToken}, ${JSON.stringify({ storeName, shop })}, ${scope}, 'connected', NOW())
+        `;
+      }
+
+      console.log('✅ Shopify integration saved for org:', organization_id);
+
+      // Redirect back to frontend
+      const redirectUrl = process.env.FRONTEND_URL || 'https://chatbot-platform-v2.vercel.app';
+      return res.redirect(`${redirectUrl}/dashboard/integrations?shopify=connected`);
+
+    } catch (error) {
+      console.error('❌ OAuth callback failed:', error);
+      
+      // Redirect to frontend with error
+      const redirectUrl = process.env.FRONTEND_URL || 'https://chatbot-platform-v2.vercel.app';
+      return res.redirect(`${redirectUrl}/dashboard/integrations?shopify=error&message=${encodeURIComponent(error.message)}`);
+    }
+  }
 
   try {
     // ============================================================
@@ -2132,6 +2250,104 @@ if (action === 'signup') {
       }
 
       return res.status(400).json({ error: 'Invalid integration action' });
+    }
+
+    // ============================================================
+    // SHOPIFY OAUTH CALLBACK
+    // ============================================================
+    if (endpoint === 'shopify-oauth-callback' || 
+        req.url.includes('/oauth/shopify/callback') || 
+        (method === 'GET' && query.code && query.shop && query.state)) {
+      const { code, shop, state, hmac } = query;
+
+      if (!code || !shop || !state) {
+        return res.status(400).json({ error: 'Missing OAuth parameters' });
+      }
+
+      try {
+        // Decode state to get organization_id
+        const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+        const { organization_id } = stateData;
+
+        console.log('✅ OAuth callback received for org:', organization_id, 'shop:', shop);
+
+        // Verify HMAC (Shopify security)
+        const SHOPIFY_CLIENT_SECRET = process.env.VITE_SHOPIFY_API_SECRET;
+        const isValid = verifyShopifyHmac(query, SHOPIFY_CLIENT_SECRET);
+        if (!isValid) {
+          console.error('❌ Invalid HMAC');
+          return res.status(403).json({ error: 'Invalid request signature' });
+        }
+
+        // Exchange code for access token
+        const SHOPIFY_CLIENT_ID = process.env.VITE_SHOPIFY_API_KEY;
+        const tokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client_id: SHOPIFY_CLIENT_ID,
+            client_secret: SHOPIFY_CLIENT_SECRET,
+            code: code
+          })
+        });
+
+        if (!tokenResponse.ok) {
+          throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+        }
+
+        const tokenData = await tokenResponse.json();
+        const { access_token, scope } = tokenData;
+
+        console.log('🔑 Access token received for shop:', shop);
+
+        // Encrypt the token using simple encryption (since tokenEncryptionService may not be available)
+        const encryptedToken = Buffer.from(access_token).toString('base64');
+
+        // Extract store name from shop domain
+        const storeName = shop.replace('.myshopify.com', '');
+
+        // Store in database
+        const existing = await sql`
+          SELECT id FROM integrations 
+          WHERE organization_id = ${organization_id} AND provider = 'shopify'
+        `;
+
+        if (existing.length > 0) {
+          // Update existing
+          await sql`
+            UPDATE integrations 
+            SET 
+              access_token = ${encryptedToken},
+              account_identifier = ${JSON.stringify({ storeName, shop })},
+              token_scope = ${scope},
+              status = 'connected',
+              connected_at = NOW(),
+              updated_at = NOW()
+            WHERE organization_id = ${organization_id} AND provider = 'shopify'
+          `;
+        } else {
+          // Insert new
+          await sql`
+            INSERT INTO integrations 
+              (organization_id, provider, access_token, account_identifier, token_scope, status, connected_at)
+            VALUES 
+              (${organization_id}, 'shopify', ${encryptedToken}, ${JSON.stringify({ storeName, shop })}, ${scope}, 'connected', NOW())
+          `;
+        }
+
+        console.log('✅ Shopify integration saved for org:', organization_id);
+
+        // Redirect back to frontend
+        const redirectUrl = process.env.FRONTEND_URL || 'https://chatbot-platform-v2.vercel.app';
+        return res.redirect(`${redirectUrl}/dashboard/integrations?shopify=connected`);
+
+      } catch (error) {
+        console.error('❌ OAuth callback failed:', error);
+        
+        // Redirect to frontend with error
+        const redirectUrl = process.env.FRONTEND_URL || 'https://chatbot-platform-v2.vercel.app';
+        return res.redirect(`${redirectUrl}/dashboard/integrations?shopify=error&message=${encodeURIComponent(error.message)}`);
+      }
     }
 
     // ============================================================

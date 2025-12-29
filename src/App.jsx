@@ -237,23 +237,7 @@ const AppContent = () => {
 
   const ActiveComponent = navigation.find(nav => nav.id === activeTab)?.component || EnhancedDashboard;
 
-  // Show role indicator in dev mode (remove in production)
-  const roleIndicator = currentUser && (
-    <div className="fixed bottom-4 right-4 z-50 bg-white rounded-lg shadow-lg p-3 border-2 border-blue-500">
-      <div className="text-xs text-gray-600">Current Role:</div>
-      <div className={`text-sm font-bold px-2 py-1 rounded ${rbacService.getRoleBadgeColor(currentUser.role)}`}>
-        {rbacService.getRoleDisplayName(currentUser.role)}
-      </div>
-      <div className="text-xs text-gray-500 mt-1">
-        {navigation.length} features accessible
-      </div>
-      {rbacService.isAdminOrDeveloper() && (
-        <div className="text-xs text-red-600 font-semibold mt-1">
-          🔒 Admin Access
-        </div>
-      )}
-    </div>
-  );
+  
 
   return (
     <TooltipProvider>
@@ -284,9 +268,6 @@ const AppContent = () => {
 
         {/* Onboarding System */}
         <OnboardingManager onNavigate={setActiveTab} />
-
-        {/* Dev Role Indicator - Remove in production */}
-        {roleIndicator}
       </div>
     </TooltipProvider>
   );
