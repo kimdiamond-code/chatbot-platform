@@ -542,7 +542,6 @@ RESPOND ONLY WITH THE JSON ARRAY, NO OTHER TEXT.`;
       
       plan.actions.push({
         type: 'shopify_product_search',
-        products: analysis.entities.products,
         query: searchQuery
       });
       plan.responseType = 'product_recommendations';
