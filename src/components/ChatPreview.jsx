@@ -112,7 +112,7 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
         content: botResult.response,
         sender: 'bot',
         timestamp: new Date().toISOString(),
-        metadata: {
+        metadata: botResult.metadata || {  // ← Pass metadata through
           source: botResult.source,
           confidence: botResult.confidence
         }
@@ -226,7 +226,7 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {chatMessages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
               <div 
                 className={`max-w-[280px] px-3 py-2 ${borderRadiusMap[customization.borderRadius]} ${fontSizeMap[customization.fontSize]} ${
                   msg.sender === 'user' 
@@ -240,6 +240,47 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
               >
                 {msg.content}
               </div>
+              
+              {/* Display products if present */}
+              {msg.metadata?.products && msg.metadata.products.length > 0 && (
+                <div className="mt-2 space-y-2 max-w-[280px]">
+                  {msg.metadata.products.map(product => (
+                    <div 
+                      key={product.id} 
+                      className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      {product.images && product.images[0] && (
+                        <img 
+                          src={product.images[0].src} 
+                          alt={product.images[0].alt}
+                          className="w-full h-32 object-cover rounded-md mb-2"
+                        />
+                      )}
+                      <h4 className="font-semibold text-sm text-gray-900 mb-1">{product.title}</h4>
+                      {product.variants && product.variants[0] && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-lg font-bold" style={{ color: customization.primaryColor }}>
+                            ${product.variants[0].price}
+                          </p>
+                          <button
+                            className="text-xs px-2 py-1 rounded text-white"
+                            style={{ backgroundColor: customization.primaryColor }}
+                            onClick={() => {
+                              // In a real app, this would add to cart
+                              console.log('Add to cart:', product.id);
+                            }}
+                          >
+                            View
+                          </button>
+                        </div>
+                      )}
+                      {product.vendor && (
+                        <p className="text-xs text-gray-500 mt-1">by {product.vendor}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           
