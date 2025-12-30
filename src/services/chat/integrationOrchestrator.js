@@ -313,13 +313,21 @@ class IntegrationOrchestrator {
    */
   async handleShopifyProductSearch(action) {
     try {
+      console.log('🛍️ handleShopifyProductSearch called with:', action);
       let products = [];
 
       // Always use real Shopify - no demo mode
       if (action.query && action.query !== 'general') {
+        console.log('🔍 Searching products with query:', action.query);
         products = await shopifyService.searchProducts(action.query, this.organizationId);
       } else {
+        console.log('📦 Getting general product list (limit: 6)');
         products = await shopifyService.getProducts(6, this.organizationId);
+      }
+
+      console.log('✅ Products fetched:', products?.length || 0, 'products');
+      if (products && products.length > 0) {
+        console.log('📦 First product:', products[0].title);
       }
 
       return {
