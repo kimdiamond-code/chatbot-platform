@@ -166,13 +166,21 @@ export const shopifyService = {
       return [];
     }
     try {
+      console.log('🔍 searchProducts called with query:', query);
       const products = await this.getProducts(50, organizationId);
+      console.log('📦 Got', products.length, 'products to search through');
       
-      if (!query) return products;
+      // If no query or generic query like "products", "show", "all", return all products
+      if (!query || ['products', 'show', 'all', 'everything'].includes(query.toLowerCase())) {
+        console.log('✅ Returning all', products.length, 'products (generic or empty query)');
+        return products;
+      }
 
       // Filter products by query
       const lowerQuery = query.toLowerCase();
-      return products.filter(product => {
+      console.log('🔍 Filtering products by:', lowerQuery);
+      
+      const filtered = products.filter(product => {
         const title = (product.title || '').toLowerCase();
         const description = (product.body_html || '').toLowerCase();
         const tags = (product.tags || '').toLowerCase();
@@ -183,6 +191,9 @@ export const shopifyService = {
                tags.includes(lowerQuery) ||
                vendor.includes(lowerQuery);
       });
+      
+      console.log('✅ Found', filtered.length, 'matching products');
+      return filtered;
     } catch (error) {
       console.error('Error searching products:', error);
       return [];
