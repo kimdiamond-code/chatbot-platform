@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { enhancedBotService } from '../services/enhancedBotService.js';
+import { shopifyService } from '../services/integrations/shopifyService.js';
 
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -7,6 +8,7 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(null); // Track which product is being added
   
   // Get customization settings
   const customization = botConfig.customization || {
@@ -176,6 +178,57 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
     }
   };
 
+  const handleAddToCart = async (product) => {
+    setAddingToCart(product.id);
+    
+    try {
+      console.log('🛒 Adding to cart:', product.title);
+      
+      // Create draft order (cart) in Shopify
+      const draftOrder = await shopifyService.createDraftOrder({
+        product: product,
+        quantity: 1,
+        customerEmail: 'preview@demo.com', // Demo email for preview
+        variantId: product.variants?.[0]?.id
+      }, DEFAULT_ORG_ID);
+      
+      console.log('✅ Added to cart:', draftOrder);
+      
+      // Show success message in chat
+      const successMsg = {
+        id: Date.now(),
+        content: `✅ **${product.title}** has been added to your cart!\n\n💰 Price: ${product.variants?.[0]?.price}\n\nWould you like to continue shopping or checkout?`,
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          source: 'cart_action',
+          confidence: 1.0
+        }
+      };
+      
+      setChatMessages(prev => [...prev, successMsg]);
+      
+    } catch (error) {
+      console.error('❌ Error adding to cart:', error);
+      
+      // Show error message
+      const errorMsg = {
+        id: Date.now(),
+        content: `Sorry, I couldn't add **${product.title}** to your cart right now. ${error.message || 'Please try again later.'}`,
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          source: 'cart_error',
+          confidence: 0.5
+        }
+      };
+      
+      setChatMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col items-end justify-end p-6 bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Preview Label */}
@@ -263,14 +316,12 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
                             ${product.variants[0].price}
                           </p>
                           <button
-                            className="text-xs px-2 py-1 rounded text-white"
+                            className="text-xs px-3 py-1.5 rounded text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{ backgroundColor: customization.primaryColor }}
-                            onClick={() => {
-                              // In a real app, this would add to cart
-                              console.log('Add to cart:', product.id);
-                            }}
+                            onClick={() => handleAddToCart(product)}
+                            disabled={addingToCart === product.id}
                           >
-                            View
+                            {addingToCart === product.id ? '⏳ Adding...' : '🛒 Add to Cart'}
                           </button>
                         </div>
                       )}
