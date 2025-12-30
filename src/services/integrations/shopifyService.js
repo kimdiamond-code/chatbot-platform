@@ -105,12 +105,20 @@ export const shopifyService = {
       return this._getDemoProducts();
     }
     try {
+      console.log('📦 getProducts called with limit:', limit, 'orgId:', organizationId);
       const credentials = await this.getCredentials(organizationId);
       
       if (!credentials) {
         console.warn('No Shopify connection - using demo mode');
         return this._getDemoProducts();
       }
+
+      console.log('📡 Calling Shopify API:', {
+        endpoint: '/api/consolidated',
+        action: 'shopify_getProducts',
+        store: credentials.shopDomain,
+        limit
+      });
 
       const response = await fetch('/api/consolidated', {
         method: 'POST',
@@ -124,14 +132,23 @@ export const shopifyService = {
         })
       });
 
+      console.log('📡 Shopify API response status:', response.status);
       const data = await response.json();
+      console.log('📦 Shopify API response data:', {
+        success: data.success,
+        productCount: data.products?.length || 0,
+        error: data.error,
+        hasProducts: !!data.products
+      });
       
       if (!data.success) {
         console.error('Failed to fetch products:', data.error);
         return this._getDemoProducts();
       }
 
-      return data.products || [];
+      const products = data.products || [];
+      console.log('✅ Returning', products.length, 'products from Shopify');
+      return products;
     } catch (error) {
       console.error('Error fetching products:', error);
       return this._getDemoProducts();
