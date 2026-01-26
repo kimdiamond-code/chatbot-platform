@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext, createContext } from 'react'
 import rbacService from '../services/rbacService';
+import logger from '../utils/logger.js';
 
 const AuthContext = createContext()
 
@@ -23,7 +24,7 @@ export function AuthProvider({ children }) {
 						role: authData.role,
 						organizationId: authData.organizationId
 					}
-					console.log('🔍 Loading stored user:', userData.email)
+					logger.log('🔍 Loading stored user:', userData.email)
 					
 					// Fetch fresh organization data from Neon
 					const response = await fetch('/api/consolidated', {
@@ -48,7 +49,7 @@ export function AuthProvider({ children }) {
 							name: agent.name
 							}
 							
-							console.log('✅ Loaded full user:', {
+							logger.log('✅ Loaded full user:', {
 							email: fullUser.email,
 							organizationId: fullUser.organizationId,
 							role: fullUser.role
@@ -61,7 +62,7 @@ export function AuthProvider({ children }) {
 								is_super_admin: agent.is_super_admin
 							})
 						} else {
-							console.warn('⚠️ No agent record found for stored user')
+						logger.warn('⚠️ No agent record found for stored user')
 							// Keep basic user data but flag as incomplete
 							setUser({
 								...userData,
@@ -70,7 +71,7 @@ export function AuthProvider({ children }) {
 							})
 						}
 					} else {
-						console.warn('⚠️ Failed to fetch user data from API')
+					logger.warn('⚠️ Failed to fetch user data from API')
 						setUser(userData) // Use cached data
 					}
 				} else {

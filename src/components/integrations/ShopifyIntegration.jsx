@@ -231,7 +231,7 @@ const ShopifyIntegration = ({ isOpen, onClose, onConnect }) => {
                     .myshopify.com
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Enter your Shopify store subdomain (e.g., "truecitrus2")</p>
+                <p className="text-xs text-gray-500 mt-1">Enter your Shopify store subdomain (e.g., "your-store")</p>
               </div>
 
               <div>

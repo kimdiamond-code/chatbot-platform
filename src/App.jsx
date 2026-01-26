@@ -26,8 +26,6 @@ import { OnboardingManager } from './components/onboarding';
 import { TooltipProvider } from './components/onboarding';
 
 import ShopifyCallback from './pages/ShopifyCallback.jsx';
-import { debugEnvVars } from './utils/debugEnv.js';
-import './utils/emergencyActivator.js';
 import { chatBotService } from './services/openaiService.js';
 
 // Enhanced Bot Builder Component
@@ -111,12 +109,6 @@ const AppContent = () => {
     if (currentUser) {
       // Provide the full user to RBAC so it can detect super-admins
       rbacService.setUser(currentUser);
-      console.log('👤 User loaded:', {
-        email: currentUser.email,
-        organizationId: currentUser.organizationId,
-        role: currentUser.role,
-        is_super_admin: currentUser.is_super_admin
-      });
     }
   }, [currentUser]);
 
@@ -127,7 +119,6 @@ const AppContent = () => {
       setActiveTab('admin');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    console.log('🚀 agenstack.ai chat - v2.0 with RBAC');
     
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -212,13 +203,7 @@ const AppContent = () => {
       adminOnly: true,
       description: 'Webhooks, API Keys, Security, Users'
     },
-    // TEMPORARY: Save Test Component
-    {
-      id: 'savetest',
-      name: '🧪 Save Test',      feature: 'admin',
-      adminOnly: true,
-      description: 'Test bot instructions save functionality'
-    }
+
   ];
 
   // FILTER NAVIGATION BASED ON USER ROLE

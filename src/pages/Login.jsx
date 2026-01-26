@@ -211,20 +211,6 @@ export default function Login({ onLoginSuccess, onSwitchToSignup }) {
             </button>
           </p>
         </div>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-center text-sm text-gray-600 mb-4">
-            Admin Credentials:
-          </p>
-          <div className="space-y-2 text-xs bg-gray-50 p-3 rounded-lg">
-            <div>
-              <span className="font-semibold">Email:</span> admin@chatbot.com
-            </div>
-            <div>
-              <span className="font-semibold">Password:</span> admin123
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

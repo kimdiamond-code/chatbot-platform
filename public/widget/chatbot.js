@@ -29,11 +29,23 @@
   let messageId = 0;
   let conversationId = 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
+  // Get API URL with fallback
+  const API_URL = config.apiUrl || window.location.origin;
+  
+  // Helper to build full API URLs
+  function getApiUrl(endpoint) {
+    // Remove leading slash if present
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    // Ensure API_URL doesn't end with slash
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    return `${baseUrl}/${cleanEndpoint}`;
+  }
+
   // Load saved configuration from API or localStorage
   async function loadSavedConfig() {
     try {
       // Try to fetch from API first
-      const response = await fetch('/api/bot-config');
+      const response = await fetch(getApiUrl('/api/bot-config'));
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {

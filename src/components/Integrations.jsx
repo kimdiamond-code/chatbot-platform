@@ -6,6 +6,7 @@ import { apiKeysService } from '../services/apiKeysService.js';
 import ShopifyOAuthConfiguration from './ShopifyOAuthConfiguration.jsx';
 import KustomerOAuthIntegration from './integrations/KustomerOAuthIntegration.jsx';
 import KlaviyoIntegration from './integrations/KlaviyoIntegration.jsx';
+import logger from '../utils/logger.js';
 
 const FullIntegrations = () => {
   const { user, loading: authLoading } = useAuth();
@@ -22,16 +23,16 @@ const FullIntegrations = () => {
   const [showKlaviyoConfig, setShowKlaviyoConfig] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  console.log('🏛️ Integrations - Using Organization ID:', organizationId);
-  console.log('🔄 Auth loading:', authLoading, 'User:', user?.email);
+  logger.log('🏛️ Integrations - Using Organization ID:', organizationId);
+  logger.log('🔄 Auth loading:', authLoading, 'User:', user?.email);
   
   // Set currentUser directly from auth hook
   useEffect(() => {
     if (user) {
-      console.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
+      logger.log('👤 Using logged-in user:', user.email, 'org:', user.organizationId);
       setCurrentUser(user);
     } else {
-      console.log('⚠️ No user logged in');
+      logger.warn('⚠️ No user logged in');
     }
   }, [user]);
   

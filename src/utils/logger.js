@@ -1,48 +1,33 @@
-﻿/**
- * Production-Safe Logger
- * 
- * Usage:
- *   import { logger } from './utils/logger';
- *   logger.log('Debug info');      // Only in development
- *   logger.error('Error message'); // Always logged
- *   logger.warn('Warning');        // Only in development
- */
+// Production-safe logger utility
+// In production, logs are suppressed. In development, they work normally.
 
-const isDevelopment = import.meta.env.DEV;
+const isDev = import.meta.env.DEV;
 
 export const logger = {
   log: (...args) => {
-    if (isDevelopment) {
-      console.log(...args);
-    }
-  },
-  
-  error: (...args) => {
-    console.error(...args);
+    if (isDev) console.log(...args);
   },
   
   warn: (...args) => {
-    if (isDevelopment) {
-      console.warn(...args);
-    }
+    if (isDev) console.warn(...args);
+  },
+  
+  error: (...args) => {
+    // Always log errors, even in production
+    console.error(...args);
   },
   
   info: (...args) => {
-    if (isDevelopment) {
-      console.info(...args);
-    }
+    if (isDev) console.info(...args);
   },
   
   debug: (...args) => {
-    if (isDevelopment) {
-      console.debug(...args);
-    }
-  }
-};
-
-export const ifDev = (callback) => {
-  if (isDevelopment && typeof callback === 'function') {
-    callback();
+    if (isDev) console.debug(...args);
+  },
+  
+  // For critical production events that should be logged
+  production: (...args) => {
+    console.log('[PROD]', ...args);
   }
 };
 

@@ -31,7 +31,6 @@ export const AuthProvider = ({ children }) => {
       setUser(userData)
       return userData
     } catch (error) {
-      console.error('Sign in error:', error)
       throw error
     } finally {
       setLoading(false)
