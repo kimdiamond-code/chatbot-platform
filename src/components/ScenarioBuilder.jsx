@@ -426,7 +426,15 @@ const ScenarioBuilder = () => {
       
       if (dbConfig) {
         console.log('✅ Bot config loaded, checking for scenarios...');
-        const settings = JSON.parse(dbConfig.settings || '{}');
+        //  FIX: Handle settings that are already objects OR strings
+        let settings;
+        if (typeof dbConfig.settings === 'string') {
+          settings = JSON.parse(dbConfig.settings || '{}');
+        } else if (typeof dbConfig.settings === 'object' && dbConfig.settings !== null) {
+          settings = dbConfig.settings;
+        } else {
+          settings = {};
+        }
         const loadedScenarios = settings.scenarios || [];
         console.log('📊 Loaded scenarios:', loadedScenarios.length);
         setScenarios(loadedScenarios);
@@ -449,7 +457,15 @@ const ScenarioBuilder = () => {
       const dbConfig = configs && configs.length > 0 ? configs[0] : null;
       
       if (dbConfig) {
-        const settings = JSON.parse(dbConfig.settings || '{}');
+        //  FIX: Handle settings that are already objects OR strings
+        let settings;
+        if (typeof dbConfig.settings === 'string') {
+          settings = JSON.parse(dbConfig.settings || '{}');
+        } else if (typeof dbConfig.settings === 'object' && dbConfig.settings !== null) {
+          settings = dbConfig.settings;
+        } else {
+          settings = {};
+        }
         settings.scenarios = scenariosToSave;
         
         console.log('📝 Updating bot config with scenarios...');
