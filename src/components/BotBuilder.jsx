@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import KnowledgeBaseTab from './KnowledgeBaseTab.jsx';
 import CustomizationTab from './CustomizationTab.jsx';
 import ChatPreview from './ChatPreview.jsx';
@@ -41,7 +41,8 @@ const BotBuilder = () => {
     role: 'customer_support',
     systemPrompt: 'You are a helpful customer service assistant. You are professional, friendly, and concise.',
     tone: 'friendly',
-    avatar: '🤖',
+    avatar: 'robot',
+    customAvatarUrl: null,
     traits: ['professional', 'empathetic'],
     greeting: 'Hello! How can I help you today?',
     fallback: "I'm not sure about that. Let me connect you with a human agent.",
@@ -140,7 +141,8 @@ const BotBuilder = () => {
           role: 'customer_support',
           systemPrompt: dbConfig.instructions || 'You are a helpful customer service assistant.',
           tone: personality.tone || 'friendly',
-          avatar: personality.avatar || '🤖',
+          avatar: personality.avatar || 'robot',
+          customAvatarUrl: personality.customAvatarUrl || null,
           traits: personality.traits || ['professional', 'empathetic'],
           greeting: dbConfig.greeting_message || 'Hello! How can I help you today?',
           fallback: dbConfig.fallback_message || "I'm not sure about that.",
@@ -241,6 +243,7 @@ const BotBuilder = () => {
         // ✅ Ensure these are ALWAYS strings, never objects
         personality: JSON.stringify({
           avatar: botConfig.avatar,
+          customAvatarUrl: botConfig.customAvatarUrl || null,
           tone: botConfig.tone,
           traits: botConfig.traits
         }),
@@ -475,32 +478,78 @@ const DirectiveTab = React.memo(({ botConfig, updateConfig }) => (
 
 DirectiveTab.displayName = 'DirectiveTab';
 
-const PersonalityTab = React.memo(({ botConfig, updateConfig }) => (
-  <div className="space-y-4">
+const PRESET_AVATARS = [
+  { value: 'robot',        label: 'Robot',    img: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot&backgroundColor=b6e3f4' },
+  { value: 'alex',         label: 'Alex',     img: 'https://api.dicebear.com/7.x/personas/svg?seed=alex&backgroundColor=c0aede' },
+  { value: 'sara',         label: 'Sara',     img: 'https://api.dicebear.com/7.x/personas/svg?seed=sara&backgroundColor=ffd5dc' },
+  { value: 'max',          label: 'Max',      img: 'https://api.dicebear.com/7.x/personas/svg?seed=max&backgroundColor=d1f4d0' },
+  { value: 'jordan',       label: 'Jordan',   img: 'https://api.dicebear.com/7.x/personas/svg?seed=jordan&backgroundColor=ffeaa7' },
+  { value: 'cipher',       label: 'Cipher',   img: 'https://api.dicebear.com/7.x/bottts/svg?seed=cipher&backgroundColor=74b9ff' },
+  { value: 'luna',         label: 'Luna',     img: 'https://api.dicebear.com/7.x/personas/svg?seed=luna&backgroundColor=fd79a8' },
+  { value: 'bolt',         label: 'Bolt',     img: 'https://api.dicebear.com/7.x/bottts/svg?seed=bolt&backgroundColor=a29bfe' },
+];
+
+const getAvatarImg = (avatar, customAvatarUrl) => {
+  if (customAvatarUrl) return customAvatarUrl;
+  const found = PRESET_AVATARS.find(a => a.value === avatar);
+  return found ? found.img : PRESET_AVATARS[0].img;
+};
+
+const PersonalityTab = React.memo(({ botConfig, updateConfig }) => {
+  const avatarFileRef = useRef(null);
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      updateConfig('root', { avatar: 'custom', customAvatarUrl: ev.target.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-4">
     <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
       <h3 className="font-semibold text-gray-900 mb-3">Avatar</h3>
-      <div className="grid grid-cols-5 md:grid-cols-8 gap-2">
-        {[
-          '🤖', '👨‍💼', '👩‍💼', '🧑‍💻', '👨‍🔧', '👩‍🔧', 
-          '👨‍⚕️', '👩‍⚕️', '👨‍🏫', '👩‍🏫', '👨‍💻', '👩‍💻',
-          '🦸‍♂️', '🦸‍♀️', '👔', '💼', '🎯', '⚡',
-          '🌟', '💡', '🏆', '🎓', '📱', '💬',
-          '🐶', '🐱', '🦊', '🐼', '🦁', '🐻', '🐨', '🦉'
-        ].map((avatar) => (
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-3">
+        {PRESET_AVATARS.map((option) => (
           <button
-            key={avatar}
-            onClick={() => updateConfig('root', { avatar })}
-            className={`w-12 h-12 rounded-lg border-2 text-2xl flex items-center justify-center transition-all ${
-              botConfig.avatar === avatar
+            key={option.value}
+            onClick={() => updateConfig('root', { avatar: option.value, customAvatarUrl: null })}
+            className={`p-1.5 rounded-lg border-2 flex flex-col items-center transition-all ${
+              botConfig.avatar === option.value && !botConfig.customAvatarUrl
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
           >
-            {avatar}
+            <img src={option.img} alt={option.label} className="w-10 h-10 rounded-full" />
+            <span className="text-xs text-gray-600 mt-1">{option.label}</span>
           </button>
         ))}
       </div>
-      <p className="text-xs text-gray-500 mt-3">Choose an avatar that represents your brand</p>
+      {/* Upload custom avatar */}
+      <div
+        onClick={() => avatarFileRef.current?.click()}
+        className={`flex items-center gap-3 p-3 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+          botConfig.customAvatarUrl ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+        }`}
+      >
+        {botConfig.customAvatarUrl ? (
+          <><img src={botConfig.customAvatarUrl} alt="custom" className="w-10 h-10 rounded-full object-cover" />
+          <span className="text-sm text-blue-700 font-medium">Custom avatar uploaded ✓</span></>
+        ) : (
+          <><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">📁</div>
+          <div><div className="text-sm font-medium text-gray-700">Upload your own avatar</div>
+          <div className="text-xs text-gray-500">PNG, JPG — square image recommended</div></div></>
+        )}
+        <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+      </div>
+      {/* Current avatar preview */}
+      <div className="flex items-center gap-2 mt-3">
+        <img src={getAvatarImg(botConfig.avatar, botConfig.customAvatarUrl)} alt="preview" className="w-8 h-8 rounded-full border border-gray-200" />
+        <span className="text-xs text-gray-500">Current avatar preview</span>
+      </div>
     </div>
 
     <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
@@ -557,8 +606,9 @@ const PersonalityTab = React.memo(({ botConfig, updateConfig }) => (
         ))}
       </div>
     </div>
-  </div>
-));
+    </div>
+  );
+});
 
 PersonalityTab.displayName = 'PersonalityTab';
 

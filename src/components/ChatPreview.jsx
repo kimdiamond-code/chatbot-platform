@@ -259,8 +259,14 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
                 alt="Logo" 
                 className="w-8 h-8 rounded-full object-cover bg-white p-1"
               />
+            ) : botConfig.customAvatarUrl ? (
+              <img src={botConfig.customAvatarUrl} alt="Bot" className="w-8 h-8 rounded-full object-cover bg-white" />
             ) : (
-              <span className="text-2xl">{botConfig.avatar}</span>
+              <img
+                src={`https://api.dicebear.com/7.x/${['robot','cipher','bolt'].includes(botConfig.avatar) ? 'bottts' : 'personas'}/svg?seed=${botConfig.avatar || 'robot'}&backgroundColor=b6e3f4`}
+                alt="Bot"
+                className="w-8 h-8 rounded-full bg-white"
+              />
             )}
             <div className="flex-1">
               <h3 className="font-semibold text-sm">{customization.brandName || botConfig.name}</h3>

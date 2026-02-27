@@ -1,13 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+
+const avatarOptions = [
+  {
+    value: 'robot',
+    label: 'Robot',
+    img: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot&backgroundColor=b6e3f4'
+  },
+  {
+    value: 'assistant',
+    label: 'Alex',
+    img: 'https://api.dicebear.com/7.x/personas/svg?seed=alex&backgroundColor=c0aede'
+  },
+  {
+    value: 'support',
+    label: 'Sara',
+    img: 'https://api.dicebear.com/7.x/personas/svg?seed=sara&backgroundColor=ffd5dc'
+  },
+  {
+    value: 'friendly',
+    label: 'Max',
+    img: 'https://api.dicebear.com/7.x/personas/svg?seed=max&backgroundColor=d1f4d0'
+  },
+  {
+    value: 'professional',
+    label: 'Jordan',
+    img: 'https://api.dicebear.com/7.x/personas/svg?seed=jordan&backgroundColor=ffeaa7'
+  },
+  {
+    value: 'tech',
+    label: 'Cipher',
+    img: 'https://api.dicebear.com/7.x/bottts/svg?seed=cipher&backgroundColor=74b9ff'
+  },
+  {
+    value: 'helper',
+    label: 'Luna',
+    img: 'https://api.dicebear.com/7.x/personas/svg?seed=luna&backgroundColor=fd79a8'
+  },
+  {
+    value: 'mascot',
+    label: 'Bolt',
+    img: 'https://api.dicebear.com/7.x/bottts/svg?seed=bolt&backgroundColor=a29bfe'
+  }
+];
 
 const PersonalitySettings = ({ data, onUpdate }) => {
   const [formData, setFormData] = useState(data);
   const [newTrait, setNewTrait] = useState('');
+  const [uploadedAvatar, setUploadedAvatar] = useState(data.customAvatarUrl || null);
+  const fileInputRef = useRef(null);
 
   const handleInputChange = (field, value) => {
     const updatedData = { ...formData, [field]: value };
     setFormData(updatedData);
     onUpdate(updatedData);
+  };
+
+  const handleAvatarSelect = (value) => {
+    const updatedData = { ...formData, avatar: value, customAvatarUrl: null };
+    setFormData(updatedData);
+    setUploadedAvatar(null);
+    onUpdate(updatedData);
+  };
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setUploadedAvatar(dataUrl);
+      const updatedData = { ...formData, avatar: 'custom', customAvatarUrl: dataUrl };
+      setFormData(updatedData);
+      onUpdate(updatedData);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const getCurrentAvatarImg = () => {
+    if (formData.customAvatarUrl) return formData.customAvatarUrl;
+    const found = avatarOptions.find(a => a.value === formData.avatar);
+    return found ? found.img : avatarOptions[0].img;
   };
 
   const addTrait = () => {
@@ -27,17 +99,6 @@ const PersonalitySettings = ({ data, onUpdate }) => {
     onUpdate(updatedData);
   };
 
-  const avatarOptions = [
-    { value: 'robot', icon: '🤖', label: 'Robot' },
-    { value: 'assistant', icon: '👨‍💼', label: 'Assistant' },
-    { value: 'support', icon: '👩‍💻', label: 'Support Agent' },
-    { value: 'friendly', icon: '😊', label: 'Friendly Face' },
-    { value: 'professional', icon: '🎯', label: 'Professional' },
-    { value: 'tech', icon: '⚡', label: 'Tech Expert' },
-    { value: 'helper', icon: '🙋‍♀️', label: 'Helper' },
-    { value: 'mascot', icon: '🦄', label: 'Mascot' }
-  ];
-
   const commonTraits = [
     'Helpful', 'Patient', 'Knowledgeable', 'Friendly', 'Professional',
     'Empathetic', 'Efficient', 'Resourceful', 'Reliable', 'Enthusiastic',
@@ -55,12 +116,10 @@ const PersonalitySettings = ({ data, onUpdate }) => {
         {/* Bot Identity */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-blue-900 mb-4">Bot Identity</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-blue-800 mb-2">
-                Bot Name *
-              </label>
+              <label className="block text-sm font-medium text-blue-800 mb-2">Bot Name *</label>
               <input
                 type="text"
                 value={formData.name}
@@ -72,42 +131,78 @@ const PersonalitySettings = ({ data, onUpdate }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-800 mb-2">
-                Avatar/Icon
-              </label>
-              <div className="grid grid-cols-4 gap-2">
+              <label className="block text-sm font-medium text-blue-800 mb-2">Avatar</label>
+
+              {/* Preset Avatar Grid */}
+              <div className="grid grid-cols-4 gap-2 mb-3">
                 {avatarOptions.map((option) => (
                   <button
                     key={option.value}
-                    onClick={() => handleInputChange('avatar', option.value)}
-                    className={`p-3 border-2 rounded-lg text-center transition-all ${
-                      formData.avatar === option.value
+                    onClick={() => handleAvatarSelect(option.value)}
+                    className={`p-2 border-2 rounded-lg text-center transition-all ${
+                      formData.avatar === option.value && !formData.customAvatarUrl
                         ? 'border-blue-500 bg-blue-100'
                         : 'border-gray-200 hover:border-blue-300'
                     }`}
                   >
-                    <div className="text-2xl mb-1">{option.icon}</div>
-                    <div className="text-xs text-gray-600">{option.label}</div>
+                    <img
+                      src={option.img}
+                      alt={option.label}
+                      className="w-10 h-10 mx-auto rounded-full mb-1"
+                    />
+                    <div className="text-xs text-gray-600 truncate">{option.label}</div>
                   </button>
                 ))}
+              </div>
+
+              {/* Upload Custom Avatar */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={`flex items-center gap-3 p-3 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                  formData.customAvatarUrl
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+              >
+                {uploadedAvatar ? (
+                  <>
+                    <img src={uploadedAvatar} alt="Custom" className="w-10 h-10 rounded-full object-cover" />
+                    <div className="text-sm text-blue-700 font-medium">Custom avatar uploaded ✓</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">📁</div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-700">Upload your own</div>
+                      <div className="text-xs text-gray-500">PNG, JPG, GIF — square image recommended</div>
+                    </div>
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
               </div>
             </div>
           </div>
 
           {/* Avatar Preview */}
-          {formData.avatar && (
-            <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="text-3xl">
-                  {avatarOptions.find(a => a.value === formData.avatar)?.icon}
-                </div>
-                <div>
-                  <div className="font-medium text-gray-900">{formData.name || 'Bot Name'}</div>
-                  <div className="text-sm text-gray-500">Preview how your bot will appear</div>
-                </div>
+          <div className="mt-4 p-4 bg-white border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <img
+                src={getCurrentAvatarImg()}
+                alt="Avatar preview"
+                className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+              />
+              <div>
+                <div className="font-medium text-gray-900">{formData.name || 'Bot Name'}</div>
+                <div className="text-sm text-gray-500">Preview how your bot will appear</div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Personality Traits */}
@@ -117,11 +212,8 @@ const PersonalitySettings = ({ data, onUpdate }) => {
             Add traits that describe your bot's personality. These will influence how it communicates.
           </p>
 
-          {/* Quick Add Common Traits */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-green-800 mb-2">
-              Quick Add Common Traits:
-            </label>
+            <label className="block text-sm font-medium text-green-800 mb-2">Quick Add Common Traits:</label>
             <div className="flex flex-wrap gap-2">
               {commonTraits.map((trait) => (
                 <button
@@ -147,7 +239,6 @@ const PersonalitySettings = ({ data, onUpdate }) => {
             </div>
           </div>
 
-          {/* Custom Trait Input */}
           <div className="flex space-x-2 mb-4">
             <input
               type="text"
@@ -165,7 +256,6 @@ const PersonalitySettings = ({ data, onUpdate }) => {
             </button>
           </div>
 
-          {/* Current Traits */}
           {formData.traits.length > 0 && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-green-800">
@@ -194,34 +284,28 @@ const PersonalitySettings = ({ data, onUpdate }) => {
         {/* Messages Configuration */}
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-purple-900 mb-4">Message Configuration</h3>
-          
+
           <div className="space-y-6">
-            {/* Greeting Message */}
             <div>
-              <label className="block text-sm font-medium text-purple-800 mb-2">
-                Greeting Message *
-              </label>
+              <label className="block text-sm font-medium text-purple-800 mb-2">Greeting Message *</label>
               <textarea
                 value={formData.greetingMessage}
                 onChange={(e) => handleInputChange('greetingMessage', e.target.value)}
                 placeholder="e.g., Hi there! I'm Alex, your friendly customer support assistant. How can I help you today?"
                 className="w-full h-24 p-3 border border-purple-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
-              <p className="text-xs text-purple-600 mt-1">This message will be shown when users first interact with your bot</p>
+              <p className="text-xs text-purple-600 mt-1">Shown when users first interact with your bot</p>
             </div>
 
-            {/* Fallback Message */}
             <div>
-              <label className="block text-sm font-medium text-purple-800 mb-2">
-                Fallback Message *
-              </label>
+              <label className="block text-sm font-medium text-purple-800 mb-2">Fallback Message *</label>
               <textarea
                 value={formData.fallbackMessage}
                 onChange={(e) => handleInputChange('fallbackMessage', e.target.value)}
-                placeholder="e.g., I'm sorry, I didn't quite understand that. Could you please rephrase your question or try asking something else?"
+                placeholder="e.g., I'm sorry, I didn't quite understand that. Could you please rephrase your question?"
                 className="w-full h-24 p-3 border border-purple-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
-              <p className="text-xs text-purple-600 mt-1">This message will be shown when the bot doesn't understand a user's input</p>
+              <p className="text-xs text-purple-600 mt-1">Shown when the bot doesn't understand user input</p>
             </div>
           </div>
         </div>
@@ -229,12 +313,14 @@ const PersonalitySettings = ({ data, onUpdate }) => {
         {/* Personality Preview */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Personality Preview</h3>
-          
+
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-start space-x-3 mb-4">
-              <div className="text-2xl">
-                {formData.avatar ? avatarOptions.find(a => a.value === formData.avatar)?.icon : '🤖'}
-              </div>
+              <img
+                src={getCurrentAvatarImg()}
+                alt="Bot avatar"
+                className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
+              />
               <div className="flex-1">
                 <div className="font-medium text-gray-900">{formData.name || 'Bot Name'}</div>
                 <div className="text-sm text-gray-500 mb-2">
@@ -245,7 +331,7 @@ const PersonalitySettings = ({ data, onUpdate }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="border-t pt-3">
               <div className="text-xs text-gray-500 mb-1">Example fallback response:</div>
               <div className="bg-gray-100 rounded-lg p-3 text-sm">

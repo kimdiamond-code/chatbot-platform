@@ -175,7 +175,15 @@ const CustomForms = () => {
       const dbConfig = configs && configs.length > 0 ? configs[0] : null;
       
       if (dbConfig) {
-        const settings = JSON.parse(dbConfig.settings || '{}');
+        //  FIX: Handle settings that are already objects OR strings
+        let settings;
+        if (typeof dbConfig.settings === 'string') {
+          settings = JSON.parse(dbConfig.settings || '{}');
+        } else if (typeof dbConfig.settings === 'object' && dbConfig.settings !== null) {
+          settings = dbConfig.settings;
+        } else {
+          settings = {};
+        }
         setForms(settings.customForms || []);
       }
     } catch (error) {
@@ -189,7 +197,15 @@ const CustomForms = () => {
       const dbConfig = configs && configs.length > 0 ? configs[0] : null;
       
       if (dbConfig) {
-        const settings = JSON.parse(dbConfig.settings || '{}');
+        //  FIX: Handle settings that are already objects OR strings
+        let settings;
+        if (typeof dbConfig.settings === 'string') {
+          settings = JSON.parse(dbConfig.settings || '{}');
+        } else if (typeof dbConfig.settings === 'object' && dbConfig.settings !== null) {
+          settings = dbConfig.settings;
+        } else {
+          settings = {};
+        }
         setSubmissions(settings.formSubmissions || []);
       }
     } catch (error) {
@@ -204,7 +220,15 @@ const CustomForms = () => {
       const dbConfig = configs && configs.length > 0 ? configs[0] : null;
       
       if (dbConfig) {
-        const settings = JSON.parse(dbConfig.settings || '{}');
+        //  FIX: Handle settings that are already objects OR strings
+        let settings;
+        if (typeof dbConfig.settings === 'string') {
+          settings = JSON.parse(dbConfig.settings || '{}');
+        } else if (typeof dbConfig.settings === 'object' && dbConfig.settings !== null) {
+          settings = dbConfig.settings;
+        } else {
+          settings = {};
+        }
         settings.customForms = forms;
         settings.formSubmissions = submissions;
         
