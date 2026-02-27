@@ -15,36 +15,28 @@ const OAuthConnectionButton = ({ shopDomain, setShopDomain, isLoading, setIsLoad
     setIsLoading(true);
 
     try {
-      // Sanitize shop domain (remove .myshopify.com if user added it)
       const cleanShop = shopDomain.replace('.myshopify.com', '').trim();
       
-      // Build Shopify OAuth URL directly
-      const SHOPIFY_CLIENT_ID = import.meta.env.VITE_SHOPIFY_API_KEY;
-      const REDIRECT_URI = 'https://chatbot-platform-v2.vercel.app/api/consolidated';
-      const SCOPES = 'read_products,read_orders,read_customers,read_inventory,read_locations,read_draft_orders';
-      
-      // Encode state with organization_id
-      const stateObject = {
-        organization_id: organizationId,
-        timestamp: Date.now(),
-        random: Math.random().toString(36).substring(2)
-      };
-      const stateData = btoa(JSON.stringify(stateObject));
-      
-      // Build Shopify authorization URL - MUST use store.myshopify.com format
-      const shopifyDomain = `${cleanShop}.myshopify.com`;
-      const authUrl = `https://${shopifyDomain}/admin/oauth/authorize?` +
-        `client_id=${SHOPIFY_CLIENT_ID}&` +
-        `scope=${SCOPES}&` +
-        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-        `state=${stateData}`;
-      
-      console.log('🚀 Store domain:', cleanShop);
-      console.log('🚀 Full Shopify domain:', shopifyDomain);
-      console.log('🚀 Redirecting to:', authUrl);
-      
-      // Redirect directly to Shopify
-      window.location.href = authUrl;
+      // Ask backend to generate the auth URL — keeps redirect_uri in sync with Shopify app settings
+      const response = await fetch('/api/consolidated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: 'database',
+          action: 'shopify_oauth_initiate',
+          shop: cleanShop,
+          organizationId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success || !data.authUrl) {
+        throw new Error(data.error || 'Failed to generate OAuth URL');
+      }
+
+      // Redirect to Shopify OAuth
+      window.location.href = data.authUrl;
 
     } catch (error) {
       console.error('OAuth error:', error);

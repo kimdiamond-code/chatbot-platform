@@ -592,16 +592,10 @@ export default async function handler(req, res) {
         const { shop, organizationId } = body;
         try {
           // Generate OAuth URL with proper scopes including draft orders
-          const scopes = process.env.SHOPIFY_SCOPES || 'read_products,read_orders,read_customers,write_draft_orders';
+          const scopes = process.env.SHOPIFY_SCOPES || 'read_products,read_orders,read_customers,read_inventory,read_locations,read_draft_orders,write_draft_orders';
           
-          // Use configured redirect URI or construct from VERCEL_URL
-          let redirectUri;
-          if (process.env.SHOPIFY_REDIRECT_URI) {
-            redirectUri = process.env.SHOPIFY_REDIRECT_URI;
-          } else {
-            const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
-            redirectUri = `${baseUrl}/shopify/callback`;
-          }
+          // Redirect URI must exactly match what is registered in the Shopify Partner app
+          const redirectUri = process.env.SHOPIFY_REDIRECT_URI || 'https://chatbot-platform-v2.vercel.app/api/consolidated';
           
           // Use a cryptographically-secure random state and persist mapping to organization
           const nonce = crypto.randomBytes(16).toString('hex');
@@ -618,7 +612,8 @@ export default async function handler(req, res) {
             // Continue anyway — callback will fail verification if missing
           }
 
-          const authUrl = `https://${shop}.myshopify.com/admin/oauth/authorize?client_id=${process.env.SHOPIFY_CLIENT_ID}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${nonce}`;
+          const clientId = process.env.SHOPIFY_CLIENT_ID || process.env.VITE_SHOPIFY_API_KEY;
+          const authUrl = `https://${shop}.myshopify.com/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${nonce}`;
 
           return res.status(200).json({ success: true, authUrl });
         } catch (error) {
