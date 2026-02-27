@@ -710,6 +710,130 @@ export default async function handler(req, res) {
         }
       }
 
+      // ==================== MICROSOFT 365 OAUTH ====================
+      if (action === 'microsoft365_oauth_initiate') {
+        try {
+          const clientId = process.env.MICROSOFT_CLIENT_ID;
+          const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'https://chatbot-platform-v2.vercel.app/api/consolidated';
+          const scopes = 'https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Mail.ReadWrite offline_access';
+          const state = Buffer.from(JSON.stringify({ organizationId: body.organizationId, provider: 'microsoft365', ts: Date.now() })).toString('base64');
+          const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_mode=query`;
+          return res.status(200).json({ success: true, authUrl });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
+      if (action === 'microsoft365_oauth_callback') {
+        const { code, state } = body;
+        try {
+          const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+          const { organizationId: orgId } = stateData;
+          const clientId = process.env.MICROSOFT_CLIENT_ID;
+          const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
+          const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'https://chatbot-platform-v2.vercel.app/api/consolidated';
+
+          const tokenRes = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, code, redirect_uri: redirectUri, grant_type: 'authorization_code' })
+          });
+          const tokenData = await tokenRes.json();
+          if (tokenData.error) throw new Error(tokenData.error_description || tokenData.error);
+
+          // Get user email from Graph
+          const meRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` }
+          });
+          const meData = await meRes.json();
+
+          await sql`
+            INSERT INTO integration_credentials (organization_id, provider, integration_name, status, credentials, account_identifier, connected_at)
+            VALUES (${orgId}, 'microsoft365', 'Microsoft 365', 'connected',
+              ${JSON.stringify({ access_token: tokenData.access_token, refresh_token: tokenData.refresh_token, expires_at: Date.now() + (tokenData.expires_in * 1000), settings: { autoReply: true, notifyAgents: true } })},
+              ${JSON.stringify({ email: meData.mail || meData.userPrincipalName, displayName: meData.displayName })},
+              NOW())
+            ON CONFLICT (organization_id, provider)
+            DO UPDATE SET credentials = EXCLUDED.credentials, status = 'connected', account_identifier = EXCLUDED.account_identifier, connected_at = NOW()
+          `;
+
+          const redirectUrl = process.env.FRONTEND_URL || 'https://chatbot-platform-v2.vercel.app';
+          return res.redirect(`${redirectUrl}/dashboard/integrations?microsoft365=connected`);
+        } catch (error) {
+          const redirectUrl = process.env.FRONTEND_URL || 'https://chatbot-platform-v2.vercel.app';
+          return res.redirect(`${redirectUrl}/dashboard/integrations?microsoft365=error&message=${encodeURIComponent(error.message)}`);
+        }
+      }
+
+      if (action === 'microsoft365_getEmails') {
+        const { organizationId: orgId, folder = 'inbox', top = 20, skip = 0 } = body;
+        try {
+          const credRow = await sql`SELECT credentials FROM integration_credentials WHERE organization_id = ${orgId} AND provider = 'microsoft365' AND status = 'connected' LIMIT 1`;
+          if (!credRow.rows.length) return res.status(404).json({ success: false, error: 'Microsoft 365 not connected' });
+          const creds = JSON.parse(credRow.rows[0].credentials);
+
+          // Refresh token if expired
+          let accessToken = creds.access_token;
+          if (Date.now() > creds.expires_at - 60000) {
+            const refreshRes = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ client_id: process.env.MICROSOFT_CLIENT_ID, client_secret: process.env.MICROSOFT_CLIENT_SECRET, refresh_token: creds.refresh_token, grant_type: 'refresh_token' })
+            });
+            const refreshData = await refreshRes.json();
+            if (!refreshData.error) {
+              accessToken = refreshData.access_token;
+              await sql`UPDATE integration_credentials SET credentials = ${JSON.stringify({ ...creds, access_token: refreshData.access_token, expires_at: Date.now() + (refreshData.expires_in * 1000) })} WHERE organization_id = ${orgId} AND provider = 'microsoft365'`;
+            }
+          }
+
+          const emailRes = await fetch(`https://graph.microsoft.com/v1.0/me/mailFolders/${folder}/messages?$top=${top}&$skip=${skip}&$orderby=receivedDateTime desc&$select=id,subject,from,toRecipients,receivedDateTime,isRead,bodyPreview,body`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          const emailData = await emailRes.json();
+          return res.status(200).json({ success: true, emails: emailData.value || [], nextLink: emailData['@odata.nextLink'] });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
+      if (action === 'microsoft365_sendReply') {
+        const { organizationId: orgId, messageId, replyBody, replyAll = false } = body;
+        try {
+          const credRow = await sql`SELECT credentials FROM integration_credentials WHERE organization_id = ${orgId} AND provider = 'microsoft365' AND status = 'connected' LIMIT 1`;
+          if (!credRow.rows.length) return res.status(404).json({ success: false, error: 'Microsoft 365 not connected' });
+          const creds = JSON.parse(credRow.rows[0].credentials);
+          const endpoint = replyAll
+            ? `https://graph.microsoft.com/v1.0/me/messages/${messageId}/replyAll`
+            : `https://graph.microsoft.com/v1.0/me/messages/${messageId}/reply`;
+          await fetch(endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: {}, comment: replyBody })
+          });
+          return res.status(200).json({ success: true });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
+      if (action === 'microsoft365_markRead') {
+        const { organizationId: orgId, messageId } = body;
+        try {
+          const credRow = await sql`SELECT credentials FROM integration_credentials WHERE organization_id = ${orgId} AND provider = 'microsoft365' AND status = 'connected' LIMIT 1`;
+          if (!credRow.rows.length) return res.status(404).json({ success: false, error: 'Not connected' });
+          const creds = JSON.parse(credRow.rows[0].credentials);
+          await fetch(`https://graph.microsoft.com/v1.0/me/messages/${messageId}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isRead: true })
+          });
+          return res.status(200).json({ success: true });
+        } catch (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+      }
+
       // ==================== SHOPIFY INTEGRATION ====================
       if (action === 'shopify_verifyCredentials') {
         const { store_url, access_token } = body;

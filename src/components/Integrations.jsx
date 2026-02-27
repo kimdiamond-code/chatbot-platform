@@ -6,6 +6,7 @@ import { apiKeysService } from '../services/apiKeysService.js';
 import ShopifyOAuthConfiguration from './ShopifyOAuthConfiguration.jsx';
 import KustomerOAuthIntegration from './integrations/KustomerOAuthIntegration.jsx';
 import KlaviyoIntegration from './integrations/KlaviyoIntegration.jsx';
+import Microsoft365Integration from './integrations/Microsoft365Integration.jsx';
 import logger from '../utils/logger.js';
 
 const FullIntegrations = () => {
@@ -21,6 +22,7 @@ const FullIntegrations = () => {
   const [showShopifyConfig, setShowShopifyConfig] = useState(false);
   const [showKustomerOAuth, setShowKustomerOAuth] = useState(false);
   const [showKlaviyoConfig, setShowKlaviyoConfig] = useState(false);
+  const [showMicrosoft365, setShowMicrosoft365] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
   logger.log('🏛️ Integrations - Using Organization ID:', organizationId);
@@ -128,6 +130,18 @@ const FullIntegrations = () => {
       isKlaviyo: true
     },
     {
+      id: 'microsoft365',
+      name: 'Microsoft 365 Email',
+      description: 'AI auto-replies to incoming emails. Agents can view and manage email threads.',
+      category: 'communication',
+      icon: '📬',
+      color: 'from-blue-500 to-blue-700',
+      features: ['AI Auto-Reply', 'Agent Inbox', 'Email Threads', 'Outlook Integration'],
+      status: connections.microsoft365 || 'disconnected',
+      setupRequired: true,
+      isMicrosoft365: true
+    },
+    {
       id: 'whatsapp',
       name: 'WhatsApp Business',
       description: 'WhatsApp messaging integration via Twilio',
@@ -227,6 +241,7 @@ const FullIntegrations = () => {
         shopify: 'disconnected',
         kustomer: 'disconnected',
         klaviyo: 'disconnected',
+        microsoft365: 'disconnected',
         whatsapp: 'disconnected',
         facebook: 'disconnected',
         zapier: 'disconnected',
@@ -273,6 +288,12 @@ const FullIntegrations = () => {
     // Special handling for Klaviyo - open configuration modal
     if (integrationId === 'klaviyo') {
       setShowKlaviyoConfig(true);
+      return;
+    }
+
+    // Special handling for Microsoft 365
+    if (integrationId === 'microsoft365') {
+      setShowMicrosoft365(true);
       return;
     }
     
@@ -768,6 +789,15 @@ const FullIntegrations = () => {
           </div>
         </div>
       )}
+
+      <Microsoft365Integration
+        isOpen={showMicrosoft365}
+        onClose={() => setShowMicrosoft365(false)}
+        onConnect={(data) => {
+          setConnections(prev => ({ ...prev, microsoft365: data ? 'connected' : 'disconnected' }));
+          setShowMicrosoft365(false);
+        }}
+      />
     </div>
   );
 };
