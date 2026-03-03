@@ -92,6 +92,9 @@ if (import.meta.env.PROD || window.location.hostname.includes('vercel.app')) {
 // Polyfill fetch FIRST - before anything else
 import 'cross-fetch/polyfill'
 
+import { initSentry } from './sentry.js'
+initSentry()
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import AppRouter from './AppRouter.jsx'

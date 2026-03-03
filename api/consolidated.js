@@ -8,6 +8,17 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import tokenEncryptionService from './tokenEncryptionService.js';
 import promptSecurity from './promptSecurityBackend.js';
+import * as Sentry from '@sentry/node';
+
+// Initialize Sentry backend tracking
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'production',
+    tracesSampleRate: 0.1,
+    sendDefaultPii: false,
+  });
+}
 
 // Helper function to verify Shopify HMAC
 function verifyShopifyHmac(query, secret) {
@@ -2625,6 +2636,7 @@ if (action === 'signup') {
 
   } catch (error) {
     console.error('❌ API Error:', error);
+    if (process.env.SENTRY_DSN) Sentry.captureException(error);
     return res.status(500).json({ 
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
