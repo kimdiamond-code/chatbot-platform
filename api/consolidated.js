@@ -6,6 +6,7 @@
 import { getDatabase } from './database-config.js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import tokenEncryptionService from './tokenEncryptionService.js';
 import promptSecurity from './promptSecurityBackend.js';
 
 // Helper function to verify Shopify HMAC
@@ -161,8 +162,8 @@ export default async function handler(req, res) {
 
       console.log('🔑 Access token received for shop:', shop);
 
-      // Encrypt the token using simple encryption
-      const encryptedToken = Buffer.from(access_token).toString('base64');
+      // Encrypt token with AES-256-GCM before storage
+      const encryptedToken = tokenEncryptionService.encrypt(access_token);
 
       // Extract store name from shop domain
       const storeName = shop.replace('.myshopify.com', '');
@@ -507,11 +508,17 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: false, error: 'Integration not connected' });
           }
           
-          const credentials = result[0].credentials_encrypted;
-          return res.status(200).json({ 
-            success: true, 
-            credentials: typeof credentials === 'string' ? JSON.parse(credentials) : credentials
-          });
+          const raw = result[0].credentials_encrypted;
+          let credentials;
+          try {
+            // Try AES-256-GCM decrypt first (iv:tag:data format)
+            const decrypted = tokenEncryptionService.decrypt(raw);
+            credentials = JSON.parse(decrypted);
+          } catch {
+            // Legacy: stored as plain JSON string
+            credentials = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          }
+          return res.status(200).json({ success: true, credentials });
         } catch (error) {
           console.error('Error getting integration credentials:', error);
           return res.status(500).json({ success: false, error: error.message });
@@ -523,7 +530,10 @@ export default async function handler(req, res) {
         try {
           console.log('💾 Saving integration credentials:', { integration, organizationId, hasCredentials: !!credentials });
           
-          // Upsert the integration with credentials
+          // Encrypt credentials before storage
+          const encryptedCredentials = tokenEncryptionService.encrypt(JSON.stringify(credentials));
+
+          // Upsert the integration with encrypted credentials
           const result = await sql`
             INSERT INTO integrations (organization_id, integration_id, integration_name, status, config, credentials_encrypted)
             VALUES (
@@ -532,12 +542,12 @@ export default async function handler(req, res) {
               ${integration === 'shopify' ? 'Shopify' : integration}, 
               'connected', 
               ${JSON.stringify({ connectedAt: new Date().toISOString() })},
-              ${JSON.stringify(credentials)}
+              ${encryptedCredentials}
             )
             ON CONFLICT (organization_id, integration_id)
             DO UPDATE SET
               status = 'connected',
-              credentials_encrypted = ${JSON.stringify(credentials)},
+              credentials_encrypted = ${encryptedCredentials},
               updated_at = NOW()
             RETURNING *
           `;
@@ -738,10 +748,13 @@ export default async function handler(req, res) {
           const shopInfoData = await shopInfoResponse.json();
           const shopInfo = shopInfoData.shop || {};
 
+          // Encrypt token before storage
+          const encryptedCreds = tokenEncryptionService.encrypt(JSON.stringify({ access_token: tokenData.access_token, shop }));
+
           // Save to database with the verified organization id
           await sql`
             INSERT INTO integrations (organization_id, integration_id, integration_name, status, config, credentials_encrypted)
-            VALUES (${orgId}, 'shopify', 'Shopify', 'connected', ${JSON.stringify({ shop, shopInfo })}, ${JSON.stringify({ access_token: tokenData.access_token, shop })})
+            VALUES (${orgId}, 'shopify', 'Shopify', 'connected', ${JSON.stringify({ shop, shopInfo })}, ${encryptedCreds})
             ON CONFLICT (organization_id, integration_id)
             DO UPDATE SET
               status = EXCLUDED.status,
@@ -805,10 +818,13 @@ export default async function handler(req, res) {
           });
           const meData = await meRes.json();
 
+          const ms365Creds = { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token, expires_at: Date.now() + (tokenData.expires_in * 1000), settings: { autoReply: true, notifyAgents: true } };
+          const encryptedMs365 = tokenEncryptionService.encrypt(JSON.stringify(ms365Creds));
+
           await sql`
             INSERT INTO integration_credentials (organization_id, provider, integration_name, status, credentials, account_identifier, connected_at)
             VALUES (${orgId}, 'microsoft365', 'Microsoft 365', 'connected',
-              ${JSON.stringify({ access_token: tokenData.access_token, refresh_token: tokenData.refresh_token, expires_at: Date.now() + (tokenData.expires_in * 1000), settings: { autoReply: true, notifyAgents: true } })},
+              ${encryptedMs365},
               ${JSON.stringify({ email: meData.mail || meData.userPrincipalName, displayName: meData.displayName })},
               NOW())
             ON CONFLICT (organization_id, provider)
@@ -828,7 +844,9 @@ export default async function handler(req, res) {
         try {
           const credRow = await sql`SELECT credentials FROM integration_credentials WHERE organization_id = ${orgId} AND provider = 'microsoft365' AND status = 'connected' LIMIT 1`;
           if (!credRow.rows.length) return res.status(404).json({ success: false, error: 'Microsoft 365 not connected' });
-          const creds = JSON.parse(credRow.rows[0].credentials);
+          let creds;
+          try { creds = JSON.parse(tokenEncryptionService.decrypt(credRow.rows[0].credentials)); }
+          catch { creds = JSON.parse(credRow.rows[0].credentials); } // legacy fallback
 
           // Refresh token if expired
           let accessToken = creds.access_token;
@@ -841,7 +859,8 @@ export default async function handler(req, res) {
             const refreshData = await refreshRes.json();
             if (!refreshData.error) {
               accessToken = refreshData.access_token;
-              await sql`UPDATE integration_credentials SET credentials = ${JSON.stringify({ ...creds, access_token: refreshData.access_token, expires_at: Date.now() + (refreshData.expires_in * 1000) })} WHERE organization_id = ${orgId} AND provider = 'microsoft365'`;
+              const updatedCreds = tokenEncryptionService.encrypt(JSON.stringify({ ...creds, access_token: refreshData.access_token, expires_at: Date.now() + (refreshData.expires_in * 1000) }));
+              await sql`UPDATE integration_credentials SET credentials = ${updatedCreds} WHERE organization_id = ${orgId} AND provider = 'microsoft365'`;
             }
           }
 
@@ -860,7 +879,9 @@ export default async function handler(req, res) {
         try {
           const credRow = await sql`SELECT credentials FROM integration_credentials WHERE organization_id = ${orgId} AND provider = 'microsoft365' AND status = 'connected' LIMIT 1`;
           if (!credRow.rows.length) return res.status(404).json({ success: false, error: 'Microsoft 365 not connected' });
-          const creds = JSON.parse(credRow.rows[0].credentials);
+          let creds;
+          try { creds = JSON.parse(tokenEncryptionService.decrypt(credRow.rows[0].credentials)); }
+          catch { creds = JSON.parse(credRow.rows[0].credentials); }
           const endpoint = replyAll
             ? `https://graph.microsoft.com/v1.0/me/messages/${messageId}/replyAll`
             : `https://graph.microsoft.com/v1.0/me/messages/${messageId}/reply`;
@@ -880,7 +901,9 @@ export default async function handler(req, res) {
         try {
           const credRow = await sql`SELECT credentials FROM integration_credentials WHERE organization_id = ${orgId} AND provider = 'microsoft365' AND status = 'connected' LIMIT 1`;
           if (!credRow.rows.length) return res.status(404).json({ success: false, error: 'Not connected' });
-          const creds = JSON.parse(credRow.rows[0].credentials);
+          let creds;
+          try { creds = JSON.parse(tokenEncryptionService.decrypt(credRow.rows[0].credentials)); }
+          catch { creds = JSON.parse(credRow.rows[0].credentials); }
           await fetch(`https://graph.microsoft.com/v1.0/me/messages/${messageId}`, {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' },
@@ -2514,8 +2537,8 @@ if (action === 'signup') {
 
         console.log('🔑 Access token received for shop:', shop);
 
-        // Encrypt the token using simple encryption (since tokenEncryptionService may not be available)
-        const encryptedToken = Buffer.from(access_token).toString('base64');
+        // Encrypt token with AES-256-GCM before storage
+        const encryptedToken = tokenEncryptionService.encrypt(access_token);
 
         // Extract store name from shop domain
         const storeName = shop.replace('.myshopify.com', '');
