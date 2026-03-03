@@ -5,6 +5,7 @@
 
 import { getDatabase } from './database-config.js';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import promptSecurity from './promptSecurityBackend.js';
 
 // Helper function to verify Shopify HMAC
@@ -1569,12 +1570,21 @@ export default async function handler(req, res) {
             });
           }
           
-          // Password check: compare against stored hash
-          // Supports both legacy plaintext (for existing users) and hashed passwords
-          // TODO: migrate all passwords to bcrypt in a future release
-          const isValidPassword = 
-            user.password_hash === password || // plaintext fallback for existing users
-            (email === 'admin@chatbot.com' && password === 'admin123'); // admin default
+          // Password check: bcrypt compare, with plaintext fallback for legacy users
+          let isValidPassword = false;
+          if (user.password_hash) {
+            if (user.password_hash.startsWith('$2')) {
+              // Properly hashed — use bcrypt
+              isValidPassword = await bcrypt.compare(password, user.password_hash);
+            } else {
+              // Legacy plaintext — compare directly, then upgrade to bcrypt
+              isValidPassword = user.password_hash === password;
+              if (isValidPassword) {
+                const upgraded = await bcrypt.hash(password, 10);
+                await sql`UPDATE agents SET password_hash = ${upgraded} WHERE id = ${user.id}`;
+              }
+            }
+          }
           
           if (!isValidPassword) {
             // Increment login attempts
@@ -1670,10 +1680,13 @@ if (action === 'signup') {
       return res.status(400).json({ success: false, error: 'Email already registered' });
     }
     
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
     // Create user
     const userResult = await sql`
       INSERT INTO users (email, name, password_hash)
-      VALUES (${email}, ${name}, ${password})
+      VALUES (${email}, ${name}, ${hashedPassword})
       RETURNING id, email, name
     `;
     const newUser = userResult[0];
@@ -1704,7 +1717,7 @@ if (action === 'signup') {
     // Create agent for the new organization - use non-admin role by default
     const agentResult = await sql`
       INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
-      VALUES (${newOrg.id}, ${email}, ${name}, 'agent', ${password}, true)
+      VALUES (${newOrg.id}, ${email}, ${name}, 'agent', ${hashedPassword}, true)
       RETURNING id
     `;
     
@@ -1780,10 +1793,10 @@ if (action === 'signup') {
         }
         
         try {
-          // In production, hash password with bcrypt
+          const hashedPw = await bcrypt.hash(password, 10);
           const result = await sql`
             INSERT INTO agents (organization_id, email, name, role, password_hash, is_active)
-            VALUES (${organizationId}, ${email}, ${name}, ${role}, ${password}, true)
+            VALUES (${organizationId}, ${email}, ${name}, ${role}, ${hashedPw}, true)
             RETURNING id, email, name, role, is_active, created_at
           `;
           
@@ -1812,10 +1825,11 @@ if (action === 'signup') {
         }
         
         if (password) {
-          // Update with password
+          // Update with hashed password
+          const hashedPw = await bcrypt.hash(password, 10);
           const result = await sql`
             UPDATE agents
-            SET name = ${name}, role = ${role}, password_hash = ${password}, updated_at = NOW()
+            SET name = ${name}, role = ${role}, password_hash = ${hashedPw}, updated_at = NOW()
             WHERE id = ${userId}
             RETURNING id, email, name, role, is_active
           `;
