@@ -60,10 +60,14 @@ export default defineConfig({
     global: 'globalThis',
   },
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'charts': ['recharts'],
+          'icons': ['lucide-react'],
+          'query': ['@tanstack/react-query'],
         }
       }
     },
