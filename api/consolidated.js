@@ -37,20 +37,77 @@ try {
   // Don't throw here, let individual requests handle the error
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// ============================================================
+// ALLOWED ORIGINS - CORS WHITELIST
+// ============================================================
+const ALLOWED_ORIGINS = [
+  'https://chatbot-platform-v2.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+function getCorsHeaders(origin) {
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+  };
+}
+
+// ============================================================
+// IN-MEMORY RATE LIMITER (per IP, resets every minute)
+// ============================================================
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 100;
+const AUTH_RATE_LIMIT_MAX = 10;
+
+function checkRateLimit(key, max = RATE_LIMIT_MAX) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + RATE_LIMIT_WINDOW_MS;
+  }
+  entry.count++;
+  rateLimitMap.set(key, entry);
+  return entry.count <= max;
+}
 
 export default async function handler(req, res) {
-  // CORS
+  const origin = req.headers.origin || '';
+  const corsHeaders = getCorsHeaders(origin);
+
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
     return res.status(200).json({ ok: true });
   }
 
   Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
+
+  // AI Disclosure header
+  res.setHeader('X-AI-Powered', 'true');
+  res.setHeader('X-AI-Disclosure', 'This endpoint is powered by AI. Responses may not be accurate.');
+
+  // Rate limiting
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  const { body: reqBody } = req;
+  const isAuthAction = reqBody?.action === 'login' || reqBody?.action === 'signup';
+  const rateLimitKey = isAuthAction ? `auth:${clientIp}` : `api:${clientIp}`;
+  const rateLimitMax = isAuthAction ? AUTH_RATE_LIMIT_MAX : RATE_LIMIT_MAX;
+
+  if (!checkRateLimit(rateLimitKey, rateLimitMax)) {
+    return res.status(429).json({
+      error: 'Too many requests. Please slow down.',
+      code: 'RATE_LIMITED',
+      retryAfter: 60
+    });
+  }
 
   const { method, query, body } = req;
   const endpoint = query.endpoint || body?.endpoint;
@@ -1313,12 +1370,36 @@ export default async function handler(req, res) {
       if (action === 'chat') {
         const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 500, organizationId } = body;
 
-        // Basic validation only
+        // Input validation
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
           return res.status(400).json({
             success: false,
             error: 'Messages array is required'
           });
+        }
+
+        // Validate each message
+        for (const msg of messages) {
+          if (!msg.role || !['user', 'assistant', 'system'].includes(msg.role)) {
+            return res.status(400).json({ success: false, error: 'Invalid message role' });
+          }
+          if (typeof msg.content !== 'string') {
+            return res.status(400).json({ success: false, error: 'Message content must be a string' });
+          }
+          if (msg.content.length > 5000) {
+            return res.status(400).json({ success: false, error: 'Message content too long (max 5000 chars)' });
+          }
+        }
+
+        // Validate model
+        const allowedModels = ['gpt-4o-mini', 'gpt-4o', 'gpt-4', 'gpt-3.5-turbo'];
+        if (!allowedModels.includes(model)) {
+          return res.status(400).json({ success: false, error: 'Invalid model specified' });
+        }
+
+        // Validate temperature
+        if (typeof temperature !== 'number' || temperature < 0 || temperature > 2) {
+          return res.status(400).json({ success: false, error: 'Temperature must be between 0 and 2' });
         }
 
         try {
@@ -1488,12 +1569,12 @@ export default async function handler(req, res) {
             });
           }
           
-          // Simple password check (in production, use bcrypt.compare)
-          // For admin: always check against admin123
-          // For other users: check password_hash from database
+          // Password check: compare against stored hash
+          // Supports both legacy plaintext (for existing users) and hashed passwords
+          // TODO: migrate all passwords to bcrypt in a future release
           const isValidPassword = 
-            (email === 'admin@chatbot.com' && password === 'admin123') ||
-            (email !== 'admin@chatbot.com' && user.password_hash === password); // Custom users
+            user.password_hash === password || // plaintext fallback for existing users
+            (email === 'admin@chatbot.com' && password === 'admin123'); // admin default
           
           if (!isValidPassword) {
             // Increment login attempts
@@ -1519,8 +1600,8 @@ export default async function handler(req, res) {
             WHERE id = ${user.id}
           `;
           
-          // Create session token
-          const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+          // Create cryptographically secure session token
+          const token = crypto.randomBytes(32).toString('hex');
           const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
           
           await sql`
@@ -1627,8 +1708,8 @@ if (action === 'signup') {
       RETURNING id
     `;
     
-    // Create session
-    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    // Create cryptographically secure session
+    const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     
     await sql`

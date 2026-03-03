@@ -391,9 +391,16 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
             </button>
           </div>
           
+          {/* AI Disclosure - Required */}
+          <div className="mt-1 text-center">
+            <p className="text-xs opacity-50" style={{ color: customization.textColor }}>
+              🤖 You are chatting with an AI assistant. Responses may not always be accurate.
+            </p>
+          </div>
+
           {/* Branding - Always show AgenStack.ai */}
           {customization.showBranding && (
-            <div className="mt-2 text-center">
+            <div className="mt-1 text-center">
               <a 
                 href="https://agenstack.ai" 
                 target="_blank" 
@@ -403,9 +410,6 @@ const ChatPreview = ({ botConfig, onSaveTraining }) => {
               >
                 Powered by <span className="font-semibold">AgenStack.ai</span>
               </a>
-              <p className="text-xs opacity-40 mt-1" style={{ color: customization.textColor }}>
-                Remove branding on Business & Enterprise plans
-              </p>
             </div>
           )}
         </div>
