@@ -211,6 +211,15 @@ export default function Login({ onLoginSuccess, onSwitchToSignup }) {
             </button>
           </p>
         </div>
+
+        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-400">
+            By signing in you agree to our{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-600 underline">Terms of Service</a>
+            {' '}and{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-600 underline">Privacy Policy</a>.
+          </p>
+        </div>
       </div>
     </div>
   );
